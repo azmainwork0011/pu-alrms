@@ -60,3 +60,86 @@ Stage Summary:
 - Copy/regenerate message buttons on assistant messages
 - Message timestamps and enhanced message bubble styling
 - All using z-ai-web-dev-sdk: LLM (chat.completions.create), Image (images.generations.create), VLM (chat.completions.createVision)
+
+---
+Task ID: 3 & 7
+Agent: api-developer
+Task: Create announcement API, update store, update assignment permissions for CR
+
+Work Log:
+- Created /api/announcements GET/POST routes with auth, pagination, and role-based filtering
+- Created /api/announcements/[id] GET/PUT/DELETE routes with proper permission checks
+- Updated store with CR role added to UserRole type and 'announcements' added to PageView type
+- Updated api.ts with announcementApi (list, get, create, update, delete)
+- Updated assignment update route PUT handler to allow CR role to update assignments
+- Verified: lint clean, all routes follow existing project auth patterns (verifyToken from @/lib/jwt)
+
+Stage Summary:
+- Full announcement CRUD API with forced student notifications on creation
+- GET /api/announcements returns newest first with pagination (limit/offset)
+- POST /api/announcements creates notifications for all STUDENT and CR users
+- PUT /api/announcements/[id] allows TEACHER/ADMIN/CR; DELETE allows TEACHER/ADMIN only
+- CR role can now update assignments (title, description, deadline, status)
+- Store and API client updated with new role and endpoints
+
+---
+Task ID: 2
+Agent: chat-service-upgrader
+Task: Upgrade chat service with rooms, file sharing, batch groups
+
+Work Log:
+- Read existing chat service code (single-room, text-only chat on port 3003)
+- Read project worklog for context on PU-ALRMS architecture
+- Completely rewrote mini-services/chat-service/index.ts with room-based chat system
+- Added room types: BATCH, SUBJECT, GENERAL with ChatRoom interface
+- Added message types: TEXT, IMAGE, FILE with ChatMsg interface
+- Pre-created 4 default rooms: general, cse-66, cse-65, subject-cse101
+- Implemented user identification via userId field (UID-based)
+- Added auto-join to "general" room and batch-specific room on connect
+- Implemented events: join, join-room, leave-room, message, room-messages, room-list, users-list, create-room, typing
+- Added file/image sharing support with base64 data URLs
+- Added message validation (500 char limit for TEXT, unlimited for FILE/IMAGE)
+- Added dynamic room creation (TEACHER/ADMIN only)
+- Added typing indicator support
+- Added duplicate connection handling (disconnects old socket for same userId)
+- Ran full integration test suite: connect, join, room-list, join-room, text/image/file messages, leave-room, users-list — all passed
+
+Stage Summary:
+- Chat service now supports multi-room chat with batch/subject grouping
+- File and image messages supported via base64 data URLs
+- Users can switch between rooms seamlessly
+- Auto-joins batch room based on user's batch field
+- Teachers/admins can dynamically create new rooms
+- Message history maintained per-room (200 messages max per room)
+- All events backward-compatible with existing single-room clients (defaults to "general")
+
+---
+Task ID: 1-9
+Agent: Main Developer
+Task: Implement comprehensive feature upgrades for PU-ALRMS
+
+Work Log:
+- Updated Prisma schema: Added CR role, Announcement model, ChatRoom model, ChatMessage model, batch field to User/Subject
+- Pushed schema to SQLite database successfully
+- Upgraded chat service (mini-services/chat-service/index.ts): room-based system with BATCH/SUBJECT/GENERAL types, file/image sharing (TEXT/IMAGE/FILE messages), typing indicators, auto-join batch rooms, 4 default rooms pre-created
+- Created /api/announcements routes (GET/POST) and /api/announcements/[id] routes (GET/PUT/DELETE) with forced notification to all students on creation
+- Updated /api/assignments/[id] PUT route to allow CR role to update assignments
+- Updated store (src/store/app.ts): Added CR to UserRole, announcements to PageView
+- Updated API client (src/lib/api.ts): Added announcementApi
+- Updated frontend (src/app/page.tsx):
+  - Renamed AI assistant from "Professor Gemini" to "Lucky Strick" with Zap icon and premium subtitle
+  - Completely rewrote StudentCommunityPage with room selection panel, file/image sharing, typing indicators, per-room message history, own-message styling
+  - Added AnnouncementsPage with full CRUD, priority system (NORMAL/HIGH/CRITICAL), type badges, edit/delete dropdown
+  - Updated SidebarNav with Announcements link and CR role access to Create Assignment
+  - Updated Dashboard for CR role (shows teacher stats, CR-specific quick actions)
+  - Added CR role badge color (violet)
+  - Updated header page name handling for announcements
+- Verified lint passes clean, all services running
+
+Stage Summary:
+- AI Assistant renamed to "Lucky Strick" with premium branding
+- Community chat fully upgraded: room-based (batch/subject/general), file/image sharing, typing indicators
+- Teacher Announcement system with forced notifications to all students
+- Student CR role: can create assignments, update assignment dates/topics, edit announcements
+- Database: 4 new tables (Announcement, ChatRoom, ChatMessage, batch field)
+- Chat service: 4 default rooms, room switching, message types

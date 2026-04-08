@@ -12,8 +12,9 @@ model User {
   name      String
   email     String   @unique
   password  String
-  role      String   @default("STUDENT") // ADMIN, TEACHER, STUDENT
+  role      String   @default("STUDENT") // ADMIN, TEACHER, STUDENT, CR
   avatar    String?
+  batch     String?  // e.g. "CSE-66"
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -22,6 +23,8 @@ model User {
   submissions    Submission[]
   comments       Comment[]
   notifications  Notification[]
+  announcements  Announcement[]
+  chatMessages   ChatMessage[]
 }
 
 model Subject {
@@ -29,6 +32,7 @@ model Subject {
   name      String
   code      String
   teacherId String
+  batch     String?  // batch group
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -87,9 +91,47 @@ model Notification {
   userId    String
   title     String
   message   String
-  type      String   @default("INFO") // INFO, DEADLINE, FEEDBACK, ASSIGNMENT
+  type      String   @default("INFO") // INFO, DEADLINE, FEEDBACK, ASSIGNMENT, ANNOUNCEMENT
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  message   String
+  type      String   @default("GENERAL") // GENERAL, URGENT, ASSIGNMENT, EXAM, RESULT
+  priority  String   @default("NORMAL")  // NORMAL, HIGH, CRITICAL
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  creator User @relation(fields: [createdBy], references: [id])
+}
+
+model ChatRoom {
+  id        String   @id @default(cuid())
+  name      String
+  type      String   @default("BATCH")  // BATCH, SUBJECT, GENERAL
+  subjectId String?
+  batch     String?
+  createdAt DateTime @default(now())
+
+  messages ChatMessage[]
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  roomId    String
+  userId    String
+  content   String
+  messageType String @default("TEXT") // TEXT, IMAGE, FILE
+  fileUrl   String?
+  fileName  String?
+  createdAt DateTime @default(now())
+
+  room ChatRoom @relation(fields: [roomId], references: [id])
+  user User     @relation(fields: [userId], references: [id])
 }

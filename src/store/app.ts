@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-export type UserRole = 'ADMIN' | 'TEACHER' | 'STUDENT';
+export type UserRole = 'ADMIN' | 'TEACHER' | 'STUDENT' | 'CR';
 
 export interface User {
   id: string;
@@ -21,7 +21,8 @@ export type PageView =
   | 'leaderboard'
   | 'notifications'
   | 'profile'
-  | 'student-community';
+  | 'student-community'
+  | 'announcements';
 
 interface AppState {
   // Auth

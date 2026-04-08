@@ -127,6 +127,29 @@ export const subjectApi = {
     apiFetch<any[]>('/api/subjects'),
 };
 
+export const announcementApi = {
+  list: (params?: Record<string, string>) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiFetch<any[]>('/api/announcements' + query);
+  },
+  get: (id: string) =>
+    apiFetch<any>(`/api/announcements/${id}`),
+  create: (data: { title: string; message: string; type?: string; priority?: string }) =>
+    apiFetch<any>('/api/announcements', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: any) =>
+    apiFetch<any>(`/api/announcements/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    apiFetch<any>(`/api/announcements/${id}`, {
+      method: 'DELETE',
+    }),
+};
+
 export const aiApi = {
   chat: (message: string, context?: string) =>
     apiFetch<{ response: string }>('/api/ai/chat', {

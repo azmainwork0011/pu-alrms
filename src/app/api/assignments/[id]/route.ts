@@ -73,8 +73,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    if (payload.role !== 'TEACHER' && payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Only teachers or admins can update assignments' }, { status: 403 });
+    if (payload.role !== 'TEACHER' && payload.role !== 'ADMIN' && payload.role !== 'CR') {
+      return NextResponse.json({ error: 'Only teachers, admins, or CRs can update assignments' }, { status: 403 });
     }
 
     const { id } = await params;
@@ -87,7 +87,7 @@ export async function PUT(
       return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
     }
 
-    // Teachers can only update their own assignments
+    // Teachers can only update their own assignments; admins and CRs can update any
     if (payload.role === 'TEACHER' && existing.createdBy !== payload.userId) {
       return NextResponse.json({ error: 'You can only update your own assignments' }, { status: 403 });
     }

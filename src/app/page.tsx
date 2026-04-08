@@ -30,7 +30,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 // Store and API
 import { useAppStore, type PageView, type User, type UserRole } from '@/store/app';
-import { authApi, assignmentApi, submissionApi, commentApi, notificationApi, dashboardApi, leaderboardApi, subjectApi, aiApi } from '@/lib/api';
+import { authApi, assignmentApi, submissionApi, commentApi, notificationApi, dashboardApi, leaderboardApi, subjectApi, aiApi, announcementApi } from '@/lib/api';
 
 // Icons
 import {
@@ -40,7 +40,7 @@ import {
   Users, Award, Edit, Trash2, Eye, MessageCircle, HomeIcon, PenTool, Beaker, LayoutDashboard,
   Search, Filter, Moon, Sun, Code2, Heart, Globe, Mail, Lock, Unlock, Wifi, WifiOff,
   BookMarked, GraduationCapIcon, Lightbulb, Bug, BrainCircuit, Volume2, Copy, RotateCcw, Download,
-  Camera, Paperclip, Image as ImageIcon, Zap, Check
+  Camera, Paperclip, Image as ImageIcon, Zap, Check, Megaphone, Crown, Hash, ChevronDown, PlusCircle, FileUp, XCircle, Smile, SmilePlus, AtSign, Phone, MoreHorizontal
 } from 'lucide-react';
 
 // ─── Notification Sound (Web Audio API) ───────────────────
@@ -112,6 +112,7 @@ function getRoleBadgeColor(role: string) {
   switch (role) {
     case 'ADMIN': return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300';
     case 'TEACHER': return 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300';
+    case 'CR': return 'bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300';
     case 'STUDENT': return 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300';
     default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
   }
@@ -526,11 +527,12 @@ function SidebarNav({ onNavigate }: { onNavigate: (page: PageView) => void }) {
     { page: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
     { page: 'assignments', label: 'Assignments', icon: <ClipboardList className="w-4 h-4" /> },
     { page: 'lab-reports', label: 'Lab Reports', icon: <FlaskConical className="w-4 h-4" /> },
-    { page: 'create-assignment', label: 'Create Assignment', icon: <Plus className="w-4 h-4" />, roles: ['TEACHER'] },
+    { page: 'create-assignment', label: 'Create Assignment', icon: <Plus className="w-4 h-4" />, roles: ['TEACHER', 'CR', 'ADMIN'] },
     { page: 'submissions', label: user?.role === 'TEACHER' ? 'Grade Submissions' : 'My Submissions', icon: <FileText className="w-4 h-4" /> },
-    { page: 'leaderboard', label: 'Leaderboard', icon: <Trophy className="w-4 h-4" />, roles: ['STUDENT', 'ADMIN'] },
+    { page: 'leaderboard', label: 'Leaderboard', icon: <Trophy className="w-4 h-4" />, roles: ['STUDENT', 'CR', 'ADMIN'] },
+    { page: 'announcements', label: 'Announcements', icon: <Megaphone className="w-4 h-4" /> },
     { page: 'student-community', label: 'Community Chat', icon: <MessageSquare className="w-4 h-4" /> },
-    { page: 'ai-chat', label: 'AI Assistant', icon: <Sparkles className="w-4 h-4" /> },
+    { page: 'ai-chat', label: 'Lucky Strick AI', icon: <Sparkles className="w-4 h-4" /> },
     { page: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
     { page: 'profile', label: 'Profile', icon: <UserIcon className="w-4 h-4" /> },
   ];
@@ -648,7 +650,7 @@ function DashboardPage() {
     { label: 'Subjects', value: stats?.activeSubjects || 0, icon: <BookOpen className="w-5 h-5" />, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/20' },
   ];
 
-  const currentStats = user?.role === 'ADMIN' ? adminStats : user?.role === 'TEACHER' ? teacherStats : studentStats;
+  const currentStats = user?.role === 'ADMIN' ? adminStats : user?.role === 'TEACHER' || user?.role === 'CR' ? teacherStats : studentStats;
 
   return (
     <div className="space-y-6">
@@ -659,6 +661,7 @@ function DashboardPage() {
         <p className="text-gray-500 dark:text-gray-400 mt-1">
           {user?.role === 'STUDENT' && "Here's your academic overview"}
           {user?.role === 'TEACHER' && "Here's your teaching dashboard"}
+          {user?.role === 'CR' && "Class Representative Dashboard"}
           {user?.role === 'ADMIN' && "System overview and analytics"}
         </p>
       </div>
@@ -770,11 +773,11 @@ function DashboardPage() {
                   <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}><Button variant="outline" className="w-full h-auto py-3 flex-col gap-2 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700" onClick={() => useAppStore.getState().setPage('student-community')}><MessageSquare className="w-5 h-5 text-amber-600 dark:text-amber-400" /><span className="text-xs">Community</span></Button></motion.div>
                 </>
               )}
-              {user?.role === 'TEACHER' && (
+              {(user?.role === 'TEACHER' || user?.role === 'CR') && (
                 <>
                   <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}><Button variant="outline" className="w-full h-auto py-3 flex-col gap-2 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700" onClick={() => useAppStore.getState().setPage('create-assignment')}><Plus className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /><span className="text-xs">Create Assignment</span></Button></motion.div>
-                  <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}><Button variant="outline" className="w-full h-auto py-3 flex-col gap-2 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700" onClick={() => useAppStore.getState().setPage('submissions')}><PenTool className="w-5 h-5 text-blue-600 dark:text-blue-400" /><span className="text-xs">Grade Submissions</span></Button></motion.div>
-                  <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}><Button variant="outline" className="w-full h-auto py-3 flex-col gap-2 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700" onClick={() => useAppStore.getState().setPage('ai-chat')}><Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" /><span className="text-xs">AI Assistant</span></Button></motion.div>
+                  <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}><Button variant="outline" className="w-full h-auto py-3 flex-col gap-2 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700" onClick={() => useAppStore.getState().setPage('announcements')}><Megaphone className="w-5 h-5 text-blue-600 dark:text-blue-400" /><span className="text-xs">Announcements</span></Button></motion.div>
+                  <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}><Button variant="outline" className="w-full h-auto py-3 flex-col gap-2 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700" onClick={() => useAppStore.getState().setPage('ai-chat')}><Sparkles className="w-5 h-5 text-purple-600 dark:text-purple-400" /><span className="text-xs">Lucky Strick AI</span></Button></motion.div>
                   <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}><Button variant="outline" className="w-full h-auto py-3 flex-col gap-2 dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700" onClick={() => useAppStore.getState().setPage('lab-reports')}><Beaker className="w-5 h-5 text-amber-600 dark:text-amber-400" /><span className="text-xs">Lab Reports</span></Button></motion.div>
                 </>
               )}
@@ -1762,9 +1765,9 @@ function AIChatPage() {
           </motion.div>
           <div>
             <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-purple-600 dark:from-emerald-400 dark:to-purple-400 bg-clip-text text-transparent flex items-center gap-2">
-              Professor Gemini
+              <Zap className="w-5 h-5 text-amber-500" /> Lucky Strick
             </h1>
-            <p className="text-xs text-gray-500 dark:text-gray-400">Powered by Google Gemini &middot; Your AI Academic Assistant</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400">Your Premium AI Academic Assistant &middot; Powered by Gemini</p>
           </div>
         </div>
         {messages.length > 0 && (
@@ -2519,34 +2522,53 @@ function ProfilePage() {
   );
 }
 
-// ─── Student Community Chat ──────────────────────────────
-interface CommunityMessage {
+// ─── Community Chat Types ──────────────────────────────
+interface ChatRoomInfo {
   id: string;
+  name: string;
+  type: 'BATCH' | 'SUBJECT' | 'GENERAL';
+  batch?: string;
+  subjectId?: string;
+}
+
+interface ChatMsg {
+  id: string;
+  roomId: string;
+  userId: string;
   username: string;
   content: string;
+  messageType: 'TEXT' | 'IMAGE' | 'FILE';
+  fileUrl?: string;
+  fileName?: string;
   timestamp: string;
-  type: 'user' | 'system';
   role?: string;
+  type?: 'user' | 'system';
 }
 
-interface OnlineUser {
-  id: string;
+interface OnlineUserInfo {
+  userId: string;
   username: string;
-  role?: string;
+  role: string;
 }
 
+// ─── Student Community Chat (Upgraded) ────────────────
 function StudentCommunityPage() {
   const { user, token } = useAppStore();
-  const [messages, setMessages] = useState<CommunityMessage[]>([]);
+  const [messages, setMessages] = useState<ChatMsg[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isConnected, setIsConnected] = useState(false);
-  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUserInfo[]>([]);
   const [isJoined, setIsJoined] = useState(false);
   const [showUsers, setShowUsers] = useState(false);
+  const [rooms, setRooms] = useState<ChatRoomInfo[]>([]);
+  const [activeRoom, setActiveRoom] = useState<string>('general');
+  const [showRooms, setShowRooms] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const socketRef = useRef<any>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isVisible, setIsVisible] = useState(true);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
 
   useEffect(() => {
     const handleVisibility = () => setIsVisible(!document.hidden);
@@ -2577,17 +2599,28 @@ function StudentCommunityPage() {
 
     socket.on('connect', () => {
       setIsConnected(true);
-      socket.emit('join', { username: `${user.name} (${user.role})`, role: user.role });
+      socket.emit('join', { userId: user.id, username: user.name, role: user.role, batch: user.role === 'STUDENT' || user.role === 'CR' ? 'CSE-66' : undefined });
     });
 
-    socket.on('joined', () => {
+    socket.on('joined', (data: { rooms: string[] }) => {
       setIsJoined(true);
+      if (data.rooms?.includes(activeRoom)) {
+        socket.emit('join-room', { roomId: activeRoom });
+      }
     });
 
-    socket.on('messages-history', (history: CommunityMessage[]) => {
-      if (Array.isArray(history)) {
-        setMessages(history.slice(-100));
+    socket.on('room-list', (roomList: ChatRoomInfo[]) => {
+      if (Array.isArray(roomList)) setRooms(roomList);
+    });
+
+    socket.on('room-messages', (data: { roomId: string; messages: ChatMsg[] }) => {
+      if (data.roomId === activeRoom) {
+        setMessages(Array.isArray(data.messages) ? data.messages.slice(-100) : []);
       }
+    });
+
+    socket.on('room-created', (room: ChatRoomInfo) => {
+      setRooms(prev => [...prev, room]);
     });
 
     socket.on('disconnect', () => {
@@ -2595,45 +2628,118 @@ function StudentCommunityPage() {
       setIsJoined(false);
     });
 
-    socket.on('message', (msg: CommunityMessage) => {
-      setMessages(prev => [...prev.slice(-99), msg]);
-      if (!isVisible) {
+    socket.on('message', (msg: ChatMsg) => {
+      if (msg.roomId === activeRoom) {
+        setMessages(prev => [...prev.slice(-99), msg]);
+      }
+      if (!isVisible && msg.userId !== user?.id) {
         playNotificationSound();
+      }
+      // Clear typing indicator for this user
+      setTypingUsers(prev => prev.filter(u => u !== msg.username));
+    });
+
+    socket.on('user-joined-room', (data: { roomId: string; user: OnlineUserInfo; message: ChatMsg }) => {
+      if (data.roomId === activeRoom) {
+        setMessages(prev => [...prev.slice(-99), data.message]);
+      }
+      socket.emit('users-list', { roomId: activeRoom });
+    });
+
+    socket.on('user-left-room', (data: { roomId: string; user: OnlineUserInfo; message: ChatMsg }) => {
+      if (data.roomId === activeRoom) {
+        setMessages(prev => [...prev.slice(-99), data.message]);
+      }
+      socket.emit('users-list', { roomId: activeRoom });
+    });
+
+    socket.on('users-list', (data: { roomId: string; users: OnlineUserInfo[] }) => {
+      if (data.roomId === activeRoom) {
+        setOnlineUsers(data.users || []);
       }
     });
 
-    socket.on('user-joined', (data: { user: OnlineUser; message: CommunityMessage }) => {
-      setMessages(prev => [...prev.slice(-99), data.message]);
-      setOnlineUsers(prev => {
-        if (!prev.find(u => u.id === data.user.id)) {
-          return [...prev, data.user];
-        }
-        return prev;
-      });
-      if (!isVisible) playNotificationSound();
-    });
-
-    socket.on('user-left', (data: { user: OnlineUser; message: CommunityMessage }) => {
-      setMessages(prev => [...prev.slice(-99), data.message]);
-      setOnlineUsers(prev => prev.filter(u => u.id !== data.user.id));
-    });
-
-    socket.on('users-list', (data: { users: OnlineUser[] }) => {
-      setOnlineUsers(data.users);
+    socket.on('typing', (data: { roomId: string; username: string; isTyping: boolean }) => {
+      if (data.roomId === activeRoom && data.username !== user?.name) {
+        setTypingUsers(prev => {
+          if (data.isTyping && !prev.includes(data.username)) return [...prev, data.username];
+          if (!data.isTyping) return prev.filter(u => u !== data.username);
+          return prev;
+        });
+      }
     });
 
     return () => {
       socket.disconnect();
     };
-  }, [token, user, isVisible]);
+  }, [token, user, isVisible, activeRoom]);
+
+  const switchRoom = (roomId: string) => {
+    if (!socketRef.current || roomId === activeRoom) return;
+    setActiveRoom(roomId);
+    setMessages([]);
+    setTypingUsers([]);
+    socketRef.current.emit('join-room', { roomId });
+  };
 
   const sendMessage = () => {
-    if (socketRef.current && inputMessage.trim() && isJoined) {
-      socketRef.current.emit('message', {
-        content: inputMessage.trim(),
-        username: `${user?.name} (${user?.role})`,
-      });
-      setInputMessage('');
+    if (!socketRef.current || !inputMessage.trim() || !isJoined) return;
+    socketRef.current.emit('message', {
+      content: inputMessage.trim(),
+      roomId: activeRoom,
+      messageType: 'TEXT',
+    });
+    setInputMessage('');
+    // Stop typing
+    socketRef.current.emit('typing', { roomId: activeRoom, isTyping: false });
+  };
+
+  const sendImageMessage = (dataUrl: string) => {
+    if (!socketRef.current || !isJoined) return;
+    socketRef.current.emit('message', {
+      content: dataUrl,
+      roomId: activeRoom,
+      messageType: 'IMAGE',
+    });
+    setImagePreview(null);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('File size must be under 5MB');
+      return;
+    }
+
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        setImagePreview(ev.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      // Non-image file - read as data URL and send
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        if (!socketRef.current || !isJoined) return;
+        socketRef.current.emit('message', {
+          content: '',
+          roomId: activeRoom,
+          messageType: 'FILE',
+          fileUrl: ev.target?.result as string,
+          fileName: file.name,
+        });
+        toast.success(`Shared: ${file.name}`);
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+  };
+
+  const handleTyping = () => {
+    if (socketRef.current) {
+      socketRef.current.emit('typing', { roomId: activeRoom, isTyping: true });
     }
   };
 
@@ -2642,63 +2748,106 @@ function StudentCommunityPage() {
     const colors: Record<string, string> = {
       ADMIN: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
       TEACHER: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+      CR: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-300',
       STUDENT: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
     };
     return (
       <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${colors[role] || 'bg-gray-100 text-gray-700'}`}>
-        {role.slice(0, 4)}
+        {role === 'CR' ? 'CR' : role.slice(0, 4)}
       </span>
     );
+  };
+
+  const getRoomIcon = (type: string) => {
+    switch (type) {
+      case 'BATCH': return <Hash className="w-3.5 h-3.5" />;
+      case 'SUBJECT': return <BookOpen className="w-3.5 h-3.5" />;
+      default: return <MessageSquare className="w-3.5 h-3.5" />;
+    }
+  };
+
+  const getRoomBadgeColor = (type: string) => {
+    switch (type) {
+      case 'BATCH': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+      case 'SUBJECT': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+      default: return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+    }
   };
 
   const formatTime = (timestamp: string) => {
     try {
       return new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    } catch {
-      return '';
-    }
+    } catch { return ''; }
   };
+
+  const currentRoomInfo = rooms.find(r => r.id === activeRoom);
 
   return (
     <div className="flex flex-col h-[calc(100vh-8rem)] gap-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <MessageSquare className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
-            Student Community
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Real-time chat with students and faculty</p>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <MessageSquare className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+              Community Chat
+            </h1>
+            <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">
+              {currentRoomInfo ? (
+                <span className="flex items-center gap-1.5">
+                  {getRoomIcon(currentRoomInfo.type)}
+                  <span className="font-medium text-gray-700 dark:text-gray-300">{currentRoomInfo.name}</span>
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${getRoomBadgeColor(currentRoomInfo.type)}`}>
+                    {currentRoomInfo.type}
+                  </span>
+                </span>
+              ) : 'Real-time chat with students and faculty'}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="relative dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
-            onClick={() => setShowUsers(!showUsers)}
-          >
-            <Users className="w-4 h-4 mr-1" />
-            {onlineUsers.length} Online
+          <Button variant="outline" size="sm" className="dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300" onClick={() => setShowRooms(!showRooms)}>
+            <Hash className="w-4 h-4 mr-1" /> Rooms ({rooms.length})
+          </Button>
+          <Button variant="outline" size="sm" className="relative dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300" onClick={() => setShowUsers(!showUsers)}>
+            <Users className="w-4 h-4 mr-1" /> {onlineUsers.length} Online
             <span className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-gray-900" />
           </Button>
           <Badge variant={isConnected ? 'default' : 'destructive'} className="text-xs">
             {isConnected ? <Wifi className="w-3 h-3 mr-1" /> : <WifiOff className="w-3 h-3 mr-1" />}
-            {isConnected ? 'Connected' : 'Disconnected'}
+            {isConnected ? 'Live' : 'Off'}
           </Badge>
         </div>
       </div>
 
-      {showUsers && (
-        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+      {/* Rooms Panel */}
+      {showRooms && (
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
           <Card className="border dark:border-gray-800">
             <CardContent className="p-4">
-              <h3 className="text-sm font-semibold mb-3 dark:text-gray-200">Online Users ({onlineUsers.length})</h3>
-              <div className="flex flex-wrap gap-2">
-                {onlineUsers.map((u) => (
-                  <div key={u.id} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-800">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="text-sm dark:text-gray-300">{u.username}</span>
-                    {getRoleBadge(u.role)}
-                  </div>
+              <h3 className="text-sm font-semibold mb-3 dark:text-gray-200">Chat Rooms</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                {rooms.map((room) => (
+                  <motion.div key={room.id} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                    <button
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all ${
+                        activeRoom === room.id
+                          ? 'bg-emerald-100 border border-emerald-300 dark:bg-emerald-900/30 dark:border-emerald-700'
+                          : 'bg-gray-50 hover:bg-gray-100 dark:bg-gray-800/50 dark:hover:bg-gray-800 border border-transparent'
+                      }`}
+                      onClick={() => { switchRoom(room.id); setShowRooms(false); }}
+                    >
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${activeRoom === room.id ? 'bg-emerald-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
+                        {getRoomIcon(room.type)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate dark:text-gray-200">{room.name}</p>
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium ${getRoomBadgeColor(room.type)}`}>
+                          {room.type}
+                        </span>
+                      </div>
+                      {activeRoom === room.id && <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />}
+                    </button>
+                  </motion.div>
                 ))}
               </div>
             </CardContent>
@@ -2706,15 +2855,54 @@ function StudentCommunityPage() {
         </motion.div>
       )}
 
+      {/* Online Users Panel */}
+      {showUsers && (
+        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+          <Card className="border dark:border-gray-800">
+            <CardContent className="p-4">
+              <h3 className="text-sm font-semibold mb-3 dark:text-gray-200">Online in {currentRoomInfo?.name || 'room'} ({onlineUsers.length})</h3>
+              <div className="flex flex-wrap gap-2">
+                {onlineUsers.map((u) => (
+                  <div key={u.userId} className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 dark:bg-gray-800">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span className="text-sm dark:text-gray-300">{u.username}</span>
+                    {getRoleBadge(u.role)}
+                  </div>
+                ))}
+                {onlineUsers.length === 0 && <p className="text-sm text-gray-400">No one else online</p>}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* Image Preview Modal */}
+      {imagePreview && (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-white dark:bg-gray-900 rounded-xl p-4 max-w-md w-full border dark:border-gray-800">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold dark:text-gray-200">Send Image</h3>
+              <button onClick={() => setImagePreview(null)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><X className="w-5 h-5" /></button>
+            </div>
+            <img src={imagePreview} alt="Preview" className="w-full rounded-lg max-h-60 object-contain bg-gray-100 dark:bg-gray-800" />
+            <div className="flex gap-2 mt-3">
+              <Button variant="outline" className="flex-1 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300" onClick={() => setImagePreview(null)}>Cancel</Button>
+              <Button className="flex-1 bg-emerald-600 hover:bg-emerald-700" onClick={() => sendImageMessage(imagePreview)}>Send Image</Button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Chat Card */}
       <Card className="border dark:border-gray-800 flex-1 flex flex-col overflow-hidden">
-        <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {!isJoined ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <div className="w-12 h-12 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mx-auto mb-3">
-                  <MessageSquare className="w-6 h-6 text-gray-400" />
+                  <MessageSquare className="w-6 h-6 text-gray-400 animate-pulse" />
                 </div>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Connecting to community chat...</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Connecting to chat...</p>
               </div>
             </div>
           ) : messages.length === 0 ? (
@@ -2723,36 +2911,43 @@ function StudentCommunityPage() {
                 <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-900/20 flex items-center justify-center mx-auto mb-3">
                   <MessageSquare className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                 </div>
-                <p className="text-gray-500 dark:text-gray-400 text-sm">Welcome to the community chat!</p>
+                <p className="text-gray-500 dark:text-gray-400 text-sm">Welcome to {currentRoomInfo?.name || 'the chat'}!</p>
                 <p className="text-gray-400 dark:text-gray-500 text-xs mt-1">Be the first to say hello</p>
               </div>
             </div>
           ) : (
             messages.map((msg) => (
-              <motion.div
-                key={msg.id}
-                initial={{ opacity: 0, y: 5 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.15 }}
-              >
+              <motion.div key={msg.id} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.15 }}>
                 {msg.type === 'system' ? (
                   <div className="text-center py-2">
-                    <span className="text-xs text-gray-400 dark:text-gray-500 italic bg-gray-50 dark:bg-gray-800/50 px-3 py-1 rounded-full">
-                      {msg.content}
-                    </span>
+                    <span className="text-xs text-gray-400 dark:text-gray-500 italic bg-gray-50 dark:bg-gray-800/50 px-3 py-1 rounded-full">{msg.content}</span>
                   </div>
                 ) : (
-                  <div className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                  <div className={`flex gap-3 ${msg.userId === user?.id ? 'flex-row-reverse' : ''}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 ${msg.userId === user?.id ? 'bg-gradient-to-br from-violet-500 to-purple-600' : 'bg-gradient-to-br from-emerald-400 to-teal-500'}`}>
                       {msg.username.charAt(0).toUpperCase()}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
+                    <div className={`flex-1 min-w-0 max-w-[75%] ${msg.userId === user?.id ? 'text-right' : ''}`}>
+                      <div className={`flex items-center gap-2 flex-wrap ${msg.userId === user?.id ? 'justify-end' : ''}`}>
                         <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{msg.username}</span>
                         {getRoleBadge(msg.role)}
                         <span className="text-xs text-gray-400 dark:text-gray-500">{formatTime(msg.timestamp)}</span>
                       </div>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 mt-0.5 break-words">{msg.content}</p>
+                      <div className="mt-1">
+                        {msg.messageType === 'IMAGE' && msg.content ? (
+                          <img src={msg.content} alt="Shared" className="rounded-lg max-h-48 object-contain cursor-pointer hover:opacity-90 transition-opacity bg-gray-50 dark:bg-gray-800/50" />
+                        ) : msg.messageType === 'FILE' && msg.fileUrl ? (
+                          <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 border dark:border-gray-700">
+                            <Paperclip className="w-4 h-4 text-gray-400" />
+                            <span className="text-sm text-gray-700 dark:text-gray-300 truncate max-w-[200px]">{msg.fileName || 'File'}</span>
+                            <a href={msg.fileUrl} download={msg.fileName} className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline shrink-0">
+                              <Download className="w-3.5 h-3.5" />
+                            </a>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-700 dark:text-gray-300 break-words">{msg.content}</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -2762,22 +2957,259 @@ function StudentCommunityPage() {
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="border-t p-4 dark:border-gray-800">
-          <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex gap-2">
-            <Input
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-              placeholder={isConnected ? 'Type a message...' : 'Connecting...'}
-              disabled={!isConnected || !isJoined}
-              className="flex-1 dark:bg-gray-800 dark:border-gray-700"
-            />
-            <Button type="submit" disabled={!isConnected || !isJoined || !inputMessage.trim()} className="bg-emerald-600 hover:bg-emerald-700 shrink-0">
+        {/* Typing indicator */}
+        {typingUsers.length > 0 && (
+          <div className="px-4 py-1">
+            <p className="text-xs text-gray-400 dark:text-gray-500 italic">
+              {typingUsers.length === 1 ? `${typingUsers[0]} is typing...` : `${typingUsers.slice(0, 2).join(', ')} and ${typingUsers.length - 1} more are typing...`}
+            </p>
+          </div>
+        )}
+
+        {/* Input Area */}
+        <div className="border-t p-3 dark:border-gray-800">
+          <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex gap-2 items-end">
+            <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf,.doc,.docx,.txt,.zip" onChange={handleFileSelect} />
+            <Button type="button" variant="ghost" size="icon" className="shrink-0 h-10 w-10 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800" onClick={() => fileInputRef.current?.click()} disabled={!isConnected || !isJoined}>
+              <Paperclip className="w-4 h-4" />
+            </Button>
+            <div className="flex-1 relative">
+              <Input
+                value={inputMessage}
+                onChange={(e) => setInputMessage(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                onKeyUp={handleTyping}
+                placeholder={isConnected ? `Message ${currentRoomInfo?.name || 'chat'}...` : 'Connecting...'}
+                disabled={!isConnected || !isJoined}
+                className="pr-10 dark:bg-gray-800 dark:border-gray-700"
+              />
+            </div>
+            <Button type="submit" disabled={!isConnected || !isJoined || !inputMessage.trim()} className="bg-emerald-600 hover:bg-emerald-700 shrink-0 h-10 w-10 p-0">
               <Send className="w-4 h-4" />
             </Button>
           </form>
         </div>
       </Card>
+    </div>
+  );
+}
+
+// ─── Announcements Page ────────────────────────────────
+function AnnouncementsPage() {
+  const { user } = useAppStore();
+  const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editId, setEditId] = useState<string | null>(null);
+  const [form, setForm] = useState({ title: '', message: '', type: 'GENERAL', priority: 'NORMAL' });
+  const [submitting, setSubmitting] = useState(false);
+
+  const canCreate = user?.role === 'TEACHER' || user?.role === 'ADMIN';
+  const canEdit = user?.role === 'TEACHER' || user?.role === 'ADMIN' || user?.role === 'CR';
+  const canDelete = user?.role === 'TEACHER' || user?.role === 'ADMIN';
+
+  const loadAnnouncements = useCallback(async () => {
+    try {
+      const data = await announcementApi.list();
+      setAnnouncements(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Failed to load announcements:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadAnnouncements(); }, [loadAnnouncements]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!form.title.trim() || !form.message.trim()) return;
+    setSubmitting(true);
+    try {
+      if (editId) {
+        await announcementApi.update(editId, form);
+        toast.success('Announcement updated');
+      } else {
+        await announcementApi.create(form);
+        toast.success('Announcement published to all students!');
+        playNotificationSound();
+      }
+      setShowCreate(false);
+      setEditId(null);
+      setForm({ title: '', message: '', type: 'GENERAL', priority: 'NORMAL' });
+      loadAnnouncements();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save announcement');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleEdit = (ann: any) => {
+    setForm({ title: ann.title, message: ann.message, type: ann.type, priority: ann.priority });
+    setEditId(ann.id);
+    setShowCreate(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this announcement?')) return;
+    try {
+      await announcementApi.delete(id);
+      toast.success('Announcement deleted');
+      loadAnnouncements();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete');
+    }
+  };
+
+  const getTypeStyle = (type: string) => {
+    const styles: Record<string, string> = {
+      GENERAL: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+      URGENT: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+      ASSIGNMENT: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+      EXAM: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+      RESULT: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+    };
+    return styles[type] || styles.GENERAL;
+  };
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case 'CRITICAL': return <AlertTriangle className="w-4 h-4 text-red-500" />;
+      case 'HIGH': return <AlertTriangle className="w-4 h-4 text-amber-500" />;
+      default: return <Bell className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  if (loading) return <DashboardSkeleton />;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <Megaphone className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+            Announcements
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
+            {canCreate ? 'Create and manage announcements for all students' : 'Stay updated with the latest announcements'}
+          </p>
+        </div>
+        {canCreate && (
+          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+            <Button onClick={() => { setShowCreate(true); setEditId(null); setForm({ title: '', message: '', type: 'GENERAL', priority: 'NORMAL' }); }} className="bg-emerald-600 hover:bg-emerald-700">
+              <Plus className="w-4 h-4 mr-2" /> New Announcement
+            </Button>
+          </motion.div>
+        )}
+      </div>
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) { setEditId(null); setForm({ title: '', message: '', type: 'GENERAL', priority: 'NORMAL' }); } }}>
+        <DialogContent className="dark:bg-gray-900 dark:border-gray-800 max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editId ? 'Edit Announcement' : 'Create Announcement'}</DialogTitle>
+            <DialogDescription>
+              {editId ? 'Update the announcement details' : 'This will be sent as a notification to all students'}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Title</Label>
+              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Announcement title..." required className="dark:bg-gray-800 dark:border-gray-700" />
+            </div>
+            <div className="space-y-2">
+              <Label>Message</Label>
+              <Textarea value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder="Write your announcement..." rows={4} required className="dark:bg-gray-800 dark:border-gray-700" />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Type</Label>
+                <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+                  <SelectTrigger className="dark:bg-gray-800 dark:border-gray-700"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="GENERAL">General</SelectItem>
+                    <SelectItem value="URGENT">Urgent</SelectItem>
+                    <SelectItem value="ASSIGNMENT">Assignment</SelectItem>
+                    <SelectItem value="EXAM">Exam</SelectItem>
+                    <SelectItem value="RESULT">Result</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Priority</Label>
+                <Select value={form.priority} onValueChange={(v) => setForm({ ...form, priority: v })}>
+                  <SelectTrigger className="dark:bg-gray-800 dark:border-gray-700"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="NORMAL">Normal</SelectItem>
+                    <SelectItem value="HIGH">High</SelectItem>
+                    <SelectItem value="CRITICAL">Critical</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button type="button" variant="outline" onClick={() => { setShowCreate(false); setEditId(null); }} className="dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300">Cancel</Button>
+              <Button type="submit" disabled={submitting || !form.title.trim() || !form.message.trim()} className="bg-emerald-600 hover:bg-emerald-700">
+                {submitting ? <span className="flex items-center gap-2"><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /></span> : null}
+                {editId ? 'Update' : 'Publish'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Announcements List */}
+      {announcements.length === 0 ? (
+        <Card className="border dark:border-gray-800">
+          <CardContent className="p-12 text-center">
+            <Megaphone className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
+            <p className="text-gray-500 dark:text-gray-400">No announcements yet</p>
+            {canCreate && <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">Create the first announcement to notify all students</p>}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {announcements.map((ann, i) => (
+            <motion.div key={ann.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
+              <Card className={`border dark:border-gray-800 ${ann.priority === 'CRITICAL' ? 'border-l-4 border-l-red-500 dark:border-l-red-400' : ann.priority === 'HIGH' ? 'border-l-4 border-l-amber-500 dark:border-l-amber-400' : ''}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      {getPriorityIcon(ann.priority)}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <h3 className="font-semibold text-gray-900 dark:text-white">{ann.title}</h3>
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getTypeStyle(ann.type)}`}>{ann.type}</span>
+                          {ann.priority === 'CRITICAL' && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">CRITICAL</span>}
+                        </div>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{ann.message}</p>
+                        <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 dark:text-gray-500">
+                          <span className="flex items-center gap-1"><UserIcon className="w-3 h-3" />{ann.creator?.name || 'Unknown'}</span>
+                          <span>{timeAgo(ann.createdAt)}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {canEdit && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8 dark:text-gray-400 dark:hover:text-gray-200">
+                            <MoreHorizontal className="w-4 h-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="dark:bg-gray-900 dark:border-gray-800">
+                          <DropdownMenuItem onClick={() => handleEdit(ann)} className="dark:text-gray-300 dark:focus:bg-gray-800"><Edit className="w-4 h-4 mr-2" />Edit</DropdownMenuItem>
+                          {canDelete && <DropdownMenuItem onClick={() => handleDelete(ann.id)} className="text-red-600 dark:text-red-400 dark:focus:bg-gray-800"><Trash2 className="w-4 h-4 mr-2" />Delete</DropdownMenuItem>}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -2825,6 +3257,7 @@ function AppLayout() {
       case 'notifications': return <NotificationsPage />;
       case 'profile': return <ProfilePage />;
       case 'student-community': return <StudentCommunityPage />;
+      case 'announcements': return <AnnouncementsPage />;
       default: return <DashboardPage />;
     }
   };
@@ -2860,7 +3293,7 @@ function AppLayout() {
                 <Menu className="w-5 h-5" />
               </Button>
               <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 capitalize">
-                {currentPage === 'student-community' ? 'Community Chat' : currentPage.replace(/-/g, ' ')}
+                {currentPage === 'student-community' ? 'Community Chat' : currentPage === 'announcements' ? 'Announcements' : currentPage.replace(/-/g, ' ')}
               </h2>
             </div>
 
