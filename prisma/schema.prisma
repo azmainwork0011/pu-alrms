@@ -1,0 +1,95 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   @default("STUDENT") // ADMIN, TEACHER, STUDENT
+  avatar    String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  subjects       Subject[]
+  assignments    Assignment[]
+  submissions    Submission[]
+  comments       Comment[]
+  notifications  Notification[]
+}
+
+model Subject {
+  id        String   @id @default(cuid())
+  name      String
+  code      String
+  teacherId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teacher     User        @relation(fields: [teacherId], references: [id])
+  assignments Assignment[]
+}
+
+model Assignment {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  subjectId   String
+  type        String   @default("ASSIGNMENT") // ASSIGNMENT, LAB_REPORT
+  deadline    DateTime
+  fileUrl     String?
+  status      String   @default("ACTIVE") // ACTIVE, CLOSED, ARCHIVED
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subject     Subject     @relation(fields: [subjectId], references: [id])
+  creator     User        @relation(fields: [createdBy], references: [id])
+  submissions Submission[]
+  comments    Comment[]
+}
+
+model Submission {
+  id          String    @id @default(cuid())
+  assignmentId String
+  studentId   String
+  fileName    String
+  fileUrl     String?
+  status      String    @default("SUBMITTED") // SUBMITTED, LATE, GRADED
+  marks       Float?
+  feedback    String?
+  submittedAt DateTime  @default(now())
+  gradedAt    DateTime?
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id])
+  student    User       @relation(fields: [studentId], references: [id])
+}
+
+model Comment {
+  id          String   @id @default(cuid())
+  assignmentId String
+  userId      String
+  content     String
+  createdAt   DateTime @default(now())
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("INFO") // INFO, DEADLINE, FEEDBACK, ASSIGNMENT
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
