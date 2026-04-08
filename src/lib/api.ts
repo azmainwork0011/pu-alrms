@@ -163,10 +163,16 @@ export const announcementApi = {
 };
 
 export const aiApi = {
-  chat: (message: string, context?: string) =>
-    apiFetch<{ response: string }>('/api/ai/chat', {
+  chat: (message: string, mode: 'single' | 'battle' = 'single') =>
+    apiFetch<any>('/api/ai/chat', {
       method: 'POST',
-      body: JSON.stringify({ message, context }),
+      body: JSON.stringify({ message, mode }),
+    }),
+
+  voteBattle: (battleId: string, label: string) =>
+    apiFetch<{ success: boolean; votes: any }>('/api/ai/chat', {
+      method: 'PUT',
+      body: JSON.stringify({ battleId, label }),
     }),
 
   clearChat: () =>
