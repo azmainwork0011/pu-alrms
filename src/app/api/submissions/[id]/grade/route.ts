@@ -79,7 +79,7 @@ export async function PUT(
       },
     });
 
-    return NextResponse.json({ submission });
+    return NextResponse.json(submission);
   } catch (error) {
     console.error('Grade submission error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
