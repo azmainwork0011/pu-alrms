@@ -32,3 +32,29 @@ Stage Summary:
 - AI chat assistant powered by z-ai-web-dev-sdk LLM
 - All views functional with loading states and error handling
 - Mobile-first responsive design
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix API response format mismatches and hydration errors
+
+Work Log:
+- Fixed all API routes returning wrapped objects (`{ assignments }`) to return plain arrays instead
+- Fixed routes: assignments, submissions, comments, subjects, notifications, leaderboard GET endpoints
+- Fixed assignment detail endpoint to return object directly instead of `{ assignment }`
+- Fixed dashboard API property names to match frontend expectations:
+  - `pendingAssignmentsCount` → `pendingAssignments`
+  - `createdAssignmentsCount` → `createdAssignments`
+  - `pendingGradingCount` → `pendingGrading`
+  - `averageStudentMarks` → `averageMarks`
+  - Added `activeSubjects` count for admin dashboard
+  - `upcomingDeadlines` array → length count
+- Fixed leaderboard to return flat entries with `name`/`avatar` instead of nested `student` object
+- Fixed averageMarks calculation (removed erroneous /100 division)
+- Fixed hydration mismatch: moved localStorage initialization from module-level to `hydrate()` action called in useEffect
+- Added `mounted` state to prevent flash of wrong content during hydration
+
+Stage Summary:
+- All API responses now match frontend expected formats
+- No more hydration mismatch errors
+- ESLint passes with 0 errors

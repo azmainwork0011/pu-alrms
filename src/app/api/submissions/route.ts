@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
       orderBy: { submittedAt: 'desc' },
     });
 
-    return NextResponse.json({ submissions });
+    return NextResponse.json(submissions);
   } catch (error) {
     console.error('Get submissions error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

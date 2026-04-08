@@ -56,7 +56,7 @@ export async function GET(
       return NextResponse.json({ error: 'Assignment not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ assignment });
+    return NextResponse.json(assignment);
   } catch (error) {
     console.error('Get assignment error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

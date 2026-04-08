@@ -1592,7 +1592,19 @@ function AppLayout() {
 
 // ─── Root Page Component ─────────────────────────────────
 export default function HomePage() {
-  const { isAuthenticated } = useAppStore();
+  const { isAuthenticated, mounted, hydrate } = useAppStore();
+
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50">
+        <div className="animate-spin w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full" />
+      </div>
+    );
+  }
 
   return (
     <TooltipProvider>

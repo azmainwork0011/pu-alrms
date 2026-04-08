@@ -27,15 +27,16 @@ interface AppState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
-  
+  mounted: boolean;
+
   // Navigation
   currentPage: PageView;
   selectedAssignmentId: string | null;
-  
+
   // UI State
   sidebarOpen: boolean;
   notificationCount: number;
-  
+
   // Actions
   setAuth: (user: User, token: string) => void;
   logout: () => void;
@@ -44,17 +45,19 @@ interface AppState {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setNotificationCount: (count: number) => void;
+  hydrate: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
   user: null,
   token: null,
   isAuthenticated: false,
+  mounted: false,
   currentPage: 'dashboard',
   selectedAssignmentId: null,
   sidebarOpen: false,
   notificationCount: 0,
-  
+
   setAuth: (user, token) => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('token', token);
@@ -62,7 +65,7 @@ export const useAppStore = create<AppState>((set) => ({
     }
     set({ user, token, isAuthenticated: true });
   },
-  
+
   logout: () => {
     if (typeof window !== 'undefined') {
       localStorage.removeItem('token');
@@ -70,25 +73,27 @@ export const useAppStore = create<AppState>((set) => ({
     }
     set({ user: null, token: null, isAuthenticated: false, currentPage: 'dashboard', notificationCount: 0 });
   },
-  
+
   setPage: (page) => set({ currentPage: page, sidebarOpen: false }),
   setAssignmentId: (id) => set({ selectedAssignmentId: id, currentPage: 'assignment-detail' }),
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setNotificationCount: (count) => set({ notificationCount: count }),
-}));
 
-// Initialize from localStorage on client
-if (typeof window !== 'undefined') {
-  const token = localStorage.getItem('token');
-  const userStr = localStorage.getItem('user');
-  if (token && userStr) {
+  hydrate: () => {
     try {
-      const user = JSON.parse(userStr);
-      useAppStore.setState({ user, token, isAuthenticated: true });
+      const token = localStorage.getItem('token');
+      const userStr = localStorage.getItem('user');
+      if (token && userStr) {
+        const user = JSON.parse(userStr);
+        set({ user, token, isAuthenticated: true, mounted: true });
+      } else {
+        set({ mounted: true });
+      }
     } catch {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      set({ mounted: true });
     }
-  }
-}
+  },
+}));

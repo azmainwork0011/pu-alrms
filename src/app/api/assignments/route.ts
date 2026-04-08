@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({ assignments });
+    return NextResponse.json(assignments);
   } catch (error) {
     console.error('Get assignments error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

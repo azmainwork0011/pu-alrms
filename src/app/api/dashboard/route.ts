@@ -69,10 +69,10 @@ export async function GET(req: NextRequest) {
         ]);
 
       return NextResponse.json({
-        pendingAssignmentsCount: pendingAssignments,
+        pendingAssignments: pendingAssignments,
         submittedCount: submittedSubmissions,
-        upcomingDeadlines: upcomingAssignments,
-        averageMarks: gradedSubmissions._avg.marks || 0,
+        upcomingDeadlines: upcomingAssignments.length,
+        averageMarks: gradedSubmissions._avg.marks ? Math.round(gradedSubmissions._avg.marks * 10) / 10 : 0,
         gradedCount: gradedSubmissions._count,
       });
     }
@@ -112,10 +112,10 @@ export async function GET(req: NextRequest) {
       ]);
 
       return NextResponse.json({
-        createdAssignmentsCount: createdAssignments,
+        createdAssignments: createdAssignments,
         totalSubmissions,
-        pendingGradingCount: pendingGrading,
-        averageStudentMarks: allGraded._avg.marks || 0,
+        pendingGrading: pendingGrading,
+        averageMarks: allGraded._avg.marks ? Math.round(allGraded._avg.marks * 10) / 10 : 0,
       });
     }
 
@@ -145,6 +145,7 @@ export async function GET(req: NextRequest) {
         totalUsers,
         totalAssignments,
         totalSubmissions,
+        activeSubjects: subjects.length,
         subjectStats: subjects.map((s) => ({
           id: s.id,
           name: s.name,

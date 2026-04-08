@@ -15,7 +15,7 @@ export async function GET() {
       orderBy: { name: 'asc' },
     });
 
-    return NextResponse.json({ subjects });
+    return NextResponse.json(subjects);
   } catch (error) {
     console.error('Get subjects error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
