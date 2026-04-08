@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { format, formatDistanceToNow, isPast, differenceInDays } from 'date-fns';
+import React, { useState, useEffect, useRef, useCallback, Suspense } from 'react';
+import { format, isPast, differenceInDays } from 'date-fns';
 import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 
@@ -34,7 +33,7 @@ import { authApi, assignmentApi, submissionApi, commentApi, notificationApi, das
 import {
   BookOpen, ClipboardList, FlaskConical, Upload, MessageSquare, Trophy, Bell, User as UserIcon,
   LogOut, Menu, X, GraduationCap, Settings, BarChart3, Clock, CheckCircle2, AlertTriangle,
-  Star, Send, Sparkles, FileText, Plus, ChevronRight, Calendar, Target, TrendingUp,
+  Star, Send, Sparkles, FileText, Plus, ChevronRight, ChevronLeft, Calendar, Target, TrendingUp,
   Users, Award, Edit, Trash2, Eye, MessageCircle, Home, PenTool, Beaker, LayoutDashboard,
   Search, Filter
 } from 'lucide-react';
@@ -66,6 +65,24 @@ function getStatusColor(status: string) {
     case 'CLOSED': return 'bg-gray-100 text-gray-800';
     case 'ARCHIVED': return 'bg-gray-100 text-gray-600';
     default: return 'bg-gray-100 text-gray-800';
+  }
+}
+
+function timeAgo(dateStr: string): string {
+  try {
+    const now = Date.now();
+    const date = new Date(dateStr).getTime();
+    const diff = now - date;
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    if (days < 7) return `${days}d ago`;
+    return format(new Date(dateStr), 'MMM d');
+  } catch {
+    return '';
   }
 }
 
@@ -113,17 +130,13 @@ function AuthPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
-      >
+      <div className="w-full max-w-md animate-in fade-in-0 zoom-in-95 duration-300">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-emerald-600 text-white mb-4">
             <GraduationCap className="w-8 h-8" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Prime University</h1>
-          <p className="text-gray-500 mt-1">Assignment & Lab Report Management System</p>
+          <p className="text-gray-500 mt-1">Assignment &amp; Lab Report Management System</p>
         </div>
 
         <Card className="shadow-xl border-0 shadow-emerald-100/50">
@@ -165,7 +178,7 @@ function AuthPage() {
               )}
               <Button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700" disabled={loading}>
                 {loading ? (
-                  <span className="flex items-center gap-2"><span className="animate-spin">⟳</span> Processing...</span>
+                  <span className="flex items-center gap-2"><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Processing...</span>
                 ) : isLogin ? 'Sign In' : 'Create Account'}
               </Button>
             </form>
@@ -176,7 +189,7 @@ function AuthPage() {
                 <p className="text-xs text-gray-400 text-center mb-3">Quick Demo Access</p>
                 <div className="grid grid-cols-3 gap-2">
                   {demoAccounts.map((acc) => (
-                    <Button key={acc.email} variant="outline" size="sm" className="text-xs h-auto py-2 flex-col gap-1" onClick={() => quickLogin(acc.email, acc.password)} disabled={loading}>
+                    <Button key={acc.email} type="button" variant="outline" size="sm" className="text-xs h-auto py-2 flex-col gap-1" onClick={() => quickLogin(acc.email, acc.password)} disabled={loading}>
                       <span className="text-lg">{acc.icon}</span>
                       <span>{acc.label}</span>
                     </Button>
@@ -187,7 +200,7 @@ function AuthPage() {
           </CardContent>
         </Card>
         <p className="text-center text-xs text-gray-400 mt-6">PU-ALRMS © 2024 Prime University. All rights reserved.</p>
-      </motion.div>
+      </div>
     </div>
   );
 }
@@ -256,15 +269,17 @@ function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
       try {
         const [dashData, assignData] = await Promise.all([
           dashboardApi.getStats(),
           assignmentApi.list(),
         ]);
+        if (cancelled) return;
         setStats(dashData);
 
-        const activeAssignments = assignData.filter((a: any) => a.status === 'ACTIVE');
+        const activeAssignments = Array.isArray(assignData) ? assignData.filter((a: any) => a.status === 'ACTIVE') : [];
         const upcomingAssignments = activeAssignments
           .filter((a: any) => !isPast(new Date(a.deadline)))
           .sort((a: any, b: any) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
@@ -273,18 +288,22 @@ function DashboardPage() {
 
         if (user?.role === 'STUDENT') {
           const subs = await submissionApi.list({});
-          setRecentSubs(subs.slice(0, 5));
+          if (!cancelled) setRecentSubs(Array.isArray(subs) ? subs.slice(0, 5) : []);
         } else if (user?.role === 'TEACHER') {
           const subs = await submissionApi.list({});
-          setRecentSubs(subs.filter((s: any) => s.status !== 'GRADED').slice(0, 5));
+          if (!cancelled) setRecentSubs(Array.isArray(subs) ? subs.filter((s: any) => s.status !== 'GRADED').slice(0, 5) : []);
+        } else if (user?.role === 'ADMIN') {
+          const subs = await submissionApi.list({});
+          if (!cancelled) setRecentSubs(Array.isArray(subs) ? subs.slice(0, 5) : []);
         }
       } catch (err) {
-        console.error(err);
+        console.error('Dashboard load error:', err);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     load();
+    return () => { cancelled = true; };
   }, [user]);
 
   if (loading) return <DashboardSkeleton />;
@@ -316,16 +335,15 @@ function DashboardPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">
-          Welcome back, {user?.name?.split(' ')[0]}! 👋
+          Welcome back, {user?.name?.split(' ')[0]}!
         </h1>
         <p className="text-gray-500 mt-1">
-          {user?.role === 'STUDENT' && "Here's your academic overview"}
-          {user?.role === 'TEACHER' && "Here's your teaching dashboard"}
+          {user?.role === 'STUDENT' && "Here&apos;s your academic overview"}
+          {user?.role === 'TEACHER' && "Here&apos;s your teaching dashboard"}
           {user?.role === 'ADMIN' && "System overview and analytics"}
         </p>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {currentStats.map((stat) => (
           <Card key={stat.label} className="border-0 shadow-sm">
@@ -345,7 +363,6 @@ function DashboardPage() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Upcoming Deadlines */}
         <Card className="border-0 shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -375,7 +392,6 @@ function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Recent Submissions */}
         <Card className="border-0 shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
@@ -393,8 +409,7 @@ function DashboardPage() {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium truncate">{s.assignment?.title || s.fileName}</p>
                       <p className="text-xs text-gray-500">
-                        {s.student?.name && `by ${s.student.name} · `}
-                        {s.fileName}
+                        {s.student?.name ? `by ${s.student.name} · ` : ''}{s.fileName}
                       </p>
                     </div>
                     <Badge variant="outline" className={`text-xs shrink-0 ml-2 ${getStatusColor(s.status)}`}>
@@ -408,7 +423,6 @@ function DashboardPage() {
         </Card>
       </div>
 
-      {/* Quick Actions */}
       <Card className="border-0 shadow-sm">
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Quick Actions</CardTitle>
@@ -417,62 +431,26 @@ function DashboardPage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {user?.role === 'STUDENT' && (
               <>
-                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('assignments')}>
-                  <ClipboardList className="w-5 h-5 text-emerald-600" />
-                  <span className="text-xs">View Assignments</span>
-                </Button>
-                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('submissions')}>
-                  <Upload className="w-5 h-5 text-blue-600" />
-                  <span className="text-xs">Submit Work</span>
-                </Button>
-                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('ai-chat')}>
-                  <Sparkles className="w-5 h-5 text-purple-600" />
-                  <span className="text-xs">AI Assistant</span>
-                </Button>
-                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('leaderboard')}>
-                  <Trophy className="w-5 h-5 text-amber-600" />
-                  <span className="text-xs">Leaderboard</span>
-                </Button>
+                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('assignments')}><ClipboardList className="w-5 h-5 text-emerald-600" /><span className="text-xs">View Assignments</span></Button>
+                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('submissions')}><Upload className="w-5 h-5 text-blue-600" /><span className="text-xs">Submit Work</span></Button>
+                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('ai-chat')}><Sparkles className="w-5 h-5 text-purple-600" /><span className="text-xs">AI Assistant</span></Button>
+                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('leaderboard')}><Trophy className="w-5 h-5 text-amber-600" /><span className="text-xs">Leaderboard</span></Button>
               </>
             )}
             {user?.role === 'TEACHER' && (
               <>
-                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('create-assignment')}>
-                  <Plus className="w-5 h-5 text-emerald-600" />
-                  <span className="text-xs">Create Assignment</span>
-                </Button>
-                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('submissions')}>
-                  <PenTool className="w-5 h-5 text-blue-600" />
-                  <span className="text-xs">Grade Submissions</span>
-                </Button>
-                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('ai-chat')}>
-                  <Sparkles className="w-5 h-5 text-purple-600" />
-                  <span className="text-xs">AI Assistant</span>
-                </Button>
-                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('lab-reports')}>
-                  <Beaker className="w-5 h-5 text-amber-600" />
-                  <span className="text-xs">Lab Reports</span>
-                </Button>
+                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('create-assignment')}><Plus className="w-5 h-5 text-emerald-600" /><span className="text-xs">Create Assignment</span></Button>
+                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('submissions')}><PenTool className="w-5 h-5 text-blue-600" /><span className="text-xs">Grade Submissions</span></Button>
+                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('ai-chat')}><Sparkles className="w-5 h-5 text-purple-600" /><span className="text-xs">AI Assistant</span></Button>
+                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('lab-reports')}><Beaker className="w-5 h-5 text-amber-600" /><span className="text-xs">Lab Reports</span></Button>
               </>
             )}
             {user?.role === 'ADMIN' && (
               <>
-                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('assignments')}>
-                  <ClipboardList className="w-5 h-5 text-emerald-600" />
-                  <span className="text-xs">All Assignments</span>
-                </Button>
-                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('leaderboard')}>
-                  <Trophy className="w-5 h-5 text-amber-600" />
-                  <span className="text-xs">Leaderboard</span>
-                </Button>
-                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('ai-chat')}>
-                  <Sparkles className="w-5 h-5 text-purple-600" />
-                  <span className="text-xs">AI Assistant</span>
-                </Button>
-                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('notifications')}>
-                  <Bell className="w-5 h-5 text-rose-600" />
-                  <span className="text-xs">Notifications</span>
-                </Button>
+                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('assignments')}><ClipboardList className="w-5 h-5 text-emerald-600" /><span className="text-xs">All Assignments</span></Button>
+                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('leaderboard')}><Trophy className="w-5 h-5 text-amber-600" /><span className="text-xs">Leaderboard</span></Button>
+                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('ai-chat')}><Sparkles className="w-5 h-5 text-purple-600" /><span className="text-xs">AI Assistant</span></Button>
+                <Button variant="outline" className="h-auto py-3 flex-col gap-2" onClick={() => useAppStore.getState().setPage('notifications')}><Bell className="w-5 h-5 text-rose-600" /><span className="text-xs">Notifications</span></Button>
               </>
             )}
           </div>
@@ -508,23 +486,26 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
   const [submissions, setSubmissions] = useState<any[]>([]);
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
       try {
         const [assignData, subData] = await Promise.all([
           assignmentApi.list({ type }),
           user?.role === 'STUDENT' ? submissionApi.list({}) : Promise.resolve([]),
         ]);
-        setAssignments(assignData);
-        setSubmissions(subData);
+        if (cancelled) return;
+        setAssignments(Array.isArray(assignData) ? assignData : []);
+        setSubmissions(Array.isArray(subData) ? subData : []);
         const allSubjects = await subjectApi.list();
-        setSubjects(allSubjects);
+        if (!cancelled) setSubjects(Array.isArray(allSubjects) ? allSubjects : []);
       } catch (err) {
         console.error(err);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     load();
+    return () => { cancelled = true; };
   }, [type, user]);
 
   const filtered = assignments.filter((a: any) => {
@@ -569,41 +550,39 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
         <Card className="border-0 shadow-sm"><CardContent className="py-12 text-center text-gray-400">No items found</CardContent></Card>
       ) : (
         <div className="grid gap-3">
-          {filtered.map((a: any, i: number) => {
+          {filtered.map((a: any) => {
             const sub = getSubmissionStatus(a.id);
             const deadline = new Date(a.deadline);
             const isOverdue = isPast(deadline) && a.status === 'ACTIVE';
             return (
-              <motion.div key={a.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-                <Card className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => setAssignmentId(a.id)}>
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <h3 className="font-semibold text-gray-900">{a.title}</h3>
-                          <Badge variant={getTypeBadgeVariant(a.type)} className="text-xs">
-                            {a.type === 'LAB_REPORT' ? 'Lab Report' : 'Assignment'}
-                          </Badge>
-                          {isOverdue && <Badge variant="destructive" className="text-xs">Overdue</Badge>}
-                        </div>
-                        <p className="text-sm text-gray-500 line-clamp-1 mb-2">{a.description}</p>
-                        <div className="flex items-center gap-3 text-xs text-gray-400">
-                          <span className="flex items-center gap-1"><BookOpen className="w-3 h-3" />{a.subject?.name}</span>
-                          <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{format(deadline, 'MMM d, yyyy')}</span>
-                          {a.creator && <span>by {a.creator.name}</span>}
-                        </div>
+              <Card key={a.id} className="border-0 shadow-sm hover:shadow-md transition-shadow cursor-pointer" onClick={() => setAssignmentId(a.id)}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <h3 className="font-semibold text-gray-900">{a.title}</h3>
+                        <Badge variant={getTypeBadgeVariant(a.type)} className="text-xs">
+                          {a.type === 'LAB_REPORT' ? 'Lab Report' : 'Assignment'}
+                        </Badge>
+                        {isOverdue && <Badge variant="destructive" className="text-xs">Overdue</Badge>}
                       </div>
-                      <div className="text-right shrink-0">
-                        {sub ? (
-                          <Badge className={getStatusColor(sub.status)}>{sub.status} {sub.marks ? `· ${sub.marks}/100` : ''}</Badge>
-                        ) : (
-                          <Badge variant="outline" className="text-amber-700 border-amber-200 bg-amber-50">Pending</Badge>
-                        )}
+                      <p className="text-sm text-gray-500 line-clamp-1 mb-2">{a.description}</p>
+                      <div className="flex items-center gap-3 text-xs text-gray-400">
+                        <span className="flex items-center gap-1"><BookOpen className="w-3 h-3" />{a.subject?.name}</span>
+                        <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{format(deadline, 'MMM d, yyyy')}</span>
+                        {a.creator && <span>by {a.creator.name}</span>}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
+                    <div className="text-right shrink-0">
+                      {sub ? (
+                        <Badge className={getStatusColor(sub.status)}>{sub.status} {sub.marks ? `· ${sub.marks}/100` : ''}</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-amber-700 border-amber-200 bg-amber-50">Pending</Badge>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             );
           })}
         </div>
@@ -628,6 +607,7 @@ function AssignmentDetailPage() {
 
   const loadData = useCallback(async () => {
     if (!selectedAssignmentId) return;
+    setLoading(true);
     try {
       const [aData, cData, sData] = await Promise.all([
         assignmentApi.get(selectedAssignmentId),
@@ -635,8 +615,8 @@ function AssignmentDetailPage() {
         submissionApi.list({ assignmentId: selectedAssignmentId }),
       ]);
       setAssignment(aData);
-      setComments(cData);
-      setSubmissions(sData);
+      setComments(Array.isArray(cData) ? cData : []);
+      setSubmissions(Array.isArray(sData) ? sData : []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -654,7 +634,7 @@ function AssignmentDetailPage() {
       toast.success('Comment added');
       loadData();
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(err.message || 'Failed to add comment');
     }
   };
 
@@ -669,7 +649,7 @@ function AssignmentDetailPage() {
       toast.success('Submitted successfully!');
       loadData();
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(err.message || 'Submission failed');
     } finally {
       setSubmitting(false);
     }
@@ -685,10 +665,16 @@ function AssignmentDetailPage() {
       setGradeData({ marks: '', feedback: '' });
       loadData();
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(err.message || 'Grading failed');
     } finally {
       setGradingId(null);
     }
+  };
+
+  const openGradeDialog = (subId: string) => {
+    setSelectedSubId(subId);
+    setGradeData({ marks: '', feedback: '' });
+    setGradeDialogOpen(true);
   };
 
   if (loading) return <div className="space-y-4"><Skeleton className="h-8 w-64" /><Skeleton className="h-48 rounded-xl" /><Skeleton className="h-64 rounded-xl" /></div>;
@@ -700,12 +686,10 @@ function AssignmentDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Back Button */}
       <Button variant="ghost" size="sm" onClick={() => useAppStore.getState().setPage('assignments')} className="text-gray-500">
-        <ChevronRight className="w-4 h-4 rotate-180 mr-1" /> Back to list
+        <ChevronLeft className="w-4 h-4 mr-1" /> Back to list
       </Button>
 
-      {/* Assignment Info */}
       <Card className="border-0 shadow-sm">
         <CardHeader>
           <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -732,28 +716,26 @@ function AssignmentDetailPage() {
         </CardHeader>
         <CardContent>
           <div className="prose prose-sm max-w-none text-gray-700 whitespace-pre-wrap">{assignment.description}</div>
-          
-          {/* Submit Button for Students */}
+
           {user?.role === 'STUDENT' && !hasSubmitted && assignment.status === 'ACTIVE' && (
             <div className="mt-6 p-4 bg-emerald-50 rounded-xl border border-emerald-100">
               <p className="text-sm text-emerald-800 font-medium mb-3">Ready to submit your work?</p>
               <Button onClick={handleSubmit} disabled={submitting} className="bg-emerald-600 hover:bg-emerald-700">
-                {submitting ? 'Submitting...' : <><Upload className="w-4 h-4 mr-2" />Submit Work</>}
+                {submitting ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />Submitting...</> : <><Upload className="w-4 h-4 mr-2" />Submit Work</>}
               </Button>
             </div>
           )}
 
-          {/* Show submission status for student */}
           {mySubmission && (
             <div className="mt-4 p-4 bg-purple-50 rounded-xl border border-purple-100">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-purple-800">Your Submission</p>
                   <p className="text-xs text-purple-600">{mySubmission.fileName} · {mySubmission.status}</p>
-                  {mySubmission.marks && <p className="text-sm font-bold text-purple-900 mt-1">Score: {mySubmission.marks}/100</p>}
+                  {mySubmission.marks != null && <p className="text-sm font-bold text-purple-900 mt-1">Score: {mySubmission.marks}/100</p>}
                   {mySubmission.feedback && <p className="text-xs text-purple-700 mt-1">Feedback: {mySubmission.feedback}</p>}
                 </div>
-                <CheckCircle2 className="w-8 h-8 text-purple-400" />
+                <CheckCircle2 className="w-8 h-8 text-purple-400 shrink-0" />
               </div>
             </div>
           )}
@@ -761,7 +743,6 @@ function AssignmentDetailPage() {
       </Card>
 
       <div className="grid md:grid-cols-2 gap-6">
-        {/* Submissions (Teacher/Admin view) */}
         {(user?.role === 'TEACHER' || user?.role === 'ADMIN') && (
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-3">
@@ -784,37 +765,35 @@ function AssignmentDetailPage() {
                             <span className="text-sm font-medium truncate">{s.student?.name}</span>
                           </div>
                           <p className="text-xs text-gray-400 mt-0.5">{s.fileName}</p>
-                          {s.marks && <p className="text-xs font-medium text-purple-700">Score: {s.marks}/100</p>}
+                          {s.marks != null && <p className="text-xs font-medium text-purple-700">Score: {s.marks}/100</p>}
                           {s.feedback && <p className="text-xs text-gray-500 mt-0.5 truncate">{s.feedback}</p>}
                         </div>
                         <div className="flex items-center gap-2 shrink-0 ml-2">
                           <Badge className={`text-xs ${getStatusColor(s.status)}`}>{s.status}</Badge>
                           {s.status !== 'GRADED' && user?.role === 'TEACHER' && (
-                            <Dialog open={gradeDialogOpen && selectedSubId === s.id} onOpenChange={(open) => { setGradeDialogOpen(open); if (open) setSelectedSubId(s.id); }}>
-                              <DialogTrigger asChild>
-                                <Button size="sm" variant="outline" className="text-xs h-7">
-                                  <PenTool className="w-3 h-3 mr-1" />Grade
-                                </Button>
-                              </DialogTrigger>
+                            <Dialog open={gradeDialogOpen && selectedSubId === s.id} onOpenChange={(open) => { if (!open) { setGradeDialogOpen(false); setSelectedSubId(null); } }}>
+                              <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => openGradeDialog(s.id)}>
+                                <PenTool className="w-3 h-3 mr-1" />Grade
+                              </Button>
                               <DialogContent>
                                 <DialogHeader>
                                   <DialogTitle>Grade Submission</DialogTitle>
                                   <DialogDescription>{s.student?.name} - {s.fileName}</DialogDescription>
                                 </DialogHeader>
                                 <div className="space-y-4 py-2">
-                                  <div>
+                                  <div className="space-y-2">
                                     <Label>Marks (out of 100)</Label>
                                     <Input type="number" min="0" max="100" value={gradeData.marks} onChange={(e) => setGradeData({ ...gradeData, marks: e.target.value })} placeholder="0-100" />
                                   </div>
-                                  <div>
+                                  <div className="space-y-2">
                                     <Label>Feedback</Label>
                                     <Textarea value={gradeData.feedback} onChange={(e) => setGradeData({ ...gradeData, feedback: e.target.value })} placeholder="Provide feedback..." rows={3} />
                                   </div>
                                 </div>
                                 <DialogFooter>
-                                  <Button variant="outline" onClick={() => setGradeDialogOpen(false)}>Cancel</Button>
-                                  <Button onClick={handleGrade} disabled={!gradeData.marks || gradingId === s.id} className="bg-emerald-600 hover:bg-emerald-700">
-                                    {gradingId === s.id ? 'Saving...' : 'Submit Grade'}
+                                  <Button variant="outline" onClick={() => { setGradeDialogOpen(false); setSelectedSubId(null); }}>Cancel</Button>
+                                  <Button onClick={handleGrade} disabled={!gradeData.marks || !!gradingId} className="bg-emerald-600 hover:bg-emerald-700">
+                                    {gradingId ? 'Saving...' : 'Submit Grade'}
                                   </Button>
                                 </DialogFooter>
                               </DialogContent>
@@ -830,7 +809,6 @@ function AssignmentDetailPage() {
           </Card>
         )}
 
-        {/* Comments */}
         <Card className="border-0 shadow-sm">
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Discussion ({comments.length})</CardTitle>
@@ -850,7 +828,7 @@ function AssignmentDetailPage() {
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-medium">{c.user?.name}</span>
-                          <span className="text-xs text-gray-400">{formatDistanceToNow(new Date(c.createdAt), { addSuffix: true })}</span>
+                          <span className="text-xs text-gray-400">{timeAgo(c.createdAt)}</span>
                         </div>
                         <p className="text-sm text-gray-700 mt-0.5">{c.content}</p>
                       </div>
@@ -861,7 +839,7 @@ function AssignmentDetailPage() {
             </ScrollArea>
             <Separator className="my-3" />
             <div className="flex gap-2">
-              <Input placeholder="Add a comment..." value={newComment} onChange={(e) => setNewComment(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleComment()} />
+              <Input placeholder="Add a comment..." value={newComment} onChange={(e) => setNewComment(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleComment(); } }} />
               <Button size="icon" onClick={handleComment} disabled={!newComment.trim()} className="bg-emerald-600 hover:bg-emerald-700 shrink-0">
                 <Send className="w-4 h-4" />
               </Button>
@@ -881,18 +859,19 @@ function CreateAssignmentPage() {
   const { setPage } = useAppStore();
 
   useEffect(() => {
-    subjectApi.list().then(setSubjects).catch(console.error);
+    subjectApi.list().then((data) => setSubjects(Array.isArray(data) ? data : [])).catch(console.error);
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.subjectId) { toast.error('Please select a subject'); return; }
     setLoading(true);
     try {
       await assignmentApi.create(form);
       toast.success('Assignment created successfully!');
       setPage('assignments');
     } catch (err: any) {
-      toast.error(err.message);
+      toast.error(err.message || 'Failed to create assignment');
     } finally {
       setLoading(false);
     }
@@ -908,14 +887,14 @@ function CreateAssignmentPage() {
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label>Title</Label>
-              <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Assignment title" required />
+              <Label htmlFor="ca-title">Title</Label>
+              <Input id="ca-title" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Assignment title" required />
             </div>
             <div className="space-y-2">
-              <Label>Description</Label>
-              <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Describe the assignment requirements..." rows={4} required />
+              <Label htmlFor="ca-desc">Description</Label>
+              <Textarea id="ca-desc" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Describe the assignment requirements..." rows={4} required />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Subject</Label>
                 <Select value={form.subjectId} onValueChange={(v) => setForm({ ...form, subjectId: v })}>
@@ -937,13 +916,13 @@ function CreateAssignmentPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Deadline</Label>
-              <Input type="datetime-local" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} required />
+              <Label htmlFor="ca-deadline">Deadline</Label>
+              <Input id="ca-deadline" type="datetime-local" value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} required />
             </div>
             <div className="flex gap-3 justify-end">
               <Button type="button" variant="outline" onClick={() => setPage('assignments')}>Cancel</Button>
               <Button type="submit" disabled={loading} className="bg-emerald-600 hover:bg-emerald-700">
-                {loading ? 'Creating...' : 'Create Assignment'}
+                {loading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />Creating...</> : 'Create Assignment'}
               </Button>
             </div>
           </form>
@@ -962,21 +941,24 @@ function SubmissionsPage() {
   const [filterAssignment, setFilterAssignment] = useState('all');
 
   useEffect(() => {
+    let cancelled = false;
     async function load() {
       try {
         const [sData, aData] = await Promise.all([
           submissionApi.list({}),
           assignmentApi.list({}),
         ]);
-        setSubmissions(sData);
-        setAssignments(aData);
+        if (cancelled) return;
+        setSubmissions(Array.isArray(sData) ? sData : []);
+        setAssignments(Array.isArray(aData) ? aData : []);
       } catch (err) {
         console.error(err);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     }
     load();
+    return () => { cancelled = true; };
   }, []);
 
   const filtered = submissions.filter((s: any) => {
@@ -989,9 +971,7 @@ function SubmissionsPage() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
-            {user?.role === 'TEACHER' ? 'Grade Submissions' : 'My Submissions'}
-          </h1>
+          <h1 className="text-2xl font-bold text-gray-900">{user?.role === 'TEACHER' ? 'Grade Submissions' : 'My Submissions'}</h1>
           <p className="text-gray-500 mt-1">{filtered.length} submissions</p>
         </div>
         {user?.role === 'TEACHER' && (
@@ -999,9 +979,7 @@ function SubmissionsPage() {
             <SelectTrigger className="w-56"><SelectValue placeholder="Filter by assignment" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Assignments</SelectItem>
-              {assignments.map((a: any) => (
-                <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>
-              ))}
+              {assignments.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>)}
             </SelectContent>
           </Select>
         )}
@@ -1012,44 +990,46 @@ function SubmissionsPage() {
       ) : filtered.length === 0 ? (
         <Card className="border-0 shadow-sm"><CardContent className="py-12 text-center text-gray-400">No submissions found</CardContent></Card>
       ) : (
-        <Card className="border-0 shadow-sm">
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Assignment</TableHead>
-                  {user?.role === 'TEACHER' && <TableHead>Student</TableHead>}
-                  <TableHead>File</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Marks</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((s: any) => (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-medium max-w-[200px] truncate">{s.assignment?.title}</TableCell>
-                    {user?.role === 'TEACHER' && <TableCell>
+        <Card className="border-0 shadow-sm overflow-hidden">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="hidden sm:table-cell">Assignment</TableHead>
+                <TableHead>Details</TableHead>
+                {user?.role === 'TEACHER' && <TableHead className="hidden sm:table-cell">Student</TableHead>}
+                <TableHead>Status</TableHead>
+                <TableHead>Marks</TableHead>
+                <TableHead></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((s: any) => (
+                <TableRow key={s.id}>
+                  <TableCell className="font-medium hidden sm:table-cell max-w-[200px] truncate">{s.assignment?.title}</TableCell>
+                  <TableCell>
+                    <p className="font-medium sm:hidden text-sm">{s.assignment?.title}</p>
+                    <p className="text-sm text-gray-500 truncate">{s.fileName}</p>
+                    <p className="text-xs text-gray-400">{format(new Date(s.submittedAt), 'MMM d')}</p>
+                  </TableCell>
+                  {user?.role === 'TEACHER' && (
+                    <TableCell className="hidden sm:table-cell">
                       <div className="flex items-center gap-2">
                         <Avatar className="w-6 h-6"><AvatarImage src={s.student?.avatar} /><AvatarFallback className="text-xs">{getInitials(s.student?.name || '?')}</AvatarFallback></Avatar>
                         <span className="text-sm">{s.student?.name}</span>
                       </div>
-                    </TableCell>}
-                    <TableCell className="text-sm text-gray-500">{s.fileName}</TableCell>
-                    <TableCell><Badge className={`text-xs ${getStatusColor(s.status)}`}>{s.status}</Badge></TableCell>
-                    <TableCell>{s.marks ? <span className="font-medium">{s.marks}/100</span> : <span className="text-gray-400">-</span>}</TableCell>
-                    <TableCell className="text-sm text-gray-500">{format(new Date(s.submittedAt), 'MMM d')}</TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="ghost" onClick={() => useAppStore.getState().setAssignmentId(s.assignmentId)}>
-                        <Eye className="w-4 h-4" />
-                      </Button>
                     </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
+                  )}
+                  <TableCell><Badge className={`text-xs ${getStatusColor(s.status)}`}>{s.status}</Badge></TableCell>
+                  <TableCell>{s.marks != null ? <span className="font-medium">{s.marks}/100</span> : <span className="text-gray-400">-</span>}</TableCell>
+                  <TableCell>
+                    <Button size="sm" variant="ghost" onClick={() => useAppStore.getState().setAssignmentId(s.assignmentId)}>
+                      <Eye className="w-4 h-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </Card>
       )}
     </div>
@@ -1072,20 +1052,20 @@ function AIChatPage() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, loading]);
 
   const suggestedPrompts = [
-    "Help me understand binary search trees",
-    "How should I structure a lab report?",
-    "Explain normalization in databases",
-    "Tips for writing clean code",
-    "Help with React component design",
+    'Help me understand binary search trees',
+    'How should I structure a lab report?',
+    'Explain normalization in databases',
+    'Tips for writing clean code',
+    'Help with React component design',
   ];
 
   const sendMessage = async (text?: string) => {
     const message = text || input.trim();
     if (!message || loading) return;
-    
+
     const userMsg: ChatMessage = { role: 'user', content: message };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
@@ -1093,10 +1073,9 @@ function AIChatPage() {
 
     try {
       const result = await aiApi.chat(message);
-      const aiMsg: ChatMessage = { role: 'assistant', content: result.response };
+      const aiMsg: ChatMessage = { role: 'assistant', content: result.response || 'Sorry, I could not generate a response.' };
       setMessages(prev => [...prev, aiMsg]);
-    } catch (err: any) {
-      toast.error('Failed to get AI response');
+    } catch {
       setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error. Please try again.' }]);
     } finally {
       setLoading(false);
@@ -1140,7 +1119,7 @@ function AIChatPage() {
             </div>
           ) : (
             messages.map((msg, i) => (
-              <motion.div key={i} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+              <div key={i} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                 <Avatar className="w-8 h-8 shrink-0">
                   <AvatarFallback className={msg.role === 'user' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}>
                     {msg.role === 'user' ? getInitials(useAppStore.getState().user?.name || 'U') : 'AI'}
@@ -1148,39 +1127,33 @@ function AIChatPage() {
                 </Avatar>
                 <div className={`max-w-[80%] rounded-2xl px-4 py-3 text-sm ${msg.role === 'user' ? 'bg-emerald-600 text-white rounded-tr-md' : 'bg-gray-100 text-gray-800 rounded-tl-md'}`}>
                   {msg.role === 'assistant' ? (
-                    <div className="prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-pre:my-2 prose-code:text-xs">
+                    <div className="prose prose-sm max-w-none prose-p:my-1 prose-headings:my-2 prose-code:text-xs">
                       <ReactMarkdown>{msg.content}</ReactMarkdown>
                     </div>
                   ) : (
                     msg.content
                   )}
                 </div>
-              </motion.div>
+              </div>
             ))
           )}
           {loading && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-3">
+            <div className="flex gap-3">
               <Avatar className="w-8 h-8"><AvatarFallback className="bg-purple-100 text-purple-700 text-xs">AI</AvatarFallback></Avatar>
               <div className="bg-gray-100 rounded-2xl rounded-tl-md px-4 py-3">
                 <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                 </div>
               </div>
-            </motion.div>
+            </div>
           )}
         </div>
 
         <div className="border-t p-4">
           <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex gap-2">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask me anything about your studies..."
-              disabled={loading}
-              className="flex-1"
-            />
+            <Input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask me anything about your studies..." disabled={loading} className="flex-1" />
             <Button type="submit" disabled={loading || !input.trim()} className="bg-purple-600 hover:bg-purple-700 shrink-0">
               <Send className="w-4 h-4" />
             </Button>
@@ -1197,7 +1170,7 @@ function LeaderboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    leaderboardApi.get().then(setEntries).catch(console.error).finally(() => setLoading(false));
+    leaderboardApi.get().then((data) => setEntries(Array.isArray(data) ? data : [])).catch(console.error).finally(() => setLoading(false));
   }, []);
 
   const medals = ['🥇', '🥈', '🥉'];
@@ -1205,10 +1178,7 @@ function LeaderboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-          <Trophy className="w-6 h-6 text-amber-500" />
-          Student Leaderboard
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2"><Trophy className="w-6 h-6 text-amber-500" />Student Leaderboard</h1>
         <p className="text-gray-500 mt-1">Top performers ranked by academic performance</p>
       </div>
 
@@ -1218,67 +1188,57 @@ function LeaderboardPage() {
         <Card className="border-0 shadow-sm"><CardContent className="py-12 text-center text-gray-400">No graded submissions yet</CardContent></Card>
       ) : (
         <>
-          {/* Top 3 Podium */}
           {entries.length >= 3 && (
             <div className="grid grid-cols-3 gap-4">
               {[1, 0, 2].map((idx) => {
                 const e = entries[idx];
                 if (!e) return null;
                 return (
-                  <motion.div key={e.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}>
-                    <Card className={`border-0 shadow-sm text-center ${idx === 0 ? 'ring-2 ring-amber-300' : ''}`}>
-                      <CardContent className="p-4">
-                        <div className="text-3xl mb-2">{medals[idx]}</div>
-                        <Avatar className="w-12 h-12 mx-auto mb-2">
-                          <AvatarImage src={e.avatar} />
-                          <AvatarFallback>{getInitials(e.name)}</AvatarFallback>
-                        </Avatar>
-                        <p className="font-semibold text-sm truncate">{e.name}</p>
-                        <p className="text-2xl font-bold text-emerald-600 mt-1">{e.averageMarks?.toFixed(1)}%</p>
-                        <p className="text-xs text-gray-400">{e.totalSubmissions} submissions</p>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
+                  <Card key={e.id} className={`border-0 shadow-sm text-center ${idx === 0 ? 'ring-2 ring-amber-300' : ''}`}>
+                    <CardContent className="p-4">
+                      <div className="text-3xl mb-2">{medals[idx]}</div>
+                      <Avatar className="w-12 h-12 mx-auto mb-2">
+                        <AvatarImage src={e.avatar} />
+                        <AvatarFallback>{getInitials(e.name)}</AvatarFallback>
+                      </Avatar>
+                      <p className="font-semibold text-sm truncate">{e.name}</p>
+                      <p className="text-2xl font-bold text-emerald-600 mt-1">{e.averageMarks?.toFixed(1)}%</p>
+                      <p className="text-xs text-gray-400">{e.totalSubmissions} submissions</p>
+                    </CardContent>
+                  </Card>
                 );
               })}
             </div>
           )}
 
-          {/* Full Table */}
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-16">Rank</TableHead>
-                    <TableHead>Student</TableHead>
-                    <TableHead>Submissions</TableHead>
-                    <TableHead>Average Marks</TableHead>
-                    <TableHead>Performance</TableHead>
+          <Card className="border-0 shadow-sm overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-16">Rank</TableHead>
+                  <TableHead>Student</TableHead>
+                  <TableHead>Submissions</TableHead>
+                  <TableHead>Average Marks</TableHead>
+                  <TableHead className="w-32">Performance</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {entries.map((e: any, i: number) => (
+                  <TableRow key={e.id}>
+                    <TableCell className="font-bold">{i < 3 ? <span className="text-lg">{medals[i]}</span> : `#${i + 1}`}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Avatar className="w-8 h-8"><AvatarImage src={e.avatar} /><AvatarFallback className="text-xs">{getInitials(e.name)}</AvatarFallback></Avatar>
+                        <span className="font-medium">{e.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{e.totalSubmissions}</TableCell>
+                    <TableCell className="font-bold text-emerald-700">{e.averageMarks?.toFixed(1)}%</TableCell>
+                    <TableCell><Progress value={e.averageMarks} className="h-2" /></TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {entries.map((e: any, i: number) => (
-                    <TableRow key={e.id}>
-                      <TableCell className="font-bold">
-                        {i < 3 ? <span className="text-lg">{medals[i]}</span> : `#${i + 1}`}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="w-8 h-8"><AvatarImage src={e.avatar} /><AvatarFallback className="text-xs">{getInitials(e.name)}</AvatarFallback></Avatar>
-                          <span className="font-medium">{e.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{e.totalSubmissions}</TableCell>
-                      <TableCell className="font-bold text-emerald-700">{e.averageMarks?.toFixed(1)}%</TableCell>
-                      <TableCell className="w-32">
-                        <Progress value={e.averageMarks} className="h-2" />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
+                ))}
+              </TableBody>
+            </Table>
           </Card>
         </>
       )}
@@ -1290,26 +1250,19 @@ function LeaderboardPage() {
 function NotificationsPage() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { setNotificationCount } = useAppStore();
 
-  const loadNotifications = async () => {
-    try {
-      const data = await notificationApi.list();
-      setNotifications(data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { loadNotifications(); }, []);
+  useEffect(() => {
+    notificationApi.list().then((data) => {
+      setNotifications(Array.isArray(data) ? data : []);
+    }).catch(console.error).finally(() => setLoading(false));
+  }, []);
 
   const markAsRead = async (id: string) => {
     try {
       await notificationApi.markRead(id);
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-      const unread = notifications.filter(n => !n.isRead && n.id !== id).length;
-      useAppStore.getState().setNotificationCount(unread);
+      setNotificationCount(notifications.filter(n => !n.isRead && n.id !== id).length);
     } catch (err) {
       console.error(err);
     }
@@ -1334,30 +1287,25 @@ function NotificationsPage() {
       {loading ? (
         <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)}</div>
       ) : notifications.length === 0 ? (
-        <Card className="border-0 shadow-sm"><CardContent className="py-12 text-center text-gray-400">
-          <Bell className="w-12 h-12 mx-auto mb-3 opacity-30" />
-          <p>No notifications yet</p>
-        </CardContent></Card>
+        <Card className="border-0 shadow-sm"><CardContent className="py-12 text-center text-gray-400"><Bell className="w-12 h-12 mx-auto mb-3 opacity-30" /><p>No notifications yet</p></CardContent></Card>
       ) : (
         <div className="space-y-2">
           {notifications.map((n: any) => (
-            <motion.div key={n.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}>
-              <Card className={`border-0 shadow-sm cursor-pointer transition-all hover:shadow-md ${!n.isRead ? 'bg-emerald-50/50 border-l-4 border-l-emerald-500' : ''}`} onClick={() => !n.isRead && markAsRead(n.id)}>
-                <CardContent className="p-4">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 p-2 rounded-lg bg-gray-100">{getNotifIcon(n.type)}</div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-semibold">{n.title}</p>
-                        <span className="text-xs text-gray-400 shrink-0">{formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}</span>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-0.5">{n.message}</p>
+            <Card key={n.id} className={`border-0 shadow-sm cursor-pointer transition-all hover:shadow-md ${!n.isRead ? 'bg-emerald-50/50 border-l-4 border-l-emerald-500' : ''}`} onClick={() => !n.isRead && markAsRead(n.id)}>
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <div className="mt-0.5 p-2 rounded-lg bg-gray-100">{getNotifIcon(n.type)}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-semibold">{n.title}</p>
+                      <span className="text-xs text-gray-400 shrink-0">{timeAgo(n.createdAt)}</span>
                     </div>
-                    {!n.isRead && <div className="w-2 h-2 rounded-full bg-emerald-500 mt-2 shrink-0" />}
+                    <p className="text-sm text-gray-600 mt-0.5">{n.message}</p>
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
+                  {!n.isRead && <div className="w-2 h-2 rounded-full bg-emerald-500 mt-2 shrink-0" />}
+                </div>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
@@ -1394,9 +1342,7 @@ function ProfilePage() {
       </Card>
 
       <Card className="border-0 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-base">Account Statistics</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle className="text-base">Account Statistics</CardTitle></CardHeader>
         <CardContent>
           {loading ? (
             <div className="space-y-3"><Skeleton className="h-12 rounded-lg" /><Skeleton className="h-12 rounded-lg" /></div>
@@ -1432,13 +1378,9 @@ function ProfilePage() {
       </Card>
 
       <Card className="border-0 shadow-sm">
-        <CardHeader>
-          <CardTitle className="text-base">Actions</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle className="text-base">Actions</CardTitle></CardHeader>
         <CardContent>
-          <Button variant="destructive" onClick={logout}>
-            <LogOut className="w-4 h-4 mr-2" />Sign Out
-          </Button>
+          <Button variant="destructive" onClick={logout}><LogOut className="w-4 h-4 mr-2" />Sign Out</Button>
         </CardContent>
       </Card>
     </div>
@@ -1447,12 +1389,11 @@ function ProfilePage() {
 
 // ─── Main App Layout ────────────────────────────────────
 function AppLayout() {
-  const { user, currentPage, sidebarOpen, notificationCount, toggleSidebar, setNotificationCount, setPage } = useAppStore();
+  const { user, currentPage, notificationCount, toggleSidebar, setPage, setNotificationCount } = useAppStore();
 
-  // Load notifications count
   useEffect(() => {
-    notificationApi.list().then((notifs: any[]) => {
-      setNotificationCount(notifs.filter(n => !n.isRead).length);
+    notificationApi.list().then((data: any[]) => {
+      setNotificationCount(Array.isArray(data) ? data.filter(n => !n.isRead).length : 0);
     }).catch(() => {});
   }, [currentPage, setNotificationCount]);
 
@@ -1492,7 +1433,6 @@ function AppLayout() {
     <div className="min-h-screen flex flex-col bg-gray-50/50">
       <MobileSidebar />
 
-      {/* Desktop Sidebar */}
       <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 bg-white border-r z-30">
         <div className="p-4 border-b">
           <div className="flex items-center gap-2">
@@ -1520,9 +1460,7 @@ function AppLayout() {
         </div>
       </aside>
 
-      {/* Main Content */}
       <div className="md:pl-64 flex flex-col min-h-screen flex-1">
-        {/* Top Bar */}
         <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -1563,26 +1501,14 @@ function AppLayout() {
           </div>
         </header>
 
-        {/* Page Content */}
         <main className="flex-1 p-4 md:p-6">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentPage}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.15 }}
-            >
-              {renderPage()}
-            </motion.div>
-          </AnimatePresence>
+          {renderPage()}
         </main>
 
-        {/* Footer */}
         <footer className="border-t bg-white px-4 py-3 mt-auto">
           <div className="flex items-center justify-between text-xs text-gray-400">
             <span>PU-ALRMS © 2024 Prime University</span>
-            <span>Assignment & Lab Report Management System</span>
+            <span>Assignment &amp; Lab Report Management System</span>
           </div>
         </footer>
       </div>
@@ -1601,7 +1527,7 @@ export default function HomePage() {
   if (!mounted) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50">
-        <div className="animate-spin w-8 h-8 border-2 border-emerald-600 border-t-transparent rounded-full" />
+        <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
