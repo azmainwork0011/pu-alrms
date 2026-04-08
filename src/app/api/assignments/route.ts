@@ -30,8 +30,17 @@ export async function GET(req: NextRequest) {
     // Role-based filtering
     if (payload.role === 'TEACHER') {
       where.createdBy = payload.userId;
-    } else if (payload.role === 'STUDENT') {
+    } else if (payload.role === 'STUDENT' || payload.role === 'CR') {
       where.status = status || 'ACTIVE';
+      // Students with a batch should see: batch-specific assignments matching their batch,
+      // plus assignments with no batch (open to all)
+      const user = await db.user.findUnique({ where: { id: payload.userId }, select: { batch: true } });
+      if (user?.batch) {
+        where.OR = [
+          { batch: user.batch },
+          { batch: null },
+        ];
+      }
     }
     // ADMIN sees everything
 
@@ -69,11 +78,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    if (payload.role !== 'TEACHER') {
-      return NextResponse.json({ error: 'Only teachers can create assignments' }, { status: 403 });
+    if (!['TEACHER', 'ADMIN', 'CR'].includes(payload.role)) {
+      return NextResponse.json({ error: 'Only teachers, CRs, and admins can create assignments' }, { status: 403 });
     }
 
-    const { title, description, subjectId, type, deadline, fileUrl } = await req.json();
+    const { title, description, subjectId, type, deadline, fileUrl, batch } = await req.json();
 
     if (!title || !description || !subjectId || !type || !deadline) {
       return NextResponse.json(
@@ -94,6 +103,7 @@ export async function POST(req: NextRequest) {
         description,
         subjectId,
         type,
+        batch: batch || null,
         deadline: new Date(deadline),
         fileUrl: fileUrl || null,
         status: 'ACTIVE',
@@ -107,18 +117,25 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Create notifications for all students
+    // Create notifications for relevant students
+    // If batch is specified, only notify students in that batch; otherwise all
+    const studentWhere: Record<string, unknown> = { role: 'STUDENT' };
+    if (batch) {
+      studentWhere.batch = batch;
+    }
+
     const students = await db.user.findMany({
-      where: { role: 'STUDENT' },
+      where: studentWhere,
       select: { id: true },
     });
 
     if (students.length > 0) {
+      const batchLabel = batch ? ` (Batch: ${batch})` : '';
       await db.notification.createMany({
         data: students.map((student) => ({
           userId: student.id,
           title: 'New Assignment',
-          message: `A new ${type.toLowerCase()} "${title}" has been posted for ${subject.name}. Deadline: ${new Date(deadline).toLocaleDateString()}`,
+          message: `A new ${type.toLowerCase()} "${title}" has been posted for ${subject.name}${batchLabel}. Deadline: ${new Date(deadline).toLocaleDateString()}`,
           type: 'ASSIGNMENT',
         })),
       });
