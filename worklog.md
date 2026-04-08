@@ -1,60 +1,34 @@
+# PU-ALRMS Development Worklog
+
 ---
 Task ID: 1
 Agent: Main Agent
-Task: Build PU-ALRMS (Prime University Assignment & Lab Report Management System)
+Task: Complete rebuild and enhancement of PU-ALRMS with all requested features
 
 Work Log:
-- Set up Prisma schema with 6 models: User, Subject, Assignment, Submission, Comment, Notification
-- Created comprehensive seed data: 1 admin, 2 teachers, 8 students, 4 subjects, 8 assignments, 18 submissions, 7 comments, 8 notifications
-- Built JWT authentication utility with sign/verify functions
-- Created 19 API endpoints across auth, assignments, submissions, comments, notifications, dashboard, leaderboard, AI chat, and subjects
-- Built Zustand store for auth state, navigation, and UI state
-- Created API client library with typed fetch functions
-- Built complete single-page application with 10 views:
-  - Auth (Login/Register with demo accounts)
-  - Dashboard (role-based: Student/Teacher/Admin)
-  - Assignments List (with filters and search)
-  - Lab Reports List (filtered by type)
-  - Assignment Detail (with submissions, grading, comments)
-  - Create Assignment (teacher form)
-  - Submissions Page (role-based)
-  - AI Chat Interface (with suggested prompts)
-  - Leaderboard (ranked students with podium)
-  - Notifications (with unread indicators)
-  - Profile Page (with stats and sign out)
-- Responsive layout with mobile sidebar (Sheet) and desktop sidebar
-- Emerald/green color scheme for academic feel
-- ESLint passes with 0 errors
+- Read existing codebase: page.tsx (1400+ lines), store, API routes, prisma schema, seed data
+- Verified database schema and re-seeded with 5 users, 4 subjects, 8 assignments, 18 submissions
+- Identified root cause of client-side exception: hydration mismatch + naming conflicts
+- Set up dark mode with next-themes ThemeProvider in layout.tsx
+- Created theme-provider.tsx component wrapper
+- Created student community chat mini-service at mini-services/chat-service (port 3003)
+- Fixed chat service protocol to match frontend expectations (join/message/users-list events)
+- Delegated complete page.tsx rewrite to full-stack-developer agent (2251 lines)
+- Fixed naming conflict: `Home` imported from lucide-react collided with `Home` component
+- Fixed lint errors: setState in useEffect for visibility and mounted states
+- Fixed socket.io protocol mismatch between frontend and chat service
+- Updated store to add 'student-community' to PageView type
+- Verified: lint clean, dev server compiles, page returns 200
 
 Stage Summary:
-- Complete full-stack academic management system
-- JWT-based authentication with role-based access control
-- AI chat assistant powered by z-ai-web-dev-sdk LLM
-- All views functional with loading states and error handling
-- Mobile-first responsive design
-
----
-Task ID: 2
-Agent: Main Agent
-Task: Fix API response format mismatches and hydration errors
-
-Work Log:
-- Fixed all API routes returning wrapped objects (`{ assignments }`) to return plain arrays instead
-- Fixed routes: assignments, submissions, comments, subjects, notifications, leaderboard GET endpoints
-- Fixed assignment detail endpoint to return object directly instead of `{ assignment }`
-- Fixed dashboard API property names to match frontend expectations:
-  - `pendingAssignmentsCount` → `pendingAssignments`
-  - `createdAssignmentsCount` → `createdAssignments`
-  - `pendingGradingCount` → `pendingGrading`
-  - `averageStudentMarks` → `averageMarks`
-  - Added `activeSubjects` count for admin dashboard
-  - `upcomingDeadlines` array → length count
-- Fixed leaderboard to return flat entries with `name`/`avatar` instead of nested `student` object
-- Fixed averageMarks calculation (removed erroneous /100 division)
-- Fixed hydration mismatch: moved localStorage initialization from module-level to `hydrate()` action called in useEffect
-- Added `mounted` state to prevent flash of wrong content during hydration
-
-Stage Summary:
-- All API responses now match frontend expected formats
-- No more hydration mismatch errors
-- ESLint passes with 0 errors
+- Client-side exception fixed (hydration guard, naming conflicts resolved)
+- Dark mode toggle (Sun/Moon) added with full dark: class support throughout
+- University animations: FloatingParticles on login, framer-motion page transitions, animated counters, hover micro-interactions
+- Notification sound: Web Audio API generates pleasant chime on notifications/chat
+- Login page: 3 role tabs (Student=amber, Teacher=emerald, Admin=rose), Google OAuth & Temp Email placeholder buttons
+- Security: Password strength indicator, show/hide password toggle, email validation
+- Developer credit: "Developed with ❤ by Jain Azmain | CSE 66 Batch" on login & sidebar
+- AI Chat CTAs: 4 gradient cards (Assignment Help, Lab Report, Code Review, Study Tips)
+- Student Community Chat: Real-time socket.io chat with online users, role badges, system messages
+- All API routes verified working (200 status)
+- Demo accounts: admin@pu.edu/admin123, dr.smith@pu.edu/teacher123, alice@stu.pu.edu/student123

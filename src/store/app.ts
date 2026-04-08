@@ -20,7 +20,8 @@ export type PageView =
   | 'ai-chat'
   | 'leaderboard'
   | 'notifications'
-  | 'profile';
+  | 'profile'
+  | 'student-community';
 
 interface AppState {
   // Auth
