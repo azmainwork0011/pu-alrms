@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({ notifications });
+    return NextResponse.json(notifications);
   } catch (error) {
     console.error('Get notifications error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

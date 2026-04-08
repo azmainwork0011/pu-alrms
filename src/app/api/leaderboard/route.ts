@@ -64,19 +64,16 @@ export async function GET(req: NextRequest) {
     // Build leaderboard
     const leaderboard = Array.from(studentStats.entries())
       .map(([studentId, stats]) => ({
-        studentId,
-        student: stats.student,
+        id: studentId,
+        name: stats.student.name,
+        email: stats.student.email,
+        avatar: stats.student.avatar,
         totalSubmissions: totalSubMap.get(studentId) || stats.totalSubmissions,
-        gradedSubmissions: stats.gradedCount,
         averageMarks: Math.round((stats.totalMarks / stats.gradedCount) * 100) / 100,
       }))
-      .sort((a, b) => b.averageMarks - a.averageMarks)
-      .map((entry, index) => ({
-        ...entry,
-        rank: index + 1,
-      }));
+      .sort((a, b) => b.averageMarks - a.averageMarks);
 
-    return NextResponse.json({ leaderboard });
+    return NextResponse.json(leaderboard);
   } catch (error) {
     console.error('Leaderboard error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

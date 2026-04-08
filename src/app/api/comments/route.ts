@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: 'asc' },
     });
 
-    return NextResponse.json({ comments });
+    return NextResponse.json(comments);
   } catch (error) {
     console.error('Get comments error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
