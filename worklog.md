@@ -1,50 +1,25 @@
-# Refactoring Work Record: PU-ALRMS page.tsx (3400→47 lines)
+---
+Task ID: 1
+Agent: Main Agent
+Task: Add batch-wise assignment creation, Google OAuth, and temp email login
 
-## Summary
-Successfully refactored the monolithic 3400-line `src/app/page.tsx` into 15 separate component files. The app compiles in ~4.6s (down from "hanging indefinitely"), passes ESLint with zero errors, and returns HTTP 200.
+Work Log:
+- Added `batch` field to Assignment model in prisma/schema.prisma
+- Pushed schema to DB with `bun run db:push`
+- Updated `/api/assignments` POST to accept `batch` field and filter notifications by batch
+- Updated `/api/assignments` GET to filter assignments by student's batch (shows batch-specific + open assignments)
+- Created `/api/batches/route.ts` to list all unique batches from users and subjects
+- Updated CreateAssignmentPage with batch selector UI (target audience section)
+- Allowed ADMIN and CR roles to also create assignments
+- Created `/api/auth/google/route.ts` for Google-style OAuth (creates account or logs in existing)
+- Created `/api/auth/temp-email/route.ts` for instant temp email login
+- Updated `authApi` in `src/lib/api.ts` with `googleAuth()` and `tempEmailAuth()` methods
+- Rewrote AuthPage with Google OAuth dialog and Temp Email dialog
+- All lint checks pass, all API endpoints verified working
 
-## Files Created
-
-### Shared Utilities
-| File | Lines | Contents |
-|------|-------|----------|
-| `src/components/pu-helpers.tsx` | ~200 | `playNotificationSound`, `getPasswordStrength`, `isValidEmail`, `getInitials`, `getRoleBadgeColor`, `getTypeBadgeVariant`, `getStatusColor`, `safeFormat`, `safeIsPast`, `timeAgo`, `AnimatedCounter`, `DashboardSkeleton`, `PageTransition`, `FloatingParticles`, `DevCredit`, `Shield` |
-
-### Page Components (`src/components/pages/`)
-| File | Lines | Component |
-|------|-------|-----------|
-| `AuthPage.tsx` | ~220 | Login/Register with demo accounts |
-| `DashboardPage.tsx` | ~210 | Stats cards, deadlines, submissions, quick actions |
-| `AssignmentsPage.tsx` | ~130 | Filterable assignment/lab report list |
-| `AssignmentDetailPage.tsx` | ~270 | Detail view, submit, grade, comments |
-| `CreateAssignmentPage.tsx` | ~90 | Teacher form to create assignments |
-| `SubmissionsPage.tsx` | ~100 | Student/teacher submissions table |
-| `AIChatPage.tsx` | ~900 | AI chat with file upload, image gen, scanner |
-| `LeaderboardPage.tsx` | ~100 | Ranked student leaderboard |
-| `NotificationsPage.tsx` | ~100 | Notification list with mark-as-read |
-| `ProfilePage.tsx` | ~100 | User profile with stats |
-| `StudentCommunityPage.tsx` | ~430 | Real-time Socket.IO chat with rooms |
-| `AnnouncementsPage.tsx` | ~240 | CRUD announcements with priority |
-
-### Layout
-| File | Lines | Contents |
-|------|-------|----------|
-| `src/components/layout/AppLayout.tsx` | ~190 | `SidebarNav`, `MobileSidebar`, `ThemeToggle`, `AppLayout` |
-
-### Orchestrator
-| File | Lines | Contents |
-|------|-------|----------|
-| `src/app/page.tsx` | **47** | `Home` — hydrates store, shows loading/AuthPage/AppLayout |
-
-## Key Decisions
-- `DashboardSkeleton` moved to `pu-helpers.tsx` since it's shared by DashboardPage and AnnouncementsPage
-- `pu-helpers.tsx` uses `.tsx` extension (not `.ts`) because it contains JSX (`AnimatedCounter`, `FloatingParticles`, `DevCredit`, etc.)
-- Every component file has `'use client'` at the top
-- Each file imports only its own dependencies — no shared import barrel
-- `Shield` icon (custom SVG, not in lucide-react) lives in `pu-helpers.tsx`
-
-## Verification
-- ✅ ESLint: zero errors, zero warnings
-- ✅ Turbopack compilation: `GET / 200 in 4.9s (compile: 4.6s, render: 285ms)`
-- ✅ `curl http://localhost:3000/` returns HTTP 200
-- ✅ All API routes respond correctly (dashboard, assignments, submissions, etc.)
+Stage Summary:
+- 3 new features implemented: batch-wise assignments, Google sign-in, temp email login
+- New API endpoints: POST /api/auth/google, POST /api/auth/temp-email, GET /api/batches
+- UI: CreateAssignmentPage now has batch target audience section
+- UI: AuthPage has working "Sign in with Google" and "Quick Access" buttons with dialogs
+- All endpoints return correct data (verified with curl)

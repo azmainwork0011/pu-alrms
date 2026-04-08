@@ -43,6 +43,18 @@ export const authApi = {
   
   getProfile: () =>
     apiFetch<any>('/api/auth/profile'),
+
+  googleAuth: (data: { name: string; email: string; avatar?: string; role?: string }) =>
+    apiFetch<{ token: string; user: any; isExisting: boolean }>('/api/auth/google', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  tempEmailAuth: (name?: string) =>
+    apiFetch<{ token: string; user: any; tempEmail: string }>('/api/auth/temp-email', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    }),
 };
 
 export const assignmentApi = {

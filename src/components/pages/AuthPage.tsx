@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -10,10 +10,11 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useAppStore } from '@/store/app';
 import { authApi } from '@/lib/api';
 import {
-  GraduationCap, BookOpen, Mail, Lock, Unlock, Eye, Globe,
+  GraduationCap, BookOpen, Mail, Lock, Unlock, Eye, Globe, Zap, ArrowRight, Sparkles, UserPlus, KeyRound,
 } from 'lucide-react';
 import {
   getPasswordStrength, isValidEmail, FloatingParticles, DevCredit, Shield,
@@ -26,6 +27,16 @@ function AuthPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'STUDENT' });
   const { setAuth } = useAppStore();
+
+  // Google OAuth dialog state
+  const [googleOpen, setGoogleOpen] = useState(false);
+  const [googleForm, setGoogleForm] = useState({ name: '', email: '', role: 'STUDENT' });
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Temp email dialog state
+  const [tempEmailOpen, setTempEmailOpen] = useState(false);
+  const [tempName, setTempName] = useState('');
+  const [tempLoading, setTempLoading] = useState(false);
 
   const roleConfig = {
     STUDENT: { color: 'amber', gradient: 'from-amber-500 to-orange-500', bg: 'bg-amber-50 dark:bg-amber-950/30', border: 'border-amber-200 dark:border-amber-800', placeholder: 'student@stu.pu.edu' },
@@ -49,6 +60,48 @@ function AuthPage() {
       toast.error(err.message || 'Authentication failed');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ─── Google OAuth Handler ───────────────────────────────
+  const handleGoogleAuth = async () => {
+    if (!googleForm.name.trim() || !googleForm.email.trim()) {
+      toast.error('Please enter your name and email');
+      return;
+    }
+    if (!isValidEmail(googleForm.email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    setGoogleLoading(true);
+    try {
+      const result = await authApi.googleAuth({
+        name: googleForm.name.trim(),
+        email: googleForm.email.trim(),
+        role: googleForm.role,
+      });
+      setAuth(result.user, result.token);
+      toast.success(result.isExisting ? `Welcome back, ${result.user.name}!` : `Account created via Google for ${result.user.name}!`);
+      setGoogleOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Google sign-in failed');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  // ─── Temp Email Handler ─────────────────────────────────
+  const handleTempEmailAuth = async () => {
+    setTempLoading(true);
+    try {
+      const result = await authApi.tempEmailAuth(tempName.trim() || undefined);
+      setAuth(result.user, result.token);
+      toast.success(`Welcome! Your temp email: ${result.tempEmail}`);
+      setTempEmailOpen(false);
+    } catch (err: any) {
+      toast.error(err.message || 'Temp login failed');
+    } finally {
+      setTempLoading(false);
     }
   };
 
@@ -215,21 +268,26 @@ function AuthPage() {
             {activeTab === 'login' && (
               <>
                 <div className="mt-4 flex gap-2">
+                  {/* ─── Google Sign In Button ─────────── */}
                   <Button
                     type="button"
                     variant="outline"
                     className="flex-1 gap-2 text-xs dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
-                    onClick={() => toast.info('Google OAuth coming soon!')}
+                    onClick={() => setGoogleOpen(true)}
                   >
-                    <Globe className="w-4 h-4" /> Sign in with Google
+                    <Globe className="w-4 h-4" />
+                    <span className="truncate">Sign in with Google</span>
                   </Button>
+
+                  {/* ─── Temp Email Button ────────────── */}
                   <Button
                     type="button"
                     variant="outline"
                     className="flex-1 gap-2 text-xs dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
-                    onClick={() => toast.info('Temporary email login coming soon!')}
+                    onClick={() => setTempEmailOpen(true)}
                   >
-                    <Mail className="w-4 h-4" /> Temp Email
+                    <KeyRound className="w-4 h-4" />
+                    <span className="truncate">Quick Access</span>
                   </Button>
                 </div>
 
@@ -264,6 +322,155 @@ function AuthPage() {
           <p className="text-center text-xs text-gray-400 dark:text-gray-600">PU-ALRMS &copy; 2024 Prime University. All rights reserved.</p>
         </div>
       </motion.div>
+
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* Google Sign-In Dialog                                      */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      <Dialog open={googleOpen} onOpenChange={setGoogleOpen}>
+        <DialogContent className="sm:max-w-md dark:bg-gray-900 dark:border-gray-800">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Globe className="w-5 h-5 text-blue-500" />
+              Sign in with Google
+            </DialogTitle>
+            <DialogDescription className="text-gray-500 dark:text-gray-400 text-sm">
+              Enter your Google account details to sign in or create a new account
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="google-name">Full Name</Label>
+              <div className="relative">
+                <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  id="google-name"
+                  placeholder="Your Google account name"
+                  value={googleForm.name}
+                  onChange={(e) => setGoogleForm({ ...googleForm, name: e.target.value })}
+                  className="pl-9 dark:bg-gray-800 dark:border-gray-700"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="google-email">Gmail Address</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Input
+                  id="google-email"
+                  type="email"
+                  placeholder="you@gmail.com"
+                  value={googleForm.email}
+                  onChange={(e) => setGoogleForm({ ...googleForm, email: e.target.value })}
+                  className="pl-9 dark:bg-gray-800 dark:border-gray-700"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Account Role</Label>
+              <Select value={googleForm.role} onValueChange={(role) => setGoogleForm({ ...googleForm, role })}>
+                <SelectTrigger className="dark:bg-gray-800 dark:border-gray-700">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="STUDENT">Student</SelectItem>
+                  <SelectItem value="TEACHER">Teacher</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+              <Sparkles className="w-4 h-4 text-blue-500 shrink-0" />
+              <p className="text-xs text-blue-700 dark:text-blue-300">
+                New account will be created automatically if your email is not registered yet.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <Button variant="outline" onClick={() => setGoogleOpen(false)} className="flex-1 dark:bg-gray-800 dark:border-gray-700">
+                Cancel
+              </Button>
+              <Button
+                onClick={handleGoogleAuth}
+                disabled={googleLoading || !googleForm.name || !googleForm.email}
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {googleLoading ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Signing in...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    Continue with Google <ArrowRight className="w-4 h-4" />
+                  </span>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ═══════════════════════════════════════════════════════════ */}
+      {/* Temp Email Dialog                                          */}
+      {/* ═══════════════════════════════════════════════════════════ */}
+      <Dialog open={tempEmailOpen} onOpenChange={setTempEmailOpen}>
+        <DialogContent className="sm:max-w-md dark:bg-gray-900 dark:border-gray-800">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <KeyRound className="w-5 h-5 text-amber-500" />
+              Quick Access Login
+            </DialogTitle>
+            <DialogDescription className="text-gray-500 dark:text-gray-400 text-sm">
+              Get instant access with a temporary email. No password needed!
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label htmlFor="temp-name">Your Name (optional)</Label>
+              <Input
+                id="temp-name"
+                placeholder="Enter your name or leave blank"
+                value={tempName}
+                onChange={(e) => setTempName(e.target.value)}
+                className="dark:bg-gray-800 dark:border-gray-700"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+              <Zap className="w-4 h-4 text-amber-500 shrink-0" />
+              <p className="text-xs text-amber-700 dark:text-amber-300">
+                A random temporary email will be generated for you. You&apos;ll be logged in as a Student instantly.
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <Button variant="outline" onClick={() => setTempEmailOpen(false)} className="flex-1 dark:bg-gray-800 dark:border-gray-700">
+                Cancel
+              </Button>
+              <Button
+                onClick={handleTempEmailAuth}
+                disabled={tempLoading}
+                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                {tempLoading ? (
+                  <span className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Creating...
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-2">
+                    Login Instantly <ArrowRight className="w-4 h-4" />
+                  </span>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

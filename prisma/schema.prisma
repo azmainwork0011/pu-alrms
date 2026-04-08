@@ -46,6 +46,7 @@ model Assignment {
   description String
   subjectId   String
   type        String   @default("ASSIGNMENT") // ASSIGNMENT, LAB_REPORT
+  batch       String?  // e.g. "CSE-66", "CSE-67" — targets a specific batch
   deadline    DateTime
   fileUrl     String?
   status      String   @default("ACTIVE") // ACTIVE, CLOSED, ARCHIVED
