@@ -9,7 +9,6 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAppStore, type PageView, type UserRole } from '@/store/app';
-import Image from 'next/image';
 import {
   LayoutDashboard, ClipboardList, FlaskConical, Plus, FileText, Trophy,
   Megaphone, MessageSquare, Sparkles, Bell, User as UserIcon,
@@ -77,7 +76,7 @@ function MobileSidebar() {
         <SheetHeader className="p-4 border-b dark:border-gray-800">
           <SheetTitle className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0">
-              <Image src="/logo.png" alt="PU-ALRMS" width={32} height={32} className="object-cover" />
+              <img src="/logo.png" alt="PU-ALRMS" className="w-full h-full object-cover" />
             </div>
             PU-ALRMS
           </SheetTitle>
@@ -146,7 +145,7 @@ export default function AppLayout() {
         <div className="p-4 border-b dark:border-gray-800">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl overflow-hidden shrink-0 shadow-sm">
-              <Image src="/logo.png" alt="PU-ALRMS" width={36} height={36} className="object-cover" />
+              <img src="/logo.png" alt="PU-ALRMS" className="w-full h-full object-cover" />
             </div>
             <div>
               <h2 className="font-bold text-sm text-gray-900 dark:text-white">PU-ALRMS</h2>
