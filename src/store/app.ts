@@ -8,6 +8,12 @@ export interface User {
   email: string;
   role: UserRole;
   avatar?: string;
+  coverPhoto?: string;
+  rollNumber?: string;
+  batch?: string;
+  department?: string;
+  phone?: string;
+  bio?: string;
 }
 
 export type PageView =
@@ -41,6 +47,7 @@ interface AppState {
 
   // Actions
   setAuth: (user: User, token: string) => void;
+  updateUser: (data: Partial<User>) => void;
   logout: () => void;
   setPage: (page: PageView) => void;
   setAssignmentId: (id: string) => void;
@@ -67,6 +74,14 @@ export const useAppStore = create<AppState>((set) => ({
     }
     set({ user, token, isAuthenticated: true });
   },
+
+  updateUser: (data) => set((state) => {
+    if (typeof window !== 'undefined' && state.user) {
+      const updated = { ...state.user, ...data };
+      localStorage.setItem('user', JSON.stringify(updated));
+    }
+    return { user: state.user ? { ...state.user, ...data } : null };
+  }),
 
   logout: () => {
     if (typeof window !== 'undefined') {

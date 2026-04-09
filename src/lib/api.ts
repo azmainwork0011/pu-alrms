@@ -44,6 +44,30 @@ export const authApi = {
   getProfile: () =>
     apiFetch<any>('/api/auth/profile'),
 
+  updateProfile: (data: { name?: string; rollNumber?: string; batch?: string; department?: string; phone?: string; bio?: string }) =>
+    apiFetch<{ user: any }>('/api/auth/profile', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  uploadProfilePhoto: (file: File, type: 'avatar' | 'cover') => {
+    const token = localStorage.getItem('token');
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', type);
+    return fetch('/api/auth/profile', {
+      method: 'PUT',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: formData,
+    }).then(async (res) => {
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: 'Upload failed' }));
+        throw new Error(error.error || `HTTP ${res.status}`);
+      }
+      return res.json();
+    }) as Promise<{ success: boolean; url: string }>;
+  },
+
   googleAuth: (data: { name: string; email: string; avatar?: string; role?: string }) =>
     apiFetch<{ token: string; user: any; isExisting: boolean }>('/api/auth/google', {
       method: 'POST',

@@ -8,15 +8,20 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("STUDENT") // ADMIN, TEACHER, STUDENT, CR
-  avatar    String?
-  batch     String?  // e.g. "CSE-66"
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  password    String
+  role        String   @default("STUDENT") // ADMIN, TEACHER, STUDENT, CR
+  avatar      String?
+  coverPhoto  String?
+  rollNumber  String?  // e.g. "2024001"
+  batch       String?  // e.g. "CSE-66"
+  department  String?  // e.g. "Computer Science & Engineering"
+  phone       String?  // e.g. "+8801XXXXXXXXX"
+  bio         String?  // short bio / about
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   subjects       Subject[]
   assignments    Assignment[]
