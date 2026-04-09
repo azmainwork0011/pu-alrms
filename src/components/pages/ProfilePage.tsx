@@ -39,12 +39,16 @@ function NotificationSoundSettings() {
   const changeSound = (type: SoundType) => {
     const updated = saveSoundSettings({ soundType: type });
     setSettings(updated);
+    // Auto-preview on selection
+    setPreviewing(type);
+    previewSound(type);
+    setTimeout(() => setPreviewing(null), 1500);
   };
 
   const handlePreview = (type: SoundType) => {
     setPreviewing(type);
     previewSound(type);
-    setTimeout(() => setPreviewing(null), 1200);
+    setTimeout(() => setPreviewing(null), 1500);
   };
 
   return (
@@ -99,54 +103,79 @@ function NotificationSoundSettings() {
       {/* Sound Selection Grid */}
       {settings.enabled && (
         <div className="space-y-2 pl-12">
-          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Choose Sound</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {SOUND_OPTIONS.map((option: SoundOption) => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => changeSound(option.id)}
-                className={`relative p-3 rounded-xl border-2 text-left transition-all group hover:shadow-sm ${
-                  settings.soundType === option.id
-                    ? option.isRealAudio
-                      ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-400'
-                      : 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-400'
-                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-lg">{option.emoji}</span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5">
-                      <p className={`text-xs font-semibold truncate ${settings.soundType === option.id ? (option.isRealAudio ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300') : 'text-gray-700 dark:text-gray-300'}`}>
-                        {option.label}
-                      </p>
-                      {option.isRealAudio && (
-                        <span className="shrink-0 px-1.5 py-0.5 rounded text-[8px] font-bold bg-amber-500 text-white uppercase tracking-wider">Original</span>
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Choose Sound (tap to select &amp; preview)</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {SOUND_OPTIONS.map((option: SoundOption) => {
+              const isSelected = settings.soundType === option.id;
+              const isPlaying = previewing === option.id;
+              return (
+                <button
+                  key={option.id}
+                  type="button"
+                  onClick={() => changeSound(option.id)}
+                  className={`relative p-3 rounded-xl border-2 text-left transition-all ${
+                    isSelected
+                      ? option.isRealAudio
+                        ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-400 shadow-sm'
+                        : 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-400 shadow-sm'
+                      : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                  } ${isPlaying ? 'scale-[0.98]' : ''}`}
+                >
+                  <div className="flex items-center gap-3">
+                    {/* Play indicator - always visible */}
+                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 transition-all ${
+                      isPlaying
+                        ? 'bg-amber-500 text-white scale-110'
+                        : isSelected
+                          ? option.isRealAudio
+                            ? 'bg-amber-100 dark:bg-amber-800/30 text-amber-600 dark:text-amber-400'
+                            : 'bg-emerald-100 dark:bg-emerald-800/30 text-emerald-600 dark:text-emerald-400'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500'
+                    }`}>
+                      {isPlaying ? (
+                        <Volume2 className="w-4 h-4 animate-pulse" />
+                      ) : (
+                        <Volume2 className="w-4 h-4" />
                       )}
                     </div>
-                    <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate">{option.description}</p>
+
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <p className={`text-xs font-semibold truncate ${
+                          isSelected
+                            ? option.isRealAudio
+                              ? 'text-amber-700 dark:text-amber-300'
+                              : 'text-emerald-700 dark:text-emerald-300'
+                            : 'text-gray-700 dark:text-gray-300'
+                        }`}>
+                          {option.label}
+                        </p>
+                        {option.isRealAudio && (
+                          <span className="shrink-0 px-1.5 py-0.5 rounded text-[8px] font-bold bg-amber-500 text-white uppercase tracking-wider">Original</span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate">{option.description}</p>
+                    </div>
+
+                    {/* Checkmark for selected */}
+                    {isSelected && (
+                      <div className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center ${
+                        option.isRealAudio ? 'bg-amber-500' : 'bg-emerald-500'
+                      }`}>
+                        <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      </div>
+                    )}
                   </div>
-                </div>
-                {settings.soundType === option.id && (
-                  <div className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${option.isRealAudio ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-                )}
-                {/* Preview button */}
-                <div
-                  className="absolute bottom-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                  onClick={(e) => { e.stopPropagation(); handlePreview(option.id); }}
-                >
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${previewing === option.id ? 'bg-amber-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
-                    <Volume2 className={`w-3 h-3 ${previewing === option.id ? 'animate-pulse' : ''}`} />
-                  </div>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* Quick Preview of Current Sound */}
+      {/* Quick Preview Button */}
       {settings.enabled && (
         <div className="flex justify-center pt-1">
           <Button
@@ -156,7 +185,7 @@ function NotificationSoundSettings() {
             className="gap-2 h-8 text-xs"
           >
             <Volume2 className={`w-3.5 h-3.5 ${previewing ? 'animate-pulse' : ''}`} />
-            Preview Current Sound
+            {previewing ? 'Playing...' : 'Preview Current Sound'}
           </Button>
         </div>
       )}
