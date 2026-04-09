@@ -32,18 +32,29 @@ export async function POST(req: NextRequest) {
       size: '1024x1024',
     });
 
-    const imageBase64 = response.data[0]?.base64;
-
-    if (!imageBase64) {
+    // Handle both base64 and URL responses
+    const imageData = response.data?.[0];
+    if (!imageData) {
       return NextResponse.json({ error: 'Failed to generate image' }, { status: 500 });
     }
 
-    return NextResponse.json({ 
-      image: `data:image/png;base64,${imageBase64}`,
-      prompt: enhancedPrompt 
+    let imageUrl: string;
+    if (imageData.base64) {
+      imageUrl = `data:image/png;base64,${imageData.base64}`;
+    } else if (imageData.url) {
+      imageUrl = imageData.url;
+    } else if (imageData.b64_json) {
+      imageUrl = `data:image/png;base64,${imageData.b64_json}`;
+    } else {
+      return NextResponse.json({ error: 'No image data in response' }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      image: imageUrl,
+      prompt: enhancedPrompt,
     });
   } catch (error: any) {
     console.error('Image generation error:', error);
-    return NextResponse.json({ error: 'Failed to generate image' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to generate image. Please try again.' }, { status: 500 });
   }
 }

@@ -170,7 +170,7 @@ export const aiApi = {
     }),
 
   voteBattle: (battleId: string, label: string) =>
-    apiFetch<{ success: boolean; votes: any }>('/api/ai/chat', {
+    apiFetch<{ success: boolean; votes: any; reveals: Record<string, string> }>('/api/ai/chat', {
       method: 'PUT',
       body: JSON.stringify({ battleId, label }),
     }),
