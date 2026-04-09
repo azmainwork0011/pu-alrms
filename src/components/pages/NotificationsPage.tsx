@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -16,6 +16,8 @@ function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const { setNotificationCount } = useAppStore();
 
+  const initialLoad = useRef(true);
+
   useEffect(() => {
     notificationApi.list().then((data) => {
       setNotifications(Array.isArray(data) ? data : []);
@@ -23,12 +25,14 @@ function NotificationsPage() {
   }, []);
 
   useEffect(() => {
-    if (notifications.length > 0) {
+    // Only play sound on subsequent loads (new notifications), not on initial mount
+    if (!initialLoad.current && notifications.length > 0) {
       const unread = notifications.filter(n => !n.isRead);
       if (unread.length > 0) {
         playNotificationSound();
       }
     }
+    initialLoad.current = false;
   }, [notifications.length]);
 
   const markAsRead = async (id: string) => {

@@ -6,44 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Heart } from 'lucide-react';
 
 // ─── Notification Sound (Web Audio API) ───────────────────
-let audioCtx: AudioContext | null = null;
-
-export function playNotificationSound() {
-  try {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    }
-    const ctx = audioCtx;
-
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(880, ctx.currentTime);
-    osc1.frequency.setValueAtTime(1108.73, ctx.currentTime + 0.1);
-    osc1.frequency.setValueAtTime(1318.51, ctx.currentTime + 0.2);
-
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(660, ctx.currentTime);
-    osc2.frequency.setValueAtTime(880, ctx.currentTime + 0.1);
-    osc2.frequency.setValueAtTime(1046.5, ctx.currentTime + 0.2);
-
-    gain.gain.setValueAtTime(0.15, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-
-    osc1.connect(gain);
-    osc2.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc1.start(ctx.currentTime);
-    osc2.start(ctx.currentTime);
-    osc1.stop(ctx.currentTime + 0.5);
-    osc2.stop(ctx.currentTime + 0.5);
-  } catch {
-    // Audio not available
-  }
-}
+// Re-exports from the full meme sound system in @/lib/notification-sound
+export { playNotificationSound } from '@/lib/notification-sound';
 
 // ─── Password Strength ────────────────────────────────────
 export function getPasswordStrength(password: string): { score: number; label: string; color: string; width: string } {
