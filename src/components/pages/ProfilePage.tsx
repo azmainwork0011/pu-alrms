@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import {
   getSoundSettings, saveSoundSettings, previewSound,
-  SOUND_OPTIONS, type SoundType,
+  SOUND_OPTIONS, type SoundType, type SoundOption,
 } from '@/lib/notification-sound';
 
 // ─── Notification Sound Settings Component ──────────────
@@ -101,35 +101,42 @@ function NotificationSoundSettings() {
         <div className="space-y-2 pl-12">
           <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Choose Sound</p>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-            {SOUND_OPTIONS.map((option) => (
+            {SOUND_OPTIONS.map((option: SoundOption) => (
               <button
                 key={option.id}
                 type="button"
                 onClick={() => changeSound(option.id)}
                 className={`relative p-3 rounded-xl border-2 text-left transition-all group hover:shadow-sm ${
                   settings.soundType === option.id
-                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-400'
+                    ? option.isRealAudio
+                      ? 'border-amber-500 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-400'
+                      : 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-400'
                     : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
               >
                 <div className="flex items-center gap-2">
                   <span className="text-lg">{option.emoji}</span>
-                  <div className="min-w-0">
-                    <p className={`text-xs font-semibold truncate ${settings.soundType === option.id ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-gray-300'}`}>
-                      {option.label}
-                    </p>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <p className={`text-xs font-semibold truncate ${settings.soundType === option.id ? (option.isRealAudio ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300') : 'text-gray-700 dark:text-gray-300'}`}>
+                        {option.label}
+                      </p>
+                      {option.isRealAudio && (
+                        <span className="shrink-0 px-1.5 py-0.5 rounded text-[8px] font-bold bg-amber-500 text-white uppercase tracking-wider">Original</span>
+                      )}
+                    </div>
                     <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate">{option.description}</p>
                   </div>
                 </div>
                 {settings.soundType === option.id && (
-                  <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500" />
+                  <div className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full ${option.isRealAudio ? 'bg-amber-500' : 'bg-emerald-500'}`} />
                 )}
                 {/* Preview button */}
                 <div
                   className="absolute bottom-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={(e) => { e.stopPropagation(); handlePreview(option.id); }}
                 >
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${previewing === option.id ? 'bg-emerald-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${previewing === option.id ? 'bg-amber-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
                     <Volume2 className={`w-3 h-3 ${previewing === option.id ? 'animate-pulse' : ''}`} />
                   </div>
                 </div>

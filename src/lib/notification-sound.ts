@@ -1,10 +1,10 @@
 'use client';
 
 // ─── Notification Sound Engine ──────────────────────────────
-// Uses Web Audio API to synthesize meme-style notification sounds.
-// No external audio files needed!
+// Primary sound: Real "Fahhh" MP3 from YouTube (TajAzT3CVJc)
+// Fallback: Synthesized alternatives using Web Audio API
 
-type SoundType = 'fart' | 'bruh' | 'ding' | 'airhorn' | 'vine-boom' | 'mlg-horn';
+type SoundType = 'fahhh' | 'ding' | 'airhorn' | 'vine-boom' | 'mlg-horn';
 
 interface SoundSettings {
   enabled: boolean;
@@ -16,11 +16,24 @@ const SETTINGS_KEY = 'pu-alrms-sound-settings';
 
 const DEFAULT_SETTINGS: SoundSettings = {
   enabled: true,
-  volume: 0.6,
-  soundType: 'fart',
+  volume: 0.8,
+  soundType: 'fahhh',
 };
 
-// ─── Audio Context (lazy init) ─────────────────────────────
+// ─── Audio Elements (HTML5 Audio for MP3 files) ────────────
+let fahhhAudio: HTMLAudioElement | null = null;
+
+function getFahhhAudio(): HTMLAudioElement {
+  if (!fahhhAudio) {
+    fahhhAudio = new Audio('/sounds/fahhh.mp3');
+    fahhhAudio.preload = 'auto';
+  }
+  // Reset to start if already played
+  fahhhAudio.currentTime = 0;
+  return fahhhAudio;
+}
+
+// ─── Audio Context (lazy init for synthesized sounds) ───────
 let audioCtx: AudioContext | null = null;
 
 function getAudioContext(): AudioContext {
@@ -33,127 +46,21 @@ function getAudioContext(): AudioContext {
   return audioCtx;
 }
 
-// ─── Sound Synthesizers ────────────────────────────────────
+// ─── Real "Fahhh" Sound Playback ───────────────────────────
 
-/** The classic "faaaa" fart meme sound - descending low-frequency sweep with noise */
-function playFart(ctx: AudioContext, vol: number) {
-  const now = ctx.currentTime;
-  const duration = 0.8;
-  const master = ctx.createGain();
-  master.gain.setValueAtTime(0, now);
-  master.gain.linearRampToValueAtTime(vol, now + 0.05);
-  master.gain.exponentialRampToValueAtTime(0.001, now + duration);
-  master.connect(ctx.destination);
-
-  // Main oscillator - sweeps from ~300Hz down to ~60Hz
-  const osc = ctx.createOscillator();
-  osc.type = 'sawtooth';
-  osc.frequency.setValueAtTime(300, now);
-  osc.frequency.exponentialRampToValueAtTime(80, now + 0.15);
-  osc.frequency.exponentialRampToValueAtTime(60, now + duration);
-
-  const oscGain = ctx.createGain();
-  oscGain.gain.setValueAtTime(vol * 0.7, now);
-  oscGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
-
-  // Second oscillator for body
-  const osc2 = ctx.createOscillator();
-  osc2.type = 'triangle';
-  osc2.frequency.setValueAtTime(150, now);
-  osc2.frequency.exponentialRampToValueAtTime(40, now + duration * 0.7);
-
-  const osc2Gain = ctx.createGain();
-  osc2Gain.gain.setValueAtTime(vol * 0.5, now);
-  osc2Gain.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.8);
-
-  // Noise layer for texture
-  const bufferSize = ctx.sampleRate * duration;
-  const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-  const noiseData = noiseBuffer.getChannelData(0);
-  for (let i = 0; i < bufferSize; i++) {
-    noiseData[i] = (Math.random() * 2 - 1) * 0.3;
+function playFahhh(vol: number) {
+  try {
+    const audio = getFahhhAudio();
+    audio.volume = vol;
+    audio.play().catch(() => {
+      // Autoplay blocked - silently fail
+    });
+  } catch {
+    // Audio not available
   }
-  const noise = ctx.createBufferSource();
-  noise.buffer = noiseBuffer;
-
-  const noiseFilter = ctx.createBiquadFilter();
-  noiseFilter.type = 'lowpass';
-  noiseFilter.frequency.setValueAtTime(800, now);
-  noiseFilter.frequency.exponentialRampToValueAtTime(200, now + duration);
-  noiseFilter.Q.value = 5;
-
-  const noiseGain = ctx.createGain();
-  noiseGain.gain.setValueAtTime(vol * 0.3, now);
-  noiseGain.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.9);
-
-  // Connect everything
-  osc.connect(oscGain).connect(master);
-  osc2.connect(osc2Gain).connect(master);
-  noise.connect(noiseFilter).connect(noiseGain).connect(master);
-
-  // Play
-  osc.start(now);
-  osc.stop(now + duration);
-  osc2.start(now);
-  osc2.stop(now + duration);
-  noise.start(now);
-  noise.stop(now + duration);
 }
 
-/** "Bruh" meme sound - descending tone with vibrato */
-function playBruh(ctx: AudioContext, vol: number) {
-  const now = ctx.currentTime;
-  const duration = 1.2;
-  const master = ctx.createGain();
-  master.gain.setValueAtTime(0, now);
-  master.gain.linearRampToValueAtTime(vol, now + 0.03);
-  master.gain.setValueAtTime(vol, now + 0.1);
-  master.gain.linearRampToValueAtTime(vol * 0.8, now + 0.6);
-  master.gain.exponentialRampToValueAtTime(0.001, now + duration);
-  master.connect(ctx.destination);
-
-  const osc = ctx.createOscillator();
-  osc.type = 'sawtooth';
-  osc.frequency.setValueAtTime(280, now);
-  osc.frequency.linearRampToValueAtTime(120, now + 0.6);
-  osc.frequency.linearRampToValueAtTime(80, now + duration);
-
-  // Add vibrato for that voice-like quality
-  const vibrato = ctx.createOscillator();
-  vibrato.type = 'sine';
-  vibrato.frequency.value = 6;
-  const vibratoGain = ctx.createGain();
-  vibratoGain.gain.value = 15;
-  vibrato.connect(vibratoGain).connect(osc.frequency);
-
-  const oscGain = ctx.createGain();
-  oscGain.gain.value = vol * 0.6;
-
-  // Add some harmonics
-  const osc2 = ctx.createOscillator();
-  osc2.type = 'square';
-  osc2.frequency.setValueAtTime(560, now);
-  osc2.frequency.linearRampToValueAtTime(240, now + 0.6);
-  osc2.frequency.linearRampToValueAtTime(160, now + duration);
-  const osc2Gain = ctx.createGain();
-  osc2Gain.gain.setValueAtTime(vol * 0.15, now);
-  osc2Gain.gain.exponentialRampToValueAtTime(0.001, now + duration * 0.8);
-
-  const filter = ctx.createBiquadFilter();
-  filter.type = 'lowpass';
-  filter.frequency.setValueAtTime(2000, now);
-  filter.frequency.linearRampToValueAtTime(800, now + duration);
-
-  osc.connect(oscGain).connect(filter).connect(master);
-  osc2.connect(osc2Gain).connect(filter).connect(master);
-
-  vibrato.start(now);
-  osc.start(now);
-  osc.stop(now + duration);
-  osc2.start(now);
-  osc2.stop(now + duration);
-  vibrato.stop(now + duration);
-}
+// ─── Synthesized Fallback Sounds ───────────────────────────
 
 /** Pleasant ding notification sound */
 function playDing(ctx: AudioContext, vol: number) {
@@ -200,7 +107,6 @@ function playAirhorn(ctx: AudioContext, vol: number) {
   master.gain.linearRampToValueAtTime(0, now + duration);
   master.connect(ctx.destination);
 
-  // Two slightly detuned sawtooth waves for that air horn wobble
   const osc1 = ctx.createOscillator();
   osc1.type = 'sawtooth';
   osc1.frequency.setValueAtTime(523, now);
@@ -247,7 +153,6 @@ function playVineBoom(ctx: AudioContext, vol: number) {
   master.gain.exponentialRampToValueAtTime(0.001, now + duration);
   master.connect(ctx.destination);
 
-  // Deep bass impact
   const bass = ctx.createOscillator();
   bass.type = 'sine';
   bass.frequency.setValueAtTime(80, now);
@@ -259,7 +164,6 @@ function playVineBoom(ctx: AudioContext, vol: number) {
   bassGain.gain.exponentialRampToValueAtTime(vol * 0.3, now + 0.1);
   bassGain.gain.exponentialRampToValueAtTime(0.001, now + duration);
 
-  // Noise burst for impact
   const bufferSize = ctx.sampleRate * 0.3;
   const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
   const noiseData = noiseBuffer.getChannelData(0);
@@ -278,7 +182,6 @@ function playVineBoom(ctx: AudioContext, vol: number) {
   noiseGain.gain.setValueAtTime(vol * 0.8, now);
   noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
 
-  // Mid "boom" tone
   const mid = ctx.createOscillator();
   mid.type = 'triangle';
   mid.frequency.setValueAtTime(150, now);
@@ -327,25 +230,27 @@ function playMLGHorn(ctx: AudioContext, vol: number) {
 
 // ─── Sound Dispatcher ─────────────────────────────────────
 
-const soundFunctions: Record<SoundType, (ctx: AudioContext, vol: number) => void> = {
-  fart: playFart,
-  bruh: playBruh,
-  ding: playDing,
-  airhorn: playAirhorn,
-  'vine-boom': playVineBoom,
-  'mlg-horn': playMLGHorn,
-};
-
 /** Play the configured notification sound */
 export function playNotificationSound(): void {
   const settings = getSoundSettings();
   if (!settings.enabled) return;
 
   try {
-    const ctx = getAudioContext();
-    soundFunctions[settings.soundType](ctx, settings.volume);
+    if (settings.soundType === 'fahhh') {
+      // Use real MP3 file for Fahhh sound
+      playFahhh(settings.volume);
+    } else {
+      // Use synthesized sounds for other types
+      const ctx = getAudioContext();
+      const synthMap: Record<string, (ctx: AudioContext, vol: number) => void> = {
+        ding: playDing,
+        airhorn: playAirhorn,
+        'vine-boom': playVineBoom,
+        'mlg-horn': playMLGHorn,
+      };
+      synthMap[settings.soundType]?.(ctx, settings.volume);
+    }
   } catch (e) {
-    // Silently fail if audio is not supported
     console.warn('Notification sound failed:', e);
   }
 }
@@ -353,9 +258,19 @@ export function playNotificationSound(): void {
 /** Play a specific sound type (for preview) */
 export function previewSound(type: SoundType): void {
   try {
-    const ctx = getAudioContext();
-    const vol = getSoundSettings().volume;
-    soundFunctions[type](ctx, vol);
+    if (type === 'fahhh') {
+      playFahhh(getSoundSettings().volume);
+    } else {
+      const ctx = getAudioContext();
+      const vol = getSoundSettings().volume;
+      const synthMap: Record<string, (ctx: AudioContext, vol: number) => void> = {
+        ding: playDing,
+        airhorn: playAirhorn,
+        'vine-boom': playVineBoom,
+        'mlg-horn': playMLGHorn,
+      };
+      synthMap[type]?.(ctx, vol);
+    }
   } catch (e) {
     console.warn('Sound preview failed:', e);
   }
@@ -390,11 +305,11 @@ export interface SoundOption {
   label: string;
   emoji: string;
   description: string;
+  isRealAudio?: boolean;
 }
 
 export const SOUND_OPTIONS: SoundOption[] = [
-  { id: 'fart', label: 'Fart', emoji: '💨', description: 'The classic faaaa meme sound' },
-  { id: 'bruh', label: 'Bruh', emoji: '😏', description: 'Deep descending bruh moment' },
+  { id: 'fahhh', label: 'Fahhh', emoji: '💨', description: 'The original meme sound (from YouTube)', isRealAudio: true },
   { id: 'ding', label: 'Ding', emoji: '🔔', description: 'Clean pleasant notification' },
   { id: 'airhorn', label: 'Air Horn', emoji: '📯', description: 'Loud air horn blast' },
   { id: 'vine-boom', label: 'Vine Boom', emoji: '💥', description: 'Deep bass impact boom' },
