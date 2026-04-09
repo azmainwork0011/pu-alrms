@@ -52,9 +52,21 @@ function playFahhh(vol: number) {
   try {
     const audio = getFahhhAudio();
     audio.volume = vol;
-    audio.play().catch(() => {
-      // Autoplay blocked - silently fail
-    });
+    // Resume audio context if suspended (autoplay policy)
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume();
+    }
+    const playPromise = audio.play();
+    if (playPromise) {
+      playPromise.catch((err) => {
+        console.warn('Fahhh play blocked:', err.message);
+        // Fallback: try once more after short delay
+        setTimeout(() => {
+          audio.currentTime = 0;
+          audio.play().catch(() => {});
+        }, 100);
+      });
+    }
   } catch {
     // Audio not available
   }
