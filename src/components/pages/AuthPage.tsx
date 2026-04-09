@@ -136,14 +136,14 @@ function AuthPage() {
       >
         <div className="text-center mb-8">
           <motion.div
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 text-white mb-4 shadow-lg shadow-emerald-200 dark:shadow-emerald-900/40"
-            whileHover={{ scale: 1.05, rotate: 3 }}
+            className="inline-flex items-center justify-center w-20 h-20 rounded-2xl overflow-hidden mb-4 shadow-lg shadow-emerald-200 dark:shadow-emerald-900/40"
+            whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            <GraduationCap className="w-8 h-8" />
+            <img src="/logo.png" alt="PU-ALRMS" className="w-full h-full object-cover" />
           </motion.div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Prime University</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Assignment &amp; Lab Report Management System</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">PU-ALRMS</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">Prime University &middot; Assignment &amp; Lab Report Management</p>
         </div>
 
         <Card className="shadow-xl border-0 shadow-emerald-100/50 dark:shadow-none dark:bg-gray-900/80 dark:border dark:border-gray-800 backdrop-blur-sm">

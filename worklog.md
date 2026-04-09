@@ -158,3 +158,36 @@ Stage Summary:
 - Admin: welcome banner, 4 stat cards, activity trend, top students, subjects overview, user distribution, submissions, announcements
 - Custom SimpleChart bar chart component (no external dependencies)
 - Production build deployed and serving HTTP 200
+
+---
+Task ID: 6
+Agent: Main Developer
+Task: Add PU-ALRMS logo + Profile page overhaul with photo uploads
+
+Work Log:
+- Copied uploaded logo (Gemini_Generated_Image_v59vl9v59vl9v59v.png) to public/logo.png
+- Updated database schema: added coverPhoto, rollNumber, department, phone, bio fields to User model
+- Pushed schema to database (prisma db push)
+- Updated Zustand store: extended User interface with new fields, added updateUser action
+- Rewrote /api/auth/profile route: GET returns all fields, PUT handles both JSON updates and multipart file uploads (avatar/cover)
+- Added authApi.updateProfile() and authApi.uploadProfilePhoto() to api.ts
+- Completely redesigned ProfilePage.tsx (~280 lines):
+  - Cover photo section (gradient default, image upload with camera button)
+  - Large profile avatar with hover-to-upload overlay
+  - Edit mode with form fields: Name, Roll Number, Batch, Department, Phone, Bio
+  - Profile information display with icons (all new fields)
+  - Account statistics (role-specific)
+  - Sign out button
+  - Smooth animations, loading states
+- Updated AppLayout.tsx: sidebar logo replaced with PU-ALRMS image logo (both desktop and mobile)
+- Updated AuthPage.tsx: login page logo replaced with PU-ALRMS image
+- Lint: 0 errors, 0 warnings
+- Build: successful
+
+Stage Summary:
+- PU-ALRMS custom logo added across: sidebar, mobile sidebar, login page
+- Profile page: cover photo + avatar upload, roll number, batch, department, phone, bio
+- All user roles can edit their profiles
+- Photo upload with preview, 5MB limit, image type validation
+- Files stored at public/uploads/profiles/{userId}/
+- Production build deployed, serving HTTP 200

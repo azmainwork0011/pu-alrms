@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAppStore, type PageView, type UserRole } from '@/store/app';
+import Image from 'next/image';
 import {
   LayoutDashboard, ClipboardList, FlaskConical, Plus, FileText, Trophy,
   Megaphone, MessageSquare, Sparkles, Bell, User as UserIcon,
@@ -74,9 +75,9 @@ function MobileSidebar() {
     <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
       <SheetContent side="left" className="w-64 p-0 dark:bg-gray-900">
         <SheetHeader className="p-4 border-b dark:border-gray-800">
-          <SheetTitle className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-600 text-white flex items-center justify-center">
-              <GraduationCap className="w-4 h-4" />
+          <SheetTitle className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0">
+              <Image src="/logo.png" alt="PU-ALRMS" width={32} height={32} className="object-cover" />
             </div>
             PU-ALRMS
           </SheetTitle>
@@ -143,13 +144,13 @@ export default function AppLayout() {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-col border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 fixed top-0 left-0 h-full z-40">
         <div className="p-4 border-b dark:border-gray-800">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-600 to-teal-600 text-white flex items-center justify-center">
-              <GraduationCap className="w-4 h-4" />
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl overflow-hidden shrink-0 shadow-sm">
+              <Image src="/logo.png" alt="PU-ALRMS" width={36} height={36} className="object-cover" />
             </div>
             <div>
               <h2 className="font-bold text-sm text-gray-900 dark:text-white">PU-ALRMS</h2>
-              <p className="text-xs text-gray-400 dark:text-gray-500">Prime University</p>
+              <p className="text-[10px] text-gray-400 dark:text-gray-500">Prime University</p>
             </div>
           </div>
         </div>
