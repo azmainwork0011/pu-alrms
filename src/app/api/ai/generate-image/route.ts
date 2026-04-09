@@ -24,35 +24,59 @@ export async function POST(req: NextRequest) {
     const ZAI = (await import('z-ai-web-dev-sdk')).default;
     const zai = await ZAI.create();
 
-    // Enhance prompt with educational style
-    const enhancedPrompt = `Educational illustration for university students: ${prompt}. Clean, modern, professional style, high quality, detailed.`;
+    // Enhance prompt with educational/quality style
+    const enhancedPrompt = `High quality, detailed, professional illustration: ${prompt}. Clean, modern style, well-composed, vibrant colors, sharp focus.`;
 
-    const response = await zai.images.generations.create({
-      prompt: enhancedPrompt,
-      size: '1024x1024',
-    });
+    // Try image generation with retry
+    let lastError: any;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        const response = await zai.images.generations.create({
+          prompt: enhancedPrompt,
+          size: '1024x1024',
+        });
 
-    // Handle both base64 and URL responses
-    const imageData = response.data?.[0];
-    if (!imageData) {
-      return NextResponse.json({ error: 'Failed to generate image' }, { status: 500 });
-    }
+        const imageData = response.data?.[0];
+        if (!imageData) {
+          throw new Error('No image data in response');
+        }
 
-    let imageUrl: string;
-    if (imageData.base64) {
-      imageUrl = `data:image/png;base64,${imageData.base64}`;
-    } else if (imageData.url) {
-      imageUrl = imageData.url;
-    } else if (imageData.b64_json) {
-      imageUrl = `data:image/png;base64,${imageData.b64_json}`;
-    } else {
-      return NextResponse.json({ error: 'No image data in response' }, { status: 500 });
+        // Handle different response formats
+        let imageUrl: string;
+
+        if (imageData.base64) {
+          imageUrl = `data:image/png;base64,${imageData.base64}`;
+        } else if (imageData.url) {
+          imageUrl = imageData.url;
+        } else if (imageData.b64_json) {
+          imageUrl = `data:image/png;base64,${imageData.b64_json}`;
+        } else {
+          // Try to convert whatever data we have
+          const dataStr = JSON.stringify(imageData);
+          const base64Match = dataStr.match(/["']([A-Za-z0-9+/=]{1000,})["']/);
+          if (base64Match) {
+            imageUrl = `data:image/png;base64,${base64Match[1]}`;
+          } else {
+            throw new Error('Could not extract image from response');
+          }
+        }
+
+        return NextResponse.json({
+          image: imageUrl,
+          prompt: enhancedPrompt,
+        });
+      } catch (err: any) {
+        lastError = err;
+        console.error(`Image generation attempt ${attempt} error:`, err.message);
+        if (attempt < 2) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
     }
 
     return NextResponse.json({
-      image: imageUrl,
-      prompt: enhancedPrompt,
-    });
+      error: 'Image generation failed. Please try again with a different prompt.',
+    }, { status: 500 });
   } catch (error: any) {
     console.error('Image generation error:', error);
     return NextResponse.json({ error: 'Failed to generate image. Please try again.' }, { status: 500 });
