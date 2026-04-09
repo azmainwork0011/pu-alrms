@@ -14,8 +14,148 @@ import { getInitials, getRoleBadgeColor, AnimatedCounter } from '@/components/pu
 import {
   Camera, Pencil, X, LogOut, Shield, BookOpen,
   Hash, Phone, Building2, User, Mail, Calendar,
-  GraduationCap, Save,
+  GraduationCap, Save, Volume2, VolumeX, Speaker,
 } from 'lucide-react';
+import {
+  getSoundSettings, saveSoundSettings, previewSound,
+  SOUND_OPTIONS, type SoundType,
+} from '@/lib/notification-sound';
+
+// ─── Notification Sound Settings Component ──────────────
+function NotificationSoundSettings() {
+  const [settings, setSettings] = useState(() => getSoundSettings());
+  const [previewing, setPreviewing] = useState<string | null>(null);
+
+  const toggleEnabled = () => {
+    const updated = saveSoundSettings({ enabled: !settings.enabled });
+    setSettings(updated);
+  };
+
+  const changeVolume = (vol: number) => {
+    const updated = saveSoundSettings({ volume: Math.round(vol * 100) / 100 });
+    setSettings(updated);
+  };
+
+  const changeSound = (type: SoundType) => {
+    const updated = saveSoundSettings({ soundType: type });
+    setSettings(updated);
+  };
+
+  const handlePreview = (type: SoundType) => {
+    setPreviewing(type);
+    previewSound(type);
+    setTimeout(() => setPreviewing(null), 1200);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Enable/Disable Toggle */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${settings.enabled ? 'bg-emerald-100 dark:bg-emerald-900/20' : 'bg-gray-100 dark:bg-gray-800'}`}>
+            {settings.enabled ? (
+              <Volume2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            ) : (
+              <VolumeX className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+            )}
+          </div>
+          <div>
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">Sound Effects</p>
+            <p className="text-[11px] text-gray-400 dark:text-gray-500">
+              {settings.enabled ? 'Playing meme sounds on notifications' : 'Notification sounds muted'}
+            </p>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={toggleEnabled}
+          className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${settings.enabled ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+        >
+          <span
+            className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${settings.enabled ? 'left-5.5 translate-x-0' : 'left-0.5'}`}
+            style={{ left: settings.enabled ? '22px' : '2px' }}
+          />
+        </button>
+      </div>
+
+      {/* Volume Slider */}
+      {settings.enabled && (
+        <div className="space-y-2 pl-12">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Volume</span>
+            <span className="text-xs text-gray-400 dark:text-gray-500">{Math.round(settings.volume * 100)}%</span>
+          </div>
+          <input
+            type="range"
+            min="0"
+            max="100"
+            value={settings.volume * 100}
+            onChange={(e) => changeVolume(Number(e.target.value) / 100)}
+            className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full appearance-none cursor-pointer accent-emerald-500"
+          />
+        </div>
+      )}
+
+      {/* Sound Selection Grid */}
+      {settings.enabled && (
+        <div className="space-y-2 pl-12">
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Choose Sound</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {SOUND_OPTIONS.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => changeSound(option.id)}
+                className={`relative p-3 rounded-xl border-2 text-left transition-all group hover:shadow-sm ${
+                  settings.soundType === option.id
+                    ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-400'
+                    : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{option.emoji}</span>
+                  <div className="min-w-0">
+                    <p className={`text-xs font-semibold truncate ${settings.soundType === option.id ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-700 dark:text-gray-300'}`}>
+                      {option.label}
+                    </p>
+                    <p className="text-[10px] text-gray-400 dark:text-gray-500 truncate">{option.description}</p>
+                  </div>
+                </div>
+                {settings.soundType === option.id && (
+                  <div className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-emerald-500" />
+                )}
+                {/* Preview button */}
+                <div
+                  className="absolute bottom-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => { e.stopPropagation(); handlePreview(option.id); }}
+                >
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center ${previewing === option.id ? 'bg-emerald-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400'}`}>
+                    <Volume2 className={`w-3 h-3 ${previewing === option.id ? 'animate-pulse' : ''}`} />
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Quick Preview of Current Sound */}
+      {settings.enabled && (
+        <div className="flex justify-center pt-1">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handlePreview(settings.soundType)}
+            className="gap-2 h-8 text-xs"
+          >
+            <Volume2 className={`w-3.5 h-3.5 ${previewing ? 'animate-pulse' : ''}`} />
+            Preview Current Sound
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ProfilePage() {
   const { user, logout, updateUser } = useAppStore();
@@ -365,6 +505,21 @@ function ProfilePage() {
                 ))}
               </div>
             ) : null}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* ─── Notification Sound Settings ──────────────────── */}
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}>
+        <Card className="border dark:border-gray-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Speaker className="w-4 h-4 text-amber-500" />
+              Notification Sound
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <NotificationSoundSettings />
           </CardContent>
         </Card>
       </motion.div>

@@ -14,7 +14,7 @@ import {
   Megaphone, MessageSquare, Sparkles, Bell, User as UserIcon,
   LogOut, Menu, GraduationCap, Moon, Sun,
 } from 'lucide-react';
-import { getInitials, PageTransition, DevCredit } from '@/components/pu-helpers';
+import { getInitials, PageTransition, DevCredit, playNotificationSound } from '@/components/pu-helpers';
 
 // ─── Page Components ─────────────────────────────────────
 import DashboardPage from '@/components/pages/DashboardPage';
@@ -180,7 +180,7 @@ export default function AppLayout() {
                 variant="ghost"
                 size="icon"
                 className="relative h-9 w-9"
-                onClick={() => setPage('notifications')}
+                onClick={() => { playNotificationSound(); setPage('notifications'); }}
               >
                 <Bell className="w-4 h-4" />
                 {notificationCount > 0 && (
