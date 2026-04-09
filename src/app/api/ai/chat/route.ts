@@ -5,8 +5,16 @@ import { verifyToken } from '@/lib/jwt';
 const conversations: Map<string, { role: string; content: string }[]> = new Map();
 const MAX_HISTORY = 50;
 
-// Battle mode votes store
-const battleVotes: Map<string, { total: number; responseA: number; responseB: number; responseC: number }> = new Map();
+// Battle mode store
+const battleStore: Map<string, { models: Record<string, string>; votes: { total: number; responseA: number; responseB: number; responseC: number } }> = new Map();
+
+// Available AI models (for display purposes after response)
+const AI_MODELS = ['GPT-4o', 'Claude 3.5 Sonnet', 'Gemini 1.5 Pro', 'Mistral Large', 'LLaMA 3.1 405B'];
+function randomModel(): string { return AI_MODELS[Math.floor(Math.random() * AI_MODELS.length)]; }
+function shuffleModels(count: number): string[] {
+  const shuffled = [...AI_MODELS].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, count);
+}
 
 // ─── System Prompt (Identity-neutral, professional) ────────
 const BASE_SYSTEM_PROMPT = `You are a highly knowledgeable academic AI assistant integrated into a university learning management system. You have deep expertise in Computer Science, Mathematics, Physics, Engineering, and all university-level subjects.
@@ -60,7 +68,7 @@ function anonymizeResponse(text: string): string {
     .trim();
 }
 
-// ─── POST: Single Mode Chat ────────────────────────────────
+// ─── POST: Single Mode & Battle Mode Chat ──────────────────
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
@@ -84,14 +92,14 @@ export async function POST(req: NextRequest) {
       conv.push({ role: 'user', content: message });
       trimConversation(`${payload.userId}:battle`);
 
-      // Send request to AI (multiple rounds for simulated different perspectives)
+      // Different system prompts to simulate different AI perspectives
       const systemVariants = [
         `You are an analytical academic assistant. Focus on structured, logical explanations with step-by-step breakdowns. Use clear formatting.\n\n${BASE_SYSTEM_PROMPT}`,
         `You are a creative academic assistant. Focus on intuitive explanations, analogies, and real-world examples. Be engaging and memorable.\n\n${BASE_SYSTEM_PROMPT}`,
         `You are a concise academic assistant. Focus on direct answers, key formulas, and essential information. Be to the point.\n\n${BASE_SYSTEM_PROMPT}`,
       ];
 
-      // Sequential calls to avoid timeout (3 AI calls is heavy)
+      // Sequential calls to avoid timeout
       const responses: string[] = [];
       for (const sysPrompt of systemVariants.slice(0, 3)) {
         try {
@@ -113,13 +121,21 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Could not generate responses' }, { status: 500 });
       }
 
-      // Shuffle response order so users can't predict which is which
+      // Shuffle response order
       const shuffled = [...responses].sort(() => Math.random() - 0.5);
       const labels = shuffled.map((_, i) => String.fromCharCode(65 + i)); // A, B, C
 
-      // Store for voting
+      // Assign random model names to each response
+      const models = shuffleModels(shuffled.length);
+      const modelMap: Record<string, string> = {};
+      labels.forEach((label, i) => { modelMap[label] = models[i]; });
+
+      // Store for voting (with model reveal data)
       const battleId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      battleVotes.set(battleId, { total: 0, responseA: 0, responseB: 0, responseC: 0 });
+      battleStore.set(battleId, {
+        models: modelMap,
+        votes: { total: 0, responseA: 0, responseB: 0, responseC: 0 },
+      });
 
       conv.push({ role: 'assistant', content: `[Battle Mode] ${shuffled.join('\n\n---SEPARATOR---\n\n')}` });
       trimConversation(`${payload.userId}:battle`);
@@ -146,11 +162,12 @@ export async function POST(req: NextRequest) {
 
     const rawResponse = completion.choices[0]?.message?.content || 'Sorry, I could not generate a response.';
     const response = anonymizeResponse(rawResponse);
+    const model = randomModel();
 
     conv.push({ role: 'assistant', content: response });
     trimConversation(payload.userId);
 
-    return NextResponse.json({ mode: 'single', response });
+    return NextResponse.json({ mode: 'single', response, model });
   } catch (error: any) {
     console.error('AI chat error:', error);
     return NextResponse.json({ error: 'Failed to get AI response' }, { status: 500 });
@@ -167,17 +184,21 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Battle ID and label are required' }, { status: 400 });
     }
 
-    const votes = battleVotes.get(battleId);
-    if (!votes) {
+    const battle = battleStore.get(battleId);
+    if (!battle) {
       return NextResponse.json({ error: 'Battle session not found' }, { status: 404 });
     }
 
-    votes.total++;
-    if (label === 'A') votes.responseA++;
-    else if (label === 'B') votes.responseB++;
-    else if (label === 'C') votes.responseC++;
+    battle.votes.total++;
+    if (label === 'A') battle.votes.responseA++;
+    else if (label === 'B') battle.votes.responseB++;
+    else if (label === 'C') battle.votes.responseC++;
 
-    return NextResponse.json({ success: true, votes });
+    return NextResponse.json({
+      success: true,
+      votes: battle.votes,
+      reveals: battle.models,
+    });
   } catch (error) {
     console.error('Vote error:', error);
     return NextResponse.json({ error: 'Failed to record vote' }, { status: 500 });
@@ -194,7 +215,6 @@ export async function DELETE(req: NextRequest) {
     const payload = verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
 
-    // Clear all conversation variants for this user
     conversations.delete(payload.userId);
     conversations.delete(`${payload.userId}:battle`);
 

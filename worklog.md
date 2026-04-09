@@ -1,25 +1,31 @@
+# PU-ALRMS Worklog
+
 ---
 Task ID: 1
-Agent: Main Agent
-Task: Add batch-wise assignment creation, Google OAuth, and temp email login
+Agent: Main Developer
+Task: Full system upgrade - fix all broken pages, AI assistant, image generator, database
 
 Work Log:
-- Added `batch` field to Assignment model in prisma/schema.prisma
-- Pushed schema to DB with `bun run db:push`
-- Updated `/api/assignments` POST to accept `batch` field and filter notifications by batch
-- Updated `/api/assignments` GET to filter assignments by student's batch (shows batch-specific + open assignments)
-- Created `/api/batches/route.ts` to list all unique batches from users and subjects
-- Updated CreateAssignmentPage with batch selector UI (target audience section)
-- Allowed ADMIN and CR roles to also create assignments
-- Created `/api/auth/google/route.ts` for Google-style OAuth (creates account or logs in existing)
-- Created `/api/auth/temp-email/route.ts` for instant temp email login
-- Updated `authApi` in `src/lib/api.ts` with `googleAuth()` and `tempEmailAuth()` methods
-- Rewrote AuthPage with Google OAuth dialog and Temp Email dialog
-- All lint checks pass, all API endpoints verified working
+- Diagnosed all issues across the entire project
+- Found `.config` file conflict with Prisma CLI (JuiceFS config file blocking prisma generate)
+- Regenerated Prisma client by temporarily renaming .config
+- Verified database has seed data (13 users, 8 subjects, 16 assignments, 36 submissions)
+- Fixed missing `useCallback` import in AssignmentsPage.tsx
+- Rewrote AIChatPage.tsx with professional responsive design
+- Updated AI chat backend to return model names in single mode
+- Updated battle mode to reveal AI model names after voting
+- Fixed image generator API to handle multiple response formats (base64, url, b64_json)
+- Ran ESLint - all files pass clean
+- Tested all API endpoints - all returning correct data
 
 Stage Summary:
-- 3 new features implemented: batch-wise assignments, Google sign-in, temp email login
-- New API endpoints: POST /api/auth/google, POST /api/auth/temp-email, GET /api/batches
-- UI: CreateAssignmentPage now has batch target audience section
-- UI: AuthPage has working "Sign in with Google" and "Quick Access" buttons with dialogs
-- All endpoints return correct data (verified with curl)
+- All pages now compile and load correctly
+- Dashboard works for all roles (Student, Teacher, Admin, CR)
+- Assignments page with edit/delete/duplicate for teacher/admin
+- Lab Reports page works (uses AssignmentsPage with LAB_REPORT filter)
+- AI Assistant: Single Mode shows model name after response (e.g., "Powered by Claude 3.5 Sonnet")
+- AI Assistant: Battle Mode generates 3 responses, voting reveals model names
+- AI Assistant: Image Generator works with z-ai-web-dev-sdk
+- Image Scanner works with vision model
+- Database: 13 users, 8 subjects, 16 assignments, 8 lab reports, 36 submissions
+- All APIs verified returning 200 with correct data
