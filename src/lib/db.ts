@@ -4,21 +4,15 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-let prisma: PrismaClient
-
-try {
-  prisma = globalForPrisma.prisma ?? new PrismaClient({
-    log: ['error', 'warn'],
-  })
-} catch {
-  // If cached client is stale, create a new one
-  prisma = new PrismaClient({
-    log: ['error', 'warn'],
+function createPrismaClient(): PrismaClient {
+  // Always create fresh to avoid stale client issues with Turbopack HMR
+  return new PrismaClient({
+    log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
   })
 }
+
+export const db: PrismaClient = globalForPrisma.prisma ?? createPrismaClient()
 
 if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma
+  globalForPrisma.prisma = db
 }
-
-export const db = prisma
