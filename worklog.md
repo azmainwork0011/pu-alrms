@@ -283,3 +283,23 @@ Stage Summary:
 - Modified: `src/app/api/ai/generate-image/route.ts` - Same fix
 - Modified: `src/app/api/ai/scan/route.ts` - Same fix
 - Root cause: SDK auth token missing from config; gateway sends X-Token in request headers which is now forwarded to the SDK
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix login page and hydration errors
+
+Work Log:
+- Root cause 1: Prisma client was a stub (default.js) — the `.config` file (JuiceFS mount config) was blocking `prisma generate` from running properly
+  - Fixed by temporarily renaming `.config`, running `prisma generate`, then restoring it
+  - Cleared `.next` cache to force Turbopack recompile with new Prisma client
+- Root cause 2: Hydration mismatch — `FloatingParticles` used `Math.random()` during SSR, producing different server vs client output
+  - Fixed by adding `mounted` state guard — renders empty placeholder on server, full particles on client
+- Root cause 3: Browser extensions (Grammarly) injecting `<div id="donate-widget">` into `<body>` causing hydration mismatch
+  - Fixed by adding `suppressHydrationWarning` to `<body>` tag in layout.tsx
+- Fixed dev script to remove `tee dev.log` pipe that broke background process management
+
+Stage Summary:
+- Login API now returns 200 with valid JWT tokens
+- All demo accounts work (alice@stu.pu.edu, dr.smith@pu.edu, admin@pu.edu)
+- Hydration errors resolved
+- Files modified: src/lib/db.ts, src/components/pu-helpers.tsx, src/app/layout.tsx, package.json

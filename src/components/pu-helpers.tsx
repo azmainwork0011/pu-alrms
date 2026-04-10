@@ -152,6 +152,7 @@ export function PageTransition({ children, keyProp }: { children: React.ReactNod
 
 // ─── Floating Particles ──────────────────────────────────
 export function FloatingParticles() {
+  const [mounted, setMounted] = useState(false);
   const particles = useMemo(() => {
     return Array.from({ length: 20 }, (_, i) => ({
       id: i,
@@ -162,6 +163,10 @@ export function FloatingParticles() {
       delay: Math.random() * 5,
     }));
   }, []);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  if (!mounted) return <div className="absolute inset-0 overflow-hidden pointer-events-none" />;
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
