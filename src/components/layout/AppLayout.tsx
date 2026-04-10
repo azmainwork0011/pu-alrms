@@ -139,7 +139,7 @@ export default function AppLayout() {
   };
 
   return (
-    <div className="min-h-screen flex bg-gray-50 dark:bg-gray-950">
+    <div suppressHydrationWarning className="min-h-screen flex bg-gray-50 dark:bg-gray-950">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-col border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 fixed top-0 left-0 h-full z-40">
         <div className="p-4 border-b dark:border-gray-800">
