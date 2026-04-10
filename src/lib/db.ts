@@ -4,17 +4,21 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
 }
 
-function createPrismaClient() {
-  return new PrismaClient({
+let prisma: PrismaClient
+
+try {
+  prisma = globalForPrisma.prisma ?? new PrismaClient({
+    log: ['error', 'warn'],
+  })
+} catch {
+  // If cached client is stale, create a new one
+  prisma = new PrismaClient({
     log: ['error', 'warn'],
   })
 }
 
-export const db = createPrismaClient()
-
-// In development, cache on globalThis but always validate the client has the models we need
 if (process.env.NODE_ENV !== 'production') {
-  if (!globalForPrisma.prisma) {
-    globalForPrisma.prisma = db
-  }
+  globalForPrisma.prisma = prisma
 }
+
+export const db = prisma
