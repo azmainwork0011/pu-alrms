@@ -1,0 +1,152 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:/home/z/my-project/db/custom.db"
+}
+
+model User {
+  id          String   @id @default(cuid())
+  name        String
+  email       String   @unique
+  password    String
+  role        String   @default("STUDENT")
+  avatar      String?
+  coverPhoto  String?
+  rollNumber  String?
+  batch       String?
+  department  String?
+  phone       String?
+  bio         String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subjects       Subject[]
+  assignments    Assignment[]
+  submissions    Submission[]
+  comments       Comment[]
+  notifications  Notification[]
+  announcements  Announcement[]
+  chatMessages   ChatMessage[]
+}
+
+model Subject {
+  id        String   @id @default(cuid())
+  name      String
+  code      String
+  teacherId String
+  batch     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  teacher     User        @relation(fields: [teacherId], references: [id])
+  assignments Assignment[]
+}
+
+model Assignment {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  subjectId   String
+  type        String   @default("ASSIGNMENT")
+  batch       String?
+  deadline    DateTime
+  fileUrl     String?
+  status      String   @default("ACTIVE")
+  createdBy   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  subject     Subject     @relation(fields: [subjectId], references: [id])
+  creator     User        @relation(fields: [createdBy], references: [id])
+  submissions Submission[]
+  comments    Comment[]
+}
+
+model Submission {
+  id           String   @id @default(cuid())
+  assignmentId String
+  studentId    String
+  fileName     String
+  fileUrl      String?
+  status       String   @default("SUBMITTED")
+  marks        Float?
+  feedback     String?
+  submittedAt  DateTime @default(now())
+  gradedAt     DateTime?
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id])
+  student    User       @relation(fields: [studentId], references: [id])
+}
+
+model Comment {
+  id           String   @id @default(cuid())
+  assignmentId String
+  userId       String
+  content      String
+  createdAt    DateTime @default(now())
+
+  assignment Assignment @relation(fields: [assignmentId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("INFO")
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  message   String
+  type      String   @default("GENERAL")
+  priority  String   @default("NORMAL")
+  createdBy String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  creator User @relation(fields: [createdBy], references: [id])
+}
+
+model ChatRoom {
+  id            String   @id @default(cuid())
+  name          String
+  type          String   @default("BATCH")
+  batch         String?
+  department    String?
+  subjectId     String?
+  encryptionKey String
+  isPrivate     Boolean  @default(true)
+  createdBy     String?
+  lastActivity  DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  messages ChatMessage[]
+}
+
+model ChatMessage {
+  id               String   @id @default(cuid())
+  roomId           String
+  userId           String
+  content          String
+  encryptedContent String
+  messageType      String   @default("TEXT")
+  fileUrl          String?
+  fileName         String?
+  iv               String
+  createdAt        DateTime @default(now())
+
+  room ChatRoom @relation(fields: [roomId], references: [id])
+  user User     @relation(fields: [userId], references: [id])
+}
