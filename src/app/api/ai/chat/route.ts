@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/jwt';
+import { createZAI } from '@/lib/zai';
 
 // In-memory conversation store (keyed by userId:modelId)
 const conversations: Map<string, { role: string; content: string }[]> = new Map();
@@ -162,8 +163,7 @@ export async function POST(req: NextRequest) {
     const { message, mode, modelId, selectedModels } = body;
     if (!message) return NextResponse.json({ error: 'Message is required' }, { status: 400 });
 
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const zai = await createZAI(req);
 
     // ─── BATTLE MODE ──────────────────────────────────────
     if (mode === 'battle') {

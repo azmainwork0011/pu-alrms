@@ -263,3 +263,23 @@ Stage Summary:
 - Users can still switch to other sounds (Ding, Air Horn, Vine Boom, MLG Horn)
 - "ORIGINAL" badge on the Fahhh card in profile settings
 - Volume and toggle controls preserved
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix AI Chat "AI service is currently being configured" error
+
+Work Log:
+- Investigated the error message "AI service is currently being configured" - not found in codebase (user was paraphrasing the actual error)
+- Found actual root cause: z-ai-web-dev-sdk requires `X-Token` header for API authentication
+- The SDK config at `/etc/.z-ai-config` had `baseUrl` and `apiKey` but no `token` field
+- The API returns `401: {"error":"missing X-Token header"}` when token is absent
+- Solution: Created `/src/lib/zai.ts` helper that extracts `X-Token` from incoming gateway request headers and passes it to the SDK
+- Updated all 3 AI API routes to use the new helper: `/api/ai/chat`, `/api/ai/generate-image`, `/api/ai/scan`
+- The gateway (IM proxy) forwards X-Token headers that the AI backend requires
+
+Stage Summary:
+- Created: `src/lib/zai.ts` - SDK helper with X-Token forwarding
+- Modified: `src/app/api/ai/chat/route.ts` - Uses createZAI(req) instead of ZAI.create()
+- Modified: `src/app/api/ai/generate-image/route.ts` - Same fix
+- Modified: `src/app/api/ai/scan/route.ts` - Same fix
+- Root cause: SDK auth token missing from config; gateway sends X-Token in request headers which is now forwarded to the SDK
