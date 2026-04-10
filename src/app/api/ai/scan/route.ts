@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/jwt';
+import { createZAI } from '@/lib/zai';
 
 export async function POST(req: NextRequest) {
   try {
@@ -26,8 +27,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid image format. Please upload a valid image.' }, { status: 400 });
     }
 
-    const ZAI = (await import('z-ai-web-dev-sdk')).default;
-    const zai = await ZAI.create();
+    const zai = await createZAI(req);
 
     const completion = await zai.chat.completions.createVision({
       messages: [
