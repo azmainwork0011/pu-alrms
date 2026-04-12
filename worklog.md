@@ -276,3 +276,60 @@ Stage Summary:
 - Fully responsive on mobile/tablet/desktop
 - All existing functionality preserved (search, save, categories, language toggle)
 - ESLint: 0 errors, 0 warnings
+---
+Task ID: 1
+Agent: general-purpose
+Task: Fix AI Chat Bot token expiry handling + Battle Mode loading state
+
+Work Log:
+- Modified src/lib/api.ts apiFetch to detect HTTP 401, clear localStorage (token/user), and dispatch 'auth-expired' custom event
+- Added useEffect in src/components/layout/AppLayout.tsx listening for 'auth-expired' event, calls logout() to redirect to login page
+- Added useEffect in src/components/pages/AIChatPage.tsx listening for 'auth-expired' event, clears loading states and shows session-expired message in chat
+- Fixed src/components/pages/BattlePage.tsx:
+  - Added battleLoading state to track question fetch progress
+  - beginBattle() now sets battleLoading=true before fetch, sets screen to 'fighting' only on success
+  - Added loading spinner screen between VS countdown and fighting (violet-themed spinner)
+  - Wrapped beginBattle() call in setInterval with .catch() to prevent unhandled promise rejection
+  - Removed unused useMemo import
+
+Stage Summary:
+- AI Chat now auto-redirects to login on JWT token expiry via auth-expired event system
+- Battle Mode shows animated loading spinner while fetching questions instead of blank screen
+- Both fixes tested and lint passing (0 errors, 0 warnings)
+---
+Task ID: 3
+Agent: frontend-styling-expert
+Task: Digital Library responsive redesign for mobile/windows/mac
+
+Work Log:
+- Fixed broken gradient fade syntax on category pills: `from-[hsl(var(--background))]` → `from-white dark:from-gray-950` (proper light/dark mode support)
+- Fixed category scrollbar hiding: replaced non-existent `scrollbar-none` class with `[&::-webkit-scrollbar]:hidden` + inline `scrollbarWidth: 'none'` + `WebkitOverflowScrolling: 'touch'`
+- Improved BookReaderDialog for mobile:
+  - Made header sticky (`sticky top-0`) with compact padding on mobile (`px-3 py-2 sm:px-4 sm:py-3`)
+  - Increased close button to 44px touch target on mobile (`h-11 w-11 sm:h-8 sm:w-auto`) with larger icon (`w-5 h-5`)
+  - Hidden "Close" text on mobile, icon-only on small screens
+  - Increased "Open in new tab" button to 44px touch target on mobile with larger icon
+- Improved BookDetailModal for mobile:
+  - Increased close button from 32px to 44px touch target (`w-11 h-11`) with larger X icon (`w-5 h-5`)
+- Improved search bar and language toggle for mobile:
+  - Made header flex container responsive with `gap-3` and `min-w-0` on title area
+  - Made language toggle `shrink-0` to prevent wrapping
+  - Compact language labels on mobile: "EN"/"BN" instead of "English"/"বাংলা"
+  - Reduced toggle button padding on mobile: `px-2.5 sm:px-3`
+- Made Load More button full-width on mobile (`w-full sm:w-auto sm:min-w-[160px]`)
+- Optimized book cards for mobile:
+  - Slightly taller aspect ratio on mobile: `aspect-[2/3] sm:aspect-[3/4]`
+  - Reduced text sizes on mobile: title `text-xs sm:text-sm`, author `text-[11px] sm:text-xs`
+  - Reduced card padding on mobile: `p-2 sm:p-2.5`
+  - Increased save button to 40px on mobile: `w-10 h-10 sm:w-9 sm:h-9` (closer to 44px touch target)
+- Added page-level overflow prevention: `overflow-x-hidden` and mobile padding `px-2 sm:px-0`
+
+Stage Summary:
+- Digital Library now fully responsive across mobile/tablet/desktop with improved readability
+- All interactive elements meet minimum 44px touch target on mobile (close buttons, save button, reader controls)
+- Category navigation properly scrollable on mobile with hidden scrollbar and smooth touch scrolling
+- Fixed broken gradient fade syntax that used invalid Tailwind 4 color function
+- Book Reader Dialog header is sticky for easy navigation while reading
+- Language toggle is compact on mobile, showing abbreviated labels
+- Load More button spans full width on mobile for easy tapping
+- ESLint: 0 errors, 0 warnings

@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
@@ -125,6 +125,15 @@ function ThemeToggle() {
 // ─── Main App Layout ────────────────────────────────────
 export default function AppLayout() {
   const { currentPage, user, toggleSidebar, notificationCount, setPage, logout } = useAppStore();
+
+  // Listen for auth-expired events and auto-logout
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      logout();
+    };
+    window.addEventListener('auth-expired', handleAuthExpired);
+    return () => window.removeEventListener('auth-expired', handleAuthExpired);
+  }, [logout]);
 
   const renderPage = () => {
     switch (currentPage) {
