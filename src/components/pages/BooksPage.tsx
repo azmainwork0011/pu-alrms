@@ -1,0 +1,1288 @@
+'use client';
+
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from '@/components/ui/tooltip';
+import { useAppStore } from '@/store/app';
+import { useToast } from '@/hooks/use-toast';
+import {
+  Search,
+  BookOpen,
+  Heart,
+  Monitor,
+  Scale,
+  Briefcase,
+  Wrench,
+  Globe,
+  Brain,
+  History,
+  Star,
+  ExternalLink,
+  Download,
+  Loader2,
+  AlertCircle,
+  X,
+  RefreshCw,
+  Library,
+  FileText,
+  ChevronLeft,
+} from 'lucide-react';
+
+// ─── Types ──────────────────────────────────────────────────────────────
+
+interface Book {
+  id: string;
+  bookId?: string;
+  title: string;
+  authors: string;
+  description: string;
+  categories: string[];
+  coverUrl: string | null;
+  previewLink: string | null;
+  infoLink: string | null;
+  language: string;
+  pageCount: number | null;
+  publishedDate: string | null;
+  averageRating: number | null;
+  ratingsCount: number;
+  subtitle: string | null;
+  pdfLink: string | null;
+  pdfAvailable: boolean;
+  accessViewStatus: string;
+  source: 'google' | 'openlibrary';
+}
+
+interface SearchResponse {
+  success: boolean;
+  books: Book[];
+  totalItems: number;
+  page: number;
+  maxResults: number;
+  categories: string[];
+  query: string;
+  language: string;
+}
+
+// ─── Constants ──────────────────────────────────────────────────────────
+
+const CATEGORIES = [
+  { label: 'All Books', value: '', icon: BookOpen },
+  { label: 'Computer Science', value: 'Computer Science', icon: Monitor },
+  { label: 'Law (LLB)', value: 'Law (LLB)', icon: Scale },
+  { label: 'Business Administration (BBA)', value: 'Business Administration (BBA)', icon: Briefcase },
+  { label: 'Engineering', value: 'Engineering', icon: Wrench },
+  { label: 'Web Development & UI/UX Design', value: 'Web Development & UI/UX Design', icon: Globe },
+  { label: 'Data Science & Machine Learning', value: 'Data Science & Machine Learning', icon: Brain },
+  { label: 'History & General Education', value: 'History & General Education', icon: History },
+  { label: 'Saved Books', value: '__saved__', icon: Heart },
+];
+
+const MAX_RESULTS = 12;
+
+// ─── Animation Variants ─────────────────────────────────────────────────
+
+const staggerContainer = {
+  hidden: {},
+  visible: {
+    transition: { staggerChildren: 0.06, delayChildren: 0.1 },
+  },
+};
+
+const cardFadeIn = {
+  hidden: { opacity: 0, y: 24, scale: 0.96 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: 'spring', stiffness: 260, damping: 24, mass: 0.8 },
+  },
+};
+
+const modalSlideUp = {
+  hidden: { opacity: 0, y: 40, scale: 0.95 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    scale: 1,
+    transition: { type: 'spring', stiffness: 300, damping: 28 },
+  },
+  exit: { opacity: 0, y: 20, scale: 0.97, transition: { duration: 0.15 } },
+};
+
+// ─── Star Rating Display ────────────────────────────────────────────────
+
+function StarRating({
+  rating,
+  count,
+  size = 'sm',
+}: {
+  rating: number | null;
+  count?: number;
+  size?: 'sm' | 'md';
+}) {
+  if (rating == null) return null;
+  const fullStars = Math.floor(rating);
+  const hasHalf = rating - fullStars >= 0.25;
+  const iconSize = size === 'sm' ? 'w-3 h-3' : 'w-4 h-4';
+
+  return (
+    <div className="flex items-center gap-1">
+      <div className="flex items-center">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <Star
+            key={i}
+            className={`${iconSize} ${
+              i < fullStars
+                ? 'text-amber-400 fill-amber-400'
+                : i === fullStars && hasHalf
+                  ? 'text-amber-400 fill-amber-200'
+                  : 'text-gray-300 dark:text-gray-600'
+            }`}
+          />
+        ))}
+      </div>
+      {count != null && count > 0 && (
+        <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-0.5">
+          ({count.toLocaleString()})
+        </span>
+      )}
+    </div>
+  );
+}
+
+// ─── Book Card Skeleton ─────────────────────────────────────────────────
+
+function BookCardSkeleton() {
+  return (
+    <div className="rounded-xl border dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden">
+      <Skeleton className="w-full aspect-[2/3]" />
+      <div className="p-3 space-y-2">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-3 w-1/2" />
+        <div className="flex items-center justify-between pt-1">
+          <Skeleton className="h-5 w-20 rounded-full" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Book Cover Fallback ────────────────────────────────────────────────
+
+function BookCoverFallback() {
+  return (
+    <div className="w-full aspect-[2/3] bg-gradient-to-br from-emerald-100 via-teal-50 to-cyan-100 dark:from-emerald-900/40 dark:via-teal-900/30 dark:to-cyan-900/40 flex items-center justify-center">
+      <BookOpen className="w-12 h-12 text-emerald-400 dark:text-emerald-600" />
+    </div>
+  );
+}
+
+// ─── Book Card ──────────────────────────────────────────────────────────
+
+function BookCard({
+  book,
+  index,
+  isSaved,
+  onToggleSave,
+  onClick,
+}: {
+  book: Book;
+  index: number;
+  isSaved: boolean;
+  onToggleSave: (e: React.MouseEvent, book: Book) => void;
+  onClick: () => void;
+}) {
+  return (
+    <motion.div
+      variants={cardFadeIn}
+      className="group"
+    >
+      <div className="rounded-xl border dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer h-full flex flex-col">
+        {/* Cover Image */}
+        <div className="relative w-full aspect-[2/3] overflow-hidden bg-gray-100 dark:bg-gray-800">
+          {book.coverUrl ? (
+            <img
+              src={book.coverUrl}
+              alt={book.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              loading="lazy"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+                (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+              }}
+            />
+          ) : null}
+          <div className={book.coverUrl ? 'hidden' : ''}>
+            <BookCoverFallback />
+          </div>
+
+          {/* Save Button */}
+          <motion.button
+            whileTap={{ scale: 0.75 }}
+            onClick={(e) => onToggleSave(e, book)}
+            className="absolute top-2 right-2 z-10 w-9 h-9 rounded-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-white dark:hover:bg-gray-800 transition-colors"
+          >
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={isSaved ? 'saved' : 'unsaved'}
+                initial={isSaved ? { scale: 0.3, opacity: 0 } : { scale: 1, opacity: 1 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={isSaved ? { scale: 1, opacity: 1 } : { scale: 0.3, opacity: 0 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+              >
+                <Heart
+                  className={`w-4.5 h-4.5 ${
+                    isSaved
+                      ? 'text-rose-500 fill-rose-500'
+                      : 'text-gray-500 dark:text-gray-400'
+                  }`}
+                />
+              </motion.div>
+            </AnimatePresence>
+          </motion.button>
+
+          {/* Source Badge */}
+          <div className="absolute bottom-2 left-2">
+            <Badge
+              variant="secondary"
+              className={`text-[9px] px-1.5 py-0.5 font-medium backdrop-blur-sm ${
+                book.source === 'google'
+                  ? 'bg-blue-100/90 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 border-0'
+                  : 'bg-orange-100/90 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300 border-0'
+              }`}
+            >
+              {book.source === 'google' ? 'Google' : 'OpenLibrary'}
+            </Badge>
+          </div>
+
+          {/* PDF Available Badge */}
+          {book.pdfAvailable && book.pdfLink && (
+            <div className="absolute bottom-2 right-2">
+              <Badge className="text-[9px] px-1.5 py-0.5 font-medium bg-emerald-100/90 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-0 backdrop-blur-sm">
+                PDF
+              </Badge>
+            </div>
+          )}
+        </div>
+
+        {/* Card Content */}
+        <div className="p-3 flex-1 flex flex-col min-h-0" onClick={onClick}>
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug">
+            {book.title}
+          </h3>
+          {book.authors && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-1">
+              {book.authors}
+            </p>
+          )}
+          <div className="flex items-center justify-between mt-auto pt-2">
+            {book.categories?.length > 0 && (
+              <Badge
+                variant="outline"
+                className="text-[9px] px-1.5 py-0 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 shrink-0 max-w-[65%] truncate"
+              >
+                {book.categories[0]}
+              </Badge>
+            )}
+            <div className="ml-auto shrink-0">
+              <StarRating rating={book.averageRating} size="sm" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Book Detail Modal ──────────────────────────────────────────────────
+
+function BookDetailModal({
+  book,
+  open,
+  onClose,
+  isSaved,
+  onToggleSave,
+}: {
+  book: Book | null;
+  open: boolean;
+  onClose: () => void;
+  isSaved: boolean;
+  onToggleSave: () => void;
+}) {
+  if (!book) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-2xl w-[calc(100%-1rem)] sm:w-full max-h-[92vh] overflow-hidden p-0 gap-0 [&>button]:hidden">
+        <motion.div
+          variants={modalSlideUp}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+        >
+          {/* Close Button */}
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 z-20 w-8 h-8 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-white dark:hover:bg-gray-700 transition-colors"
+          >
+            <X className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+          </button>
+
+          <ScrollArea className="max-h-[92vh]">
+            <div className="flex flex-col sm:flex-row">
+              {/* Cover */}
+              <div className="sm:w-56 shrink-0 bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center p-6 sm:p-4">
+                <div className="w-full max-w-[180px] aspect-[2/3] rounded-lg overflow-hidden shadow-lg">
+                  {book.coverUrl ? (
+                    <img
+                      src={book.coverUrl}
+                      alt={book.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                      }}
+                    />
+                  ) : null}
+                  <div className={book.coverUrl ? 'hidden' : ''}>
+                    <div className="w-full aspect-[2/3] bg-gradient-to-br from-emerald-200 via-teal-100 to-cyan-200 dark:from-emerald-900/60 dark:via-teal-900/40 dark:to-cyan-900/60 flex items-center justify-center rounded-lg">
+                      <BookOpen className="w-16 h-16 text-emerald-500 dark:text-emerald-400" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Details */}
+              <div className="flex-1 p-5 sm:p-6 space-y-4">
+                <DialogHeader className="space-y-1.5 text-left pr-8">
+                  <DialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
+                    {book.title}
+                  </DialogTitle>
+                  {book.subtitle && (
+                    <DialogDescription className="text-sm text-gray-600 dark:text-gray-400 italic">
+                      {book.subtitle}
+                    </DialogDescription>
+                  )}
+                  {book.authors && (
+                    <p className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                      by {book.authors}
+                    </p>
+                  )}
+                </DialogHeader>
+
+                {/* Rating */}
+                {book.averageRating != null && (
+                  <div className="flex items-center gap-2">
+                    <StarRating rating={book.averageRating} count={book.ratingsCount} size="md" />
+                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      {book.averageRating.toFixed(1)}
+                    </span>
+                  </div>
+                )}
+
+                {/* Categories */}
+                {book.categories?.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {book.categories.map((cat) => (
+                      <Badge
+                        key={cat}
+                        variant="outline"
+                        className="text-xs px-2 py-0.5 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800"
+                      >
+                        {cat}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+
+                {/* Meta Info */}
+                <div className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  {book.language && (
+                    <span className="flex items-center gap-1">
+                      <Globe className="w-3.5 h-3.5" />
+                      {book.language}
+                    </span>
+                  )}
+                  {book.pageCount && (
+                    <span className="flex items-center gap-1">
+                      <FileText className="w-3.5 h-3.5" />
+                      {book.pageCount} pages
+                    </span>
+                  )}
+                  {book.publishedDate && (
+                    <span className="flex items-center gap-1">
+                      <History className="w-3.5 h-3.5" />
+                      {book.publishedDate}
+                    </span>
+                  )}
+                  <span className="flex items-center gap-1">
+                    <Library className="w-3.5 h-3.5" />
+                    {book.source === 'google' ? 'Google Books' : 'Open Library'}
+                  </span>
+                </div>
+
+                <Separator />
+
+                {/* Description */}
+                {book.description && (
+                  <div className="max-h-48 overflow-y-auto pr-1">
+                    <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed whitespace-pre-line">
+                      {book.description.length > 1000
+                        ? book.description.slice(0, 1000) + '...'
+                        : book.description}
+                    </p>
+                  </div>
+                )}
+
+                <Separator />
+
+                {/* Action Buttons */}
+                <div className="flex flex-wrap gap-2">
+                  {/* Save / Unsave */}
+                  <Button
+                    variant={isSaved ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={onToggleSave}
+                    className={
+                      isSaved
+                        ? 'bg-rose-500 hover:bg-rose-600 text-white border-0'
+                        : 'border-gray-300 dark:border-gray-700 text-gray-700 dark:text-gray-300'
+                    }
+                  >
+                    <Heart className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
+                    {isSaved ? 'Saved' : 'Save'}
+                  </Button>
+
+                  {/* Read Online */}
+                  {book.previewLink && (
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={book.previewLink} target="_blank" rel="noopener noreferrer">
+                        <BookOpen className="w-4 h-4" />
+                        Read Online
+                        <ExternalLink className="w-3 h-3 ml-1" />
+                      </a>
+                    </Button>
+                  )}
+
+                  {/* Download PDF */}
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="inline-block">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={!book.pdfAvailable || !book.pdfLink}
+                          asChild={book.pdfAvailable && book.pdfLink ? true : false}
+                        >
+                          {book.pdfAvailable && book.pdfLink ? (
+                            <a href={book.pdfLink} target="_blank" rel="noopener noreferrer">
+                              <Download className="w-4 h-4" />
+                              Download PDF
+                            </a>
+                          ) : (
+                            <>
+                              <Download className="w-4 h-4" />
+                              No PDF
+                            </>
+                          )}
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    {!book.pdfAvailable && (
+                      <TooltipContent>
+                        PDF is not available for this book
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+
+                  {/* View on Source */}
+                  {book.infoLink && (
+                    <Button variant="ghost" size="sm" asChild>
+                      <a href={book.infoLink} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="w-4 h-4" />
+                        View on {book.source === 'google' ? 'Google Books' : 'Open Library'}
+                      </a>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </ScrollArea>
+        </motion.div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Welcome State ──────────────────────────────────────────────────────
+
+function WelcomeState({ onCategoryClick }: { onCategoryClick: (cat: string) => void }) {
+  const featuredCategories = CATEGORIES.filter(
+    (c) => c.value !== '' && c.value !== '__saved__'
+  ).slice(0, 4);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="flex flex-col items-center justify-center py-16 sm:py-24 text-center"
+    >
+      <motion.div
+        animate={{ y: [0, -6, 0] }}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        className="mb-6"
+      >
+        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+          <Library className="w-10 h-10 text-white" />
+        </div>
+      </motion.div>
+      <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+        Explore Our Digital Library
+      </h2>
+      <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mb-8">
+        Search for books, browse by category, or save your favorites. Start by typing a query or selecting a category below.
+      </p>
+      <div className="flex flex-wrap justify-center gap-2">
+        {featuredCategories.map((cat) => (
+          <motion.button
+            key={cat.value}
+            whileHover={{ scale: 1.05, y: -2 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => onCategoryClick(cat.value)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all text-sm font-medium text-gray-700 dark:text-gray-300"
+          >
+            <cat.icon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+            {cat.label}
+          </motion.button>
+        ))}
+      </div>
+    </motion.div>
+  );
+}
+
+// ─── Error State ────────────────────────────────────────────────────────
+
+function ErrorState({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="flex flex-col items-center justify-center py-16 text-center"
+    >
+      <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-4">
+        <AlertCircle className="w-8 h-8 text-red-500 dark:text-red-400" />
+      </div>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+        Something went wrong
+      </h3>
+      <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm mb-4">{message}</p>
+      <Button variant="outline" onClick={onRetry} className="gap-2">
+        <RefreshCw className="w-4 h-4" />
+        Try Again
+      </Button>
+    </motion.div>
+  );
+}
+
+// ─── Empty Results ──────────────────────────────────────────────────────
+
+function EmptyResults({ query }: { query: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="flex flex-col items-center justify-center py-16 text-center"
+    >
+      <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+        <Search className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+      </div>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+        No books found
+      </h3>
+      <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
+        {query
+          ? `No results for "${query}". Try different keywords or browse a category.`
+          : 'No books found in this category. Try a different one.'}
+      </p>
+    </motion.div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// MAIN COMPONENT
+// ═══════════════════════════════════════════════════════════════════════
+
+export default function BooksPage() {
+  const { token } = useAppStore();
+  const { toast } = useToast();
+
+  // ─── State ──────────────────────────────────────────────────────────
+  const [books, setBooks] = useState<Book[]>([]);
+  const [savedBookIds, setSavedBookIds] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState('');
+  const [language, setLanguage] = useState<'en' | 'bn'>('en');
+  const [page, setPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const categoryScrollRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  // ─── Derived ────────────────────────────────────────────────────────
+  const isSavedTab = activeCategory === '__saved__';
+  const activeCategoryConfig = CATEGORIES.find((c) => c.value === activeCategory);
+
+  // ─── Fetch Saved Book IDs ───────────────────────────────────────────
+  const fetchSavedBooks = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/books/saved', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && Array.isArray(data.books)) {
+          const ids = new Set<string>();
+          data.books.forEach((b: Book) => {
+            const bId = b.bookId || b.id;
+            ids.add(bId);
+          });
+          setSavedBookIds(ids);
+        }
+      }
+    } catch {
+      // silent
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchSavedBooks();
+  }, [fetchSavedBooks]);
+
+  // ─── Search Books ───────────────────────────────────────────────────
+  const fetchBooks = useCallback(
+    async (q: string, category: string, lang: string, pageNum: number, append: boolean) => {
+      // Abort previous request
+      abortRef.current?.abort();
+      abortRef.current = new AbortController();
+
+      if (!append) {
+        setLoading(true);
+        setError(null);
+      } else {
+        setLoadingMore(true);
+      }
+
+      try {
+        const params = new URLSearchParams();
+        if (q) params.set('q', q);
+        if (category && category !== '__saved__') params.set('category', category);
+        params.set('lang', lang);
+        params.set('page', String(pageNum));
+        params.set('maxResults', String(MAX_RESULTS));
+        // For Bangla, prefer openlibrary
+        if (lang === 'bn') params.set('source', 'openlibrary');
+
+        const res = await fetch(`/api/books/search?${params.toString()}`, {
+          signal: abortRef.current.signal,
+        });
+
+        if (!res.ok) throw new Error('Failed to fetch books');
+
+        const data: SearchResponse = await res.json();
+
+        if (append) {
+          setBooks((prev) => {
+            const existingIds = new Set(prev.map((b) => b.id));
+            const newBooks = data.books.filter((b) => !existingIds.has(b.id));
+            return [...prev, ...newBooks];
+          });
+        } else {
+          setBooks(data.books);
+        }
+
+        setTotalItems(data.totalItems);
+        setHasMore(data.books.length >= MAX_RESULTS && (pageNum * MAX_RESULTS) < data.totalItems);
+        setPage(pageNum);
+        setHasSearched(true);
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        if (!append) {
+          setError('Unable to load books. Please check your connection and try again.');
+        }
+      } finally {
+        setLoading(false);
+        setLoadingMore(false);
+      }
+    },
+    []
+  );
+
+  // ─── Fetch Saved Books List ─────────────────────────────────────────
+  const fetchSavedBooksList = useCallback(async () => {
+    if (!token) {
+      setError('Please sign in to view saved books.');
+      setHasSearched(true);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/books/saved', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!res.ok) throw new Error('Failed to fetch saved books');
+
+      const data = await res.json();
+
+      if (data.success && Array.isArray(data.books)) {
+        setBooks(data.books);
+        setTotalItems(data.books.length);
+        setHasMore(false);
+        setHasSearched(true);
+      } else {
+        setBooks([]);
+        setTotalItems(0);
+        setHasMore(false);
+        setHasSearched(true);
+      }
+    } catch {
+      setError('Unable to load saved books. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  // ─── Trigger Search ─────────────────────────────────────────────────
+  const performSearch = useCallback(
+    (q: string, category: string, resetPage = true) => {
+      const pageNum = resetPage ? 1 : page;
+      if (category === '__saved__') {
+        fetchSavedBooksList();
+      } else {
+        fetchBooks(q, category, language, pageNum, false);
+      }
+    },
+    [fetchBooks, fetchSavedBooksList, language, page]
+  );
+
+  // ─── Debounced Search (on input change) ────────────────────────────
+  useEffect(() => {
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+
+    debounceTimerRef.current = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, [query]);
+
+  // ─── Auto-search when debounced query changes (only if already searched) ───
+  useEffect(() => {
+    if (!hasSearched) return;
+    if (debouncedQuery === query && !isSavedTab) {
+      performSearch(debouncedQuery, activeCategory);
+    }
+  }, [debouncedQuery, hasSearched, isSavedTab, performSearch, activeCategory, query]);
+
+  // ─── Language Toggle ────────────────────────────────────────────────
+  const handleLanguageChange = useCallback(
+    (lang: 'en' | 'bn') => {
+      setLanguage(lang);
+      if (hasSearched && !isSavedTab) {
+        performSearch(query, activeCategory);
+      }
+    },
+    [language, hasSearched, isSavedTab, performSearch, query, activeCategory]
+  );
+
+  // ─── Category Selection ─────────────────────────────────────────────
+  const handleCategoryClick = useCallback(
+    (categoryValue: string) => {
+      setActiveCategory(categoryValue);
+      setQuery('');
+      setDebouncedQuery('');
+      searchInputRef.current?.blur();
+      if (categoryValue === '__saved__') {
+        fetchSavedBooksList();
+      } else {
+        fetchBooks('', categoryValue, language, 1, false);
+      }
+    },
+    [language, fetchBooks, fetchSavedBooksList]
+  );
+
+  // ─── Search on Enter ────────────────────────────────────────────────
+  const handleSearchSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (isSavedTab) {
+        setActiveCategory('');
+      }
+      performSearch(query, activeCategory);
+    },
+    [query, activeCategory, isSavedTab, performSearch]
+  );
+
+  // ─── Load More ──────────────────────────────────────────────────────
+  const handleLoadMore = useCallback(() => {
+    if (isSavedTab || loadingMore) return;
+    fetchBooks(query, activeCategory, language, page + 1, true);
+  }, [fetchBooks, query, activeCategory, language, page, loadingMore, isSavedTab]);
+
+  // ─── Save / Unsave ──────────────────────────────────────────────────
+  const handleToggleSave = useCallback(
+    async (e: React.MouseEvent, book: Book) => {
+      e.stopPropagation();
+
+      if (!token) {
+        toast({
+          title: 'Sign in required',
+          description: 'Please sign in to save books.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      const bookId = book.bookId || book.id;
+      const currentlySaved = savedBookIds.has(bookId);
+
+      // Optimistic update
+      setSavedBookIds((prev) => {
+        const next = new Set(prev);
+        if (currentlySaved) {
+          next.delete(bookId);
+        } else {
+          next.add(bookId);
+        }
+        return next;
+      });
+
+      try {
+        if (currentlySaved) {
+          const res = await fetch(`/api/books/saved?bookId=${encodeURIComponent(bookId)}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) throw new Error('Failed to remove');
+          toast({ title: 'Book removed', description: `"${book.title}" removed from saved books.` });
+
+          // If on saved tab, remove from list
+          if (isSavedTab) {
+            setBooks((prev) => prev.filter((b) => (b.bookId || b.id) !== bookId));
+            setTotalItems((prev) => Math.max(0, prev - 1));
+          }
+        } else {
+          const res = await fetch('/api/books/saved', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              bookId,
+              title: book.title,
+              authors: book.authors,
+              coverUrl: book.coverUrl,
+              category: book.categories?.[0] || '',
+              language: book.language,
+              description: book.description?.slice(0, 500) || '',
+              infoLink: book.infoLink,
+              pdfLink: book.pdfLink,
+            }),
+          });
+          if (!res.ok) throw new Error('Failed to save');
+          toast({ title: 'Book saved!', description: `"${book.title}" added to your library.` });
+        }
+      } catch {
+        // Revert on error
+        setSavedBookIds((prev) => {
+          const next = new Set(prev);
+          if (currentlySaved) {
+            next.add(bookId);
+          } else {
+            next.delete(bookId);
+          }
+          return next;
+        });
+        toast({
+          title: 'Error',
+          description: currentlySaved ? 'Failed to remove book. Try again.' : 'Failed to save book. Try again.',
+          variant: 'destructive',
+        });
+      }
+    },
+    [token, savedBookIds, toast, isSavedTab]
+  );
+
+  // ─── Modal Handlers ─────────────────────────────────────────────────
+  const openBookDetail = useCallback((book: Book) => {
+    setSelectedBook(book);
+    setModalOpen(true);
+  }, []);
+
+  const closeModal = useCallback(() => {
+    setModalOpen(false);
+    // Delay clearing so the exit animation plays
+    setTimeout(() => setSelectedBook(null), 200);
+  }, []);
+
+  const handleModalToggleSave = useCallback(() => {
+    if (!selectedBook) return;
+    const bookId = selectedBook.bookId || selectedBook.id;
+    const isSaved = savedBookIds.has(bookId);
+
+    // Create a synthetic event and call the main handler
+    handleToggleSave(
+      { stopPropagation: () => {} } as React.MouseEvent,
+      selectedBook
+    );
+
+    // Update local selected book's saved state for immediate UI feedback
+    setSavedBookIds((prev) => {
+      const next = new Set(prev);
+      if (isSaved) {
+        next.delete(bookId);
+      } else {
+        next.add(bookId);
+      }
+      return next;
+    });
+  }, [selectedBook, savedBookIds, handleToggleSave]);
+
+  // ─── Retry ──────────────────────────────────────────────────────────
+  const handleRetry = useCallback(() => {
+    if (isSavedTab) {
+      fetchSavedBooksList();
+    } else {
+      performSearch(query, activeCategory);
+    }
+  }, [isSavedTab, query, activeCategory, fetchSavedBooksList, performSearch]);
+
+  // ─── Cleanup ────────────────────────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, []);
+
+  // ═══════════════════════════════════════════════════════════════════
+  // RENDER
+  // ═══════════════════════════════════════════════════════════════════
+
+  return (
+    <div className="space-y-5">
+      {/* ─── Header ──────────────────────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="space-y-4"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md shadow-emerald-500/15">
+              <Library className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
+                Digital Library
+              </h1>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+                Search, browse, and save your favorite books
+              </p>
+            </div>
+          </div>
+
+          {/* Language Toggle */}
+          <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5">
+            <button
+              onClick={() => handleLanguageChange('en')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+                language === 'en'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              English
+            </button>
+            <button
+              onClick={() => handleLanguageChange('bn')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+                language === 'bn'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+              }`}
+            >
+              বাংলা
+            </button>
+          </div>
+        </div>
+
+        {/* Search Bar */}
+        <form onSubmit={handleSearchSubmit} className="relative">
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400 dark:text-gray-500" />
+            <Input
+              ref={searchInputRef}
+              type="text"
+              placeholder={
+                language === 'bn'
+                  ? 'বই খুঁজুন...'
+                  : 'Search for books by title, author, or topic...'
+              }
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="h-11 pl-11 pr-20 text-sm bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 rounded-xl shadow-sm focus-visible:shadow-md focus-visible:border-emerald-400 focus-visible:ring-emerald-400/20 transition-all"
+            />
+            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQuery('');
+                    setDebouncedQuery('');
+                    searchInputRef.current?.focus();
+                  }}
+                  className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5 text-gray-400" />
+                </button>
+              )}
+              <Button
+                type="submit"
+                size="sm"
+                className="h-8 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-medium"
+              >
+                Search
+              </Button>
+            </div>
+          </div>
+        </form>
+      </motion.div>
+
+      {/* ─── Category Pills ─────────────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 }}
+        className="relative"
+      >
+        {/* Scroll fade indicators */}
+        <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-white dark:from-gray-950 to-transparent z-10 pointer-events-none" />
+        <div className="absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-white dark:from-gray-950 to-transparent z-10 pointer-events-none" />
+
+        <div
+          ref={categoryScrollRef}
+          className="flex gap-2 overflow-x-auto scrollbar-none pb-1 px-1 -mx-1"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {CATEGORIES.map((cat) => {
+            const isActive = activeCategory === cat.value;
+            return (
+              <motion.button
+                key={cat.value}
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={() => handleCategoryClick(cat.value)}
+                className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-medium whitespace-nowrap shrink-0 transition-all duration-200 border ${
+                  isActive
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-500/20'
+                    : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800 hover:border-emerald-300 dark:hover:border-emerald-700 hover:text-emerald-700 dark:hover:text-emerald-400'
+                }`}
+              >
+                <cat.icon className="w-3.5 h-3.5" />
+                {cat.label}
+              </motion.button>
+            );
+          })}
+        </div>
+      </motion.div>
+
+      {/* ─── Active Filter Info ──────────────────────────────────────── */}
+      {(activeCategory || query) && hasSearched && !error && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400"
+        >
+          {activeCategoryConfig && (
+            <>
+              <Badge variant="outline" className="text-[10px] px-2 py-0 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 gap-1">
+                <activeCategoryConfig.icon className="w-3 h-3" />
+                {activeCategoryConfig.label}
+              </Badge>
+              {query && <span>·</span>}
+            </>
+          )}
+          {query && <span>Search: &ldquo;{query}&rdquo;</span>}
+          {!isSavedTab && totalItems > 0 && (
+            <span className="ml-auto">· {totalItems.toLocaleString()} results</span>
+          )}
+          {!isSavedTab && (
+            <button
+              onClick={() => {
+                setActiveCategory('');
+                setQuery('');
+                setDebouncedQuery('');
+                setBooks([]);
+                setHasSearched(false);
+                setTotalItems(0);
+                setHasMore(false);
+                setError(null);
+              }}
+              className="ml-auto flex items-center gap-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+            >
+              <ChevronLeft className="w-3 h-3" />
+              Clear filters
+            </button>
+          )}
+        </motion.div>
+      )}
+
+      {/* ─── Content Area ────────────────────────────────────────────── */}
+      <div className="min-h-[400px]">
+        {/* Initial loading skeletons */}
+        {loading && !books.length && (
+          <motion.div
+            variants={staggerContainer}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+          >
+            {Array.from({ length: 8 }).map((_, i) => (
+              <motion.div key={i} variants={cardFadeIn}>
+                <BookCardSkeleton />
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+
+        {/* Error State */}
+        {!loading && error && <ErrorState message={error} onRetry={handleRetry} />}
+
+        {/* Welcome State */}
+        {!loading && !error && !hasSearched && (
+          <WelcomeState onCategoryClick={handleCategoryClick} />
+        )}
+
+        {/* Empty Results */}
+        {!loading && !error && hasSearched && books.length === 0 && (
+          <EmptyResults query={query} />
+        )}
+
+        {/* Books Grid */}
+        {!loading && !error && books.length > 0 && (
+          <>
+            <motion.div
+              variants={staggerContainer}
+              initial="hidden"
+              animate="visible"
+              key={`${activeCategory}-${debouncedQuery}-${language}-${page}`}
+              className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+            >
+              {books.map((book, index) => (
+                <BookCard
+                  key={book.id}
+                  book={book}
+                  index={index}
+                  isSaved={savedBookIds.has(book.bookId || book.id)}
+                  onToggleSave={handleToggleSave}
+                  onClick={() => openBookDetail(book)}
+                />
+              ))}
+            </motion.div>
+
+            {/* Load More */}
+            {hasMore && !isSavedTab && (
+              <div className="flex justify-center mt-8">
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button
+                    variant="outline"
+                    onClick={handleLoadMore}
+                    disabled={loadingMore}
+                    className="min-w-[160px] h-11 border-gray-300 dark:border-gray-700 rounded-xl gap-2 text-sm"
+                  >
+                    {loadingMore ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        Load More
+                        <span className="text-xs text-gray-400">
+                          ({Math.min((page + 1) * MAX_RESULTS, totalItems).toLocaleString()} of {totalItems.toLocaleString()})
+                        </span>
+                      </>
+                    )}
+                  </Button>
+                </motion.div>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Loading More Indicator */}
+        {loadingMore && books.length > 0 && (
+          <div className="flex justify-center mt-6">
+            <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+          </div>
+        )}
+      </div>
+
+      {/* ─── Book Detail Modal ───────────────────────────────────────── */}
+      {selectedBook && (
+        <BookDetailModal
+          book={selectedBook}
+          open={modalOpen}
+          onClose={closeModal}
+          isSaved={savedBookIds.has(selectedBook.bookId || selectedBook.id)}
+          onToggleSave={handleModalToggleSave}
+        />
+      )}
+    </div>
+  );
+}

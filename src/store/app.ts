@@ -29,7 +29,8 @@ export type PageView =
   | 'profile'
   | 'student-community'
   | 'announcements'
-  | 'quiz';
+  | 'quiz'
+  | 'books';
 
 interface AppState {
   // Auth
