@@ -319,7 +319,7 @@ function AuthPage() {
 
         <div className="mt-6 space-y-2">
           <DevCredit />
-          <p className="text-center text-xs text-gray-400 dark:text-gray-600">PU-ALRMS &copy; 2024 Prime University. All rights reserved.</p>
+          <p className="text-center text-xs text-gray-400 dark:text-gray-600">PU-ALRMS &copy; 2026 Prime University. All rights reserved.</p>
         </div>
       </motion.div>
 
