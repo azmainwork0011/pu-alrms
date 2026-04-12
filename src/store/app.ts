@@ -60,6 +60,19 @@ interface AppState {
   hydrate: () => void;
 }
 
+// Client-side JWT expiry check (no signature verification needed - server does that)
+function isTokenExpired(token: string): boolean {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return true;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+    // Consider token expired if within 30 seconds of actual expiry
+    return (payload.exp || 0) < (Date.now() / 1000) + 30;
+  } catch {
+    return true;
+  }
+}
+
 export const useAppStore = create<AppState>((set) => ({
   user: null,
   token: null,
@@ -105,6 +118,13 @@ export const useAppStore = create<AppState>((set) => ({
       const token = localStorage.getItem('token');
       const userStr = localStorage.getItem('user');
       if (token && userStr) {
+        // Check token expiry client-side to avoid dashboard flash
+        if (isTokenExpired(token)) {
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          set({ user: null, token: null, isAuthenticated: false, mounted: true });
+          return;
+        }
         const user = JSON.parse(userStr);
         set({ user, token, isAuthenticated: true, mounted: true });
       } else {

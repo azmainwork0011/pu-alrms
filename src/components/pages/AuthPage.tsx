@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -22,11 +22,30 @@ import {
 
 function AuthPage() {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
-  const [loginRole, setLoginRole] = useState<'STUDENT' | 'TEACHER' | 'ADMIN'>('STUDENT');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'STUDENT' });
   const { setAuth } = useAppStore();
+
+  // Persist login role and email across reloads
+  const [loginRole, setLoginRoleState] = useState<'STUDENT' | 'TEACHER' | 'ADMIN'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('login-role') as 'STUDENT' | 'TEACHER' | 'ADMIN') || 'STUDENT';
+    }
+    return 'STUDENT';
+  });
+  const setLoginRole = useCallback((role: 'STUDENT' | 'TEACHER' | 'ADMIN') => {
+    setLoginRoleState(role);
+    localStorage.setItem('login-role', role);
+  }, []);
+
+  // Restore saved email on mount
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('login-email');
+    if (savedEmail) {
+      setFormData(prev => ({ ...prev, email: savedEmail }));
+    }
+  }, []);
 
   // Google OAuth dialog state
   const [googleOpen, setGoogleOpen] = useState(false);
@@ -55,6 +74,8 @@ function AuthPage() {
         ? await authApi.login(formData.email, formData.password)
         : await authApi.register(formData);
       setAuth(result.user, result.token);
+      // Clear persisted form data after successful login
+      localStorage.removeItem('login-email');
       toast.success(activeTab === 'login' ? 'Welcome back!' : 'Account created successfully!');
     } catch (err: any) {
       toast.error(err.message || 'Authentication failed');
@@ -116,8 +137,11 @@ function AuthPage() {
     try {
       const result = await authApi.login(email, password);
       setAuth(result.user, result.token);
+      localStorage.removeItem('login-email');
       toast.success('Welcome back!');
     } catch (err: any) {
+      // Save email on failed login so user doesn't have to retype
+      localStorage.setItem('login-email', email);
       toast.error(err.message || 'Login failed');
     } finally {
       setLoading(false);
@@ -192,7 +216,10 @@ function AuthPage() {
                     type="email"
                     placeholder={activeTab === 'login' ? currentRole.placeholder : 'you@pu.edu'}
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, email: e.target.value });
+                      localStorage.setItem('login-email', e.target.value);
+                    }}
                     required
                     className="pl-9 dark:bg-gray-800 dark:border-gray-700"
                   />

@@ -333,3 +333,34 @@ Stage Summary:
 - Language toggle is compact on mobile, showing abbreviated labels
 - Load More button spans full width on mobile for easy tapping
 - ESLint: 0 errors, 0 warnings
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix login page not working + email/password persistence after reload
+
+Work Log:
+- Analyzed login flow: hydrate() reads stale expired token from localStorage → sets isAuthenticated:true → AppLayout briefly shows → API calls fail 401 → auth-expired fires → logout → AuthPage shows
+- FIXED: Added client-side JWT expiry check in `store/app.ts` hydrate() function
+  - New `isTokenExpired()` function decodes JWT payload without verification to check `exp` claim
+  - 30-second buffer before actual expiry to prevent edge-case issues
+  - Expired tokens are now silently cleared during hydrate instead of causing dashboard flash
+- FIXED: Debounced auth-expired events in `lib/api.ts`
+  - Added `handleAuthExpired()` function with 2-second debounce to prevent multiple rapid events from parallel API calls
+  - Multiple 401 responses from dashboard/assignments/notifications APIs no longer cause redundant logout events
+- FIXED: Persisted login form state across page reloads in `AuthPage.tsx`
+  - Login role (Student/Teacher/Admin) saved to localStorage on change, restored on mount
+  - Email field saved to localStorage on every keystroke, restored on mount
+  - On failed login, email is persisted so user doesn't have to retype after reload
+  - On successful login, persisted email is cleared for security
+  - Quick Demo login buttons also clear persisted email on success and save on failure
+- Verified: Login API works correctly (tested alice@stu.pu.edu, dr.smith@pu.edu, admin@pu.edu)
+- Verified: Wrong password returns proper error message without triggering auth-expired
+- Verified: Register API works correctly
+- Verified: Footer already shows "© 2026" and "Developed with ❤️ by Jain Azmain | CSE 66 Batch" from previous session
+- ESLint: 0 errors, 0 warnings
+
+Stage Summary:
+- Login page no longer flashes dashboard before redirecting to login when token is expired
+- Email and role selection persist across page reloads (saved in localStorage)
+- auth-expired events debounced to prevent race conditions from parallel API calls
+- All auth flows tested and working (login, register, demo accounts, quick access)
