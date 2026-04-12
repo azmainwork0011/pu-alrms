@@ -327,7 +327,39 @@ export function playPerfectScore() {
   });
 }
 
-// ─── 14. Streak Fire: Rapid ascending pings ───────────────────────
+// ─── 14. Battle Start: Dramatic tension builder ─────────────────────
+export function playBattleStartSound() {
+  // Rising tension with dramatic bass
+  playTone(110, 0.4, 'sine', 0.2, 0);
+  playTone(165, 0.3, 'triangle', 0.15, 0.2);
+  playTone(220, 0.3, 'sine', 0.2, 0.4);
+  playAscSweep(200, 800, 0.8, 'sawtooth', 0.08, 0.3);
+ // Dramatic hit
+  playTone(440, 0.5, 'sine', 0.3, 0.8);
+  playTone(880, 0.4, 'triangle', 0.15, 0.85);
+  playNoise(0.15, 0.12, 0.8);
+}
+
+// ─── 15. Fight: Sharp impact sound ──────────────────────────────────
+export function playFightSound() {
+  // Sharp impact
+  playNoise(0.1, 0.2, 0);
+  playTone(200, 0.15, 'square', 0.25, 0);
+  playTone(400, 0.2, 'sawtooth', 0.15, 0.05);
+  playSweep(800, 200, 0.3, 'sawtooth', 0.1, 0.05);
+}
+
+// ─── 16. Victory: Triumphant celebration ────────────────────────────
+export function playVictorySound() {
+  playWinFanfare();
+}
+
+// ─── 17. Defeat: Somber descending tones ────────────────────────────
+export function playDefeatSound() {
+  playWrongAnswer();
+}
+
+// ─── 18. Streak Fire: Rapid ascending pings ───────────────────────
 export function playStreakFire() {
   // Rapid fire ascending pings — like a flame rising
   const pings = [880, 1047, 1319, 1568, 2093, 2637, 3136];

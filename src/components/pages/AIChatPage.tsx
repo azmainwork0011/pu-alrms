@@ -14,10 +14,10 @@ import { useAppStore } from '@/store/app';
 import { aiApi } from '@/lib/api';
 import { getInitials } from '@/components/pu-helpers';
 import {
-  Send, Trash2, Copy, Camera, Search, Check, Zap, ArrowLeft, ArrowRight,
-  Swords, ThumbsUp, Download, BrainCircuit, GraduationCap, FileText,
-  Sparkles, Cpu, Eye, EyeOff, Bot, RefreshCw, Wand2, CheckCircle2,
-  ChevronRight, Shield, Rocket, Gem, Bolt, GraduationCap as GradCap,
+  Send, Trash2, Copy, Camera, Search, Check, Zap, ArrowLeft,
+  Swords, ThumbsUp, Download, BrainCircuit, FileText,
+  Sparkles, Cpu, Eye, Bot, RefreshCw, Wand2, CheckCircle2,
+  ChevronRight, Rocket, Gem, Bolt, GraduationCap as GradCap,
 } from 'lucide-react';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 

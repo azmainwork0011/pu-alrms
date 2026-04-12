@@ -80,7 +80,7 @@ export async function GET(req: NextRequest) {
         timestamp: m.createdAt.toISOString(),
         role: m.user?.role || undefined,
         type: m.messageType === 'SYSTEM' ? 'system' : 'user',
-        encrypted: !!m.encryptedContent,
+        encrypted: false,
       })),
       hasMore: messages.length === limit,
     });
