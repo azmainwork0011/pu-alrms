@@ -162,7 +162,7 @@ function AuthPage() {
                   <button
                     key={role}
                     type="button"
-                    className={`flex-1 py-2 text-xs font-medium rounded-md transition-all ${
+                    className={`flex-1 py-3 text-xs font-medium rounded-md transition-all ${
                       loginRole === role
                         ? `bg-gradient-to-r ${roleConfig[role].gradient} text-white shadow-sm`
                         : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'

@@ -190,7 +190,7 @@ function AIChatPage() {
 
   // ─── RENDER ───────────────────────────────────────────
   return (
-    <div className="flex flex-col h-[calc(100vh-8.5rem)] max-h-[calc(100vh-8.5rem)]">
+    <div className="flex flex-col h-[calc(100vh-8.5rem)] max-h-[calc(100vh-8.5rem)] sm:h-[calc(100vh-8rem)] sm:max-h-[calc(100vh-8rem)]">
       {/* Header */}
       <div className="flex items-center justify-between mb-3 shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
@@ -210,11 +210,11 @@ function AIChatPage() {
         {hasMsgs && (
           <div className="flex items-center gap-1.5">
             {(chatPhase === 'chatting' || battlePhase === 'compare') && (
-              <Button variant="ghost" size="sm" onClick={chatPhase === 'chatting' ? backToSelect : backToBattleSelect} className="text-xs h-8 text-gray-500 hover:text-gray-700 dark:text-gray-400">
+              <Button variant="ghost" size="sm" onClick={chatPhase === 'chatting' ? backToSelect : backToBattleSelect} className="text-xs h-11 px-3 text-gray-500 hover:text-gray-700 dark:text-gray-400">
                 <ArrowLeft className="w-3 h-3 mr-1" />Back
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={clearChat} className="dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 text-xs h-8">
+            <Button variant="outline" size="sm" onClick={clearChat} className="dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 text-xs h-11 px-3">
               <Trash2 className="w-3 h-3 mr-1" />Clear
             </Button>
           </div>
@@ -298,7 +298,7 @@ function AIChatPage() {
             <form onSubmit={handleSubmit} className="flex items-end gap-1.5 sm:gap-2">
               <input ref={scanRef} type="file" className="hidden" accept="image/*" onChange={handleScan} />
               {tab !== 'image' && (
-                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon" className="shrink-0 text-gray-400 hover:text-purple-600 dark:text-gray-500 dark:hover:text-purple-400 h-9 w-9" onClick={() => scanRef.current?.click()} disabled={loading}><Camera className="w-4 h-4" /></Button></TooltipTrigger><TooltipContent side="top"><p className="text-xs">Scanner</p></TooltipContent></Tooltip></TooltipProvider>
+                <TooltipProvider delayDuration={300}><Tooltip><TooltipTrigger asChild><Button type="button" variant="ghost" size="icon" className="shrink-0 text-gray-400 hover:text-purple-600 dark:text-gray-500 dark:hover:text-purple-400 h-11 w-11" onClick={() => scanRef.current?.click()} disabled={loading}><Camera className="w-4 h-4" /></Button></TooltipTrigger><TooltipContent side="top"><p className="text-xs">Scanner</p></TooltipContent></Tooltip></TooltipProvider>
               )}
               <div className="flex-1 min-w-0">
                 <Input value={input} onChange={(e) => setInput(e.target.value)}
@@ -307,7 +307,7 @@ function AIChatPage() {
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) e.preventDefault(); }} />
               </div>
               <Button type="submit" disabled={loading || imageLoading || !input.trim()}
-                className={`text-white shrink-0 h-9 w-9 p-0 shadow-sm bg-gradient-to-r ${tab === 'battle' ? 'from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700' : tab === 'image' ? 'from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700' : `${curModel.gradient} hover:opacity-90`}`}>
+                className={`text-white shrink-0 h-11 w-11 p-0 shadow-sm bg-gradient-to-r ${tab === 'battle' ? 'from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700' : tab === 'image' ? 'from-pink-600 to-rose-600 hover:from-pink-700 hover:to-rose-700' : `${curModel.gradient} hover:opacity-90`}`}>
                 {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               </Button>
             </form>
@@ -568,11 +568,11 @@ function BattleMessages({ messages, copiedId, onCopy, onVote, loading }: any) {
                         <div className="p-3 max-h-64 lg:max-h-80 overflow-y-auto prose prose-sm max-w-none prose-p:my-1.5 dark:prose-invert text-sm"><ReactMarkdown>{resp.content}</ReactMarkdown></div>
                         {reveal && revModel && (
                           <div className="px-3 py-1.5 border-t dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 flex items-center gap-1.5">
-                            <Badge className={`text-[9px] ${revModel.tagBg} ${revModel.tagText} border border-transparent`}>{revModel.provider}</Badge>
+                            <Badge className={`text-[10px] ${revModel.tagBg} ${revModel.tagText} border border-transparent`}>{revModel.provider}</Badge>
                           </div>
                         )}
                         <div className="px-3 py-2 border-t dark:border-gray-700">
-                          <Button size="sm" variant={msg.votedLabel === resp.label ? 'default' : 'outline'} className={`w-full text-xs h-8 ${msg.votedLabel === resp.label ? 'bg-emerald-600' : 'dark:bg-gray-700/50 dark:border-gray-600'}`} onClick={() => msg.battleId && onVote(msg.id, msg.battleId, resp.label)} disabled={!!msg.votedLabel}>
+                          <Button size="sm" variant={msg.votedLabel === resp.label ? 'default' : 'outline'} className={`w-full text-xs h-11 ${msg.votedLabel === resp.label ? 'bg-emerald-600' : 'dark:bg-gray-700/50 dark:border-gray-600'}`} onClick={() => msg.battleId && onVote(msg.id, msg.battleId, resp.label)} disabled={!!msg.votedLabel}>
                             {msg.votedLabel === resp.label ? <><Check className="w-3.5 h-3.5 mr-1" />Voted Best</> : <><ThumbsUp className="w-3.5 h-3.5 mr-1" />Best Answer</>}
                           </Button>
                         </div>
