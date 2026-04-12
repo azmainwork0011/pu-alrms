@@ -33,6 +33,8 @@ model User {
   quizAttempts   QuizAttempt[]
   quizProfile    QuizProfile?
   savedBooks     SavedBook[]
+  battlesAsP1    BattleRoom[] @relation("BattlePlayer1")
+  battlesAsP2    BattleRoom[] @relation("BattlePlayer2")
 }
 
 model Subject {
@@ -168,6 +170,7 @@ model QuizCategory {
 
   questions QuizQuestion[] @relation("CategoryQuestions")
   attempts  QuizAttempt[]  @relation("CategoryAttempts")
+  battles   BattleRoom[]
 }
 
 model QuizQuestion {
@@ -237,4 +240,26 @@ model SavedBook {
   user User @relation(fields: [userId], references: [id])
 
   @@unique([userId, bookId])
+}
+
+model BattleRoom {
+  id              String   @id @default(cuid())
+  player1Id       String
+  player2Id       String?
+  categoryId      String?
+  status          String   @default("WAITING") // WAITING, IN_PROGRESS, COMPLETED
+  totalQuestions  Int      @default(10)
+  timePerQuestion Int      @default(15)
+  player1Score    Int      @default(0)
+  player2Score    Int      @default(0)
+  player1Correct  Int      @default(0)
+  player2Correct  Int      @default(0)
+  winnerId        String?
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  player1  User          @relation("BattlePlayer1", fields: [player1Id], references: [id])
+  player2  User?         @relation("BattlePlayer2", fields: [player2Id], references: [id])
+  category QuizCategory? @relation(fields: [categoryId], references: [id])
 }

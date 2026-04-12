@@ -196,12 +196,6 @@ export async function POST(req: NextRequest) {
       const shuffled = allQuestions.sort(() => Math.random() - 0.5);
       const questions = shuffled.slice(0, Math.min(questionCount, shuffled.length));
 
-      // Increment timesPlayed
-      await db.quizQuestion.updateMany({
-        where: { id: { in: questions.map(q => q.id) } },
-        data: { timesPlayed: { increment: 1 } },
-      });
-
       // Return questions WITH correctOption for battle mode
       const battleQuestions = questions.map(q => ({
         id: q.id,
@@ -213,7 +207,6 @@ export async function POST(req: NextRequest) {
         correctOption: q.correctOption,
         difficulty: q.difficulty,
         points: q.points,
-        explanation: q.explanation,
       }));
 
       return NextResponse.json({

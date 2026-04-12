@@ -176,7 +176,7 @@ function BattlePage() {
   }, [screen, token]);
 
   // ─── Bot Simulation ──────────────────────────────────────────────────
-  const simulateBotAnswer = useCallback((question: BattleQuestion, questionIndex: number) => {
+  const simulateBotAnswer = useCallback((question: BattleQuestion, questionIndex: number, playerOption: string | null) => {
     // Bot thinks for 2-6 seconds
     setBotThinking(true);
     const thinkTime = 2000 + Math.random() * 4000;
@@ -197,14 +197,14 @@ function BattlePage() {
         setOpponentCorrectCount(prev => prev + 1);
       }
 
-      // Update question results
+      // Update question results (use playerOption instead of stale selectedOption)
       setQuestionResults(prev => [...prev, {
         q: questionIndex,
-        correct: selectedOption === question.correctOption,
+        correct: playerOption === question.correctOption,
         opponentCorrect: botCorrect,
       }]);
     }, thinkTime);
-  }, [selectedOption]);
+  }, []);
 
   // ─── Create Battle ────────────────────────────────────────────────
   const createBattle = useCallback(async (mode: 'solo' | 'pvp') => {
@@ -403,13 +403,8 @@ function BattlePage() {
     const q = questions[currentQ];
     const isCorrect = option === q.correctOption;
 
-    // Start bot simulation for this question
-    if (battleMode === 'solo') {
-      simulateBotAnswer(q, currentQ);
-    } else {
-      // In PvP mode, simulate opponent for now (since real PvP needs WebSocket sync)
-      simulateBotAnswer(q, currentQ);
-    }
+    // Start bot simulation for this question (pass current option to avoid stale closure)
+    simulateBotAnswer(q, currentQ, option);
 
     // Delayed reveal
     setTimeout(() => {

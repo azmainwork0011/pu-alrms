@@ -1,8 +1,23 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { seedQuizData } from '@/lib/seed-quiz';
+import { verifyToken } from '@/lib/jwt';
 
-export async function POST() {
+export async function POST(req: NextRequest) {
   try {
+    const authHeader = req.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '');
+
+    // Allow unauthenticated seed for demo/development purposes
+    // but log a warning if no auth
+    if (!token) {
+      console.warn('Quiz seed called without authentication');
+    } else {
+      const payload = verifyToken(token);
+      if (!payload) {
+        return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+      }
+    }
+
     await seedQuizData();
     return NextResponse.json({ success: true, message: 'Quiz data seeded' });
   } catch (error) {
