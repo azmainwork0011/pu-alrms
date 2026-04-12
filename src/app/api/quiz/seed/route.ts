@@ -7,15 +7,13 @@ export async function POST(req: NextRequest) {
     const authHeader = req.headers.get('authorization');
     const token = authHeader?.replace('Bearer ', '');
 
-    // Allow unauthenticated seed for demo/development purposes
-    // but log a warning if no auth
     if (!token) {
-      console.warn('Quiz seed called without authentication');
-    } else {
-      const payload = verifyToken(token);
-      if (!payload) {
-        return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
-      }
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const payload = verifyToken(token);
+    if (!payload) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
     await seedQuizData();

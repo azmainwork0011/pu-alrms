@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { verifyToken, signToken } from '@/lib/jwt';
+import { verifyToken } from '@/lib/jwt';
 
 function getTokenPayload(req: NextRequest) {
   const authHeader = req.headers.get('authorization');

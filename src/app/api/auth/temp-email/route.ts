@@ -11,8 +11,28 @@ import crypto from 'crypto';
  * - Returns JWT + user
  * - No password required
  */
+// Simple in-memory rate limit for temp email creation (max 3 per hour per IP)
+const tempEmailRateLimit = new Map<string, { count: number; resetAt: number }>();
+const TEMP_EMAIL_MAX_PER_HOUR = 3;
+
 export async function POST(req: NextRequest) {
   try {
+    // Rate limiting by IP
+    const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const now = Date.now();
+    const record = tempEmailRateLimit.get(ip);
+    if (record) {
+      if (now > record.resetAt) {
+        tempEmailRateLimit.set(ip, { count: 1, resetAt: now + 3600000 });
+      } else if (record.count >= TEMP_EMAIL_MAX_PER_HOUR) {
+        return NextResponse.json({ error: 'Too many temporary accounts. Please try again later.' }, { status: 429 });
+      } else {
+        record.count++;
+      }
+    } else {
+      tempEmailRateLimit.set(ip, { count: 1, resetAt: now + 3600000 });
+    }
+
     const { name } = await req.json();
 
     // Generate temp email

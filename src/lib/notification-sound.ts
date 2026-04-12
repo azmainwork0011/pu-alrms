@@ -5,7 +5,7 @@
 // Fallback: Synthesized alternatives using Web Audio API
 // Trending meme sounds: Hindi/Bangla favorites synthesized via Web Audio
 
-type SoundType = 'fahhh' | 'ding' | 'airhorn' | 'vine-boom' | 'mlg-horn' | 'bruuh' | 'tutu' | 'oh-no' | 'sheesh' | 'sad-violin' | 'meme-bass' | 'bangla-beat';
+export type SoundType = 'fahhh' | 'ding' | 'airhorn' | 'vine-boom' | 'mlg-horn' | 'bruuh' | 'tutu' | 'oh-no' | 'sheesh' | 'sad-violin' | 'meme-bass' | 'bangla-beat';
 
 interface SoundSettings {
   enabled: boolean;

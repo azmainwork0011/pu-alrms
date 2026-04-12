@@ -128,9 +128,9 @@ export function getTokenStatus(): {
   const token = getToken();
   const source = tokenSource || 'none';
   const sourceDescriptions: Record<string, string> = {
-    env: 'Environment variable (ZAI_TOKEN)',
-    local: 'Local project config (.z-ai-config)',
-    etc: 'System config (/etc/.z-ai-config)',
+    env: 'Environment variable',
+    local: 'Local project config',
+    etc: 'System configuration',
     none: 'Not configured',
   };
 

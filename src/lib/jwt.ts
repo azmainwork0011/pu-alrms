@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'pu-alrms-secret-key-2024';
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'pu-alrms-dev-key-2024-local');
 
 export interface JWTPayload {
   userId: string;

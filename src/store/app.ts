@@ -30,6 +30,7 @@ export type PageView =
   | 'student-community'
   | 'announcements'
   | 'quiz'
+  | 'quiz-battle'
   | 'books';
 
 interface AppState {
