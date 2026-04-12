@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useAppStore } from '@/store/app';
@@ -120,6 +120,7 @@ function BattlePage() {
   const [questionResults, setQuestionResults] = useState<{ q: number; correct: boolean; opponentCorrect: boolean }[]>([]);
   const [particles, setParticles] = useState<Particle[]>([]);
   const [battleMode, setBattleMode] = useState<'pvp' | 'solo'>('solo');
+  const [battleLoading, setBattleLoading] = useState(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
@@ -294,15 +295,17 @@ function BattlePage() {
         playFightSound();
       } else {
         clearInterval(interval);
-        // Fetch questions and start
-        beginBattle();
+        // Fetch questions and start (catch errors to prevent unhandled rejection)
+        beginBattle().catch(() => {
+          toast.error('Failed to start battle');
+          setScreen('lobby');
+        });
       }
     }, 1000);
   }, []);
 
   // ─── Begin Battle ─────────────────────────────────────────────────
   const beginBattle = useCallback(async () => {
-    setScreen('fighting');
     setCurrentQ(0);
     setMyScore(0);
     setOpponentScore(0);
@@ -314,10 +317,13 @@ function BattlePage() {
     setIsRevealed(false);
     setTimeLeft(15);
     setQuestionResults([]);
-
+    setBattleLoading(true);
 
     const success = await fetchBattleQuestions();
-    if (!success) {
+    setBattleLoading(false);
+    if (success) {
+      setScreen('fighting');
+    } else {
       toast.error('Failed to load questions');
       setScreen('lobby');
     }
@@ -680,8 +686,19 @@ function BattlePage() {
           </motion.div>
         )}
 
-        {/* ─── FIGHTING ──────────────────────────────────────────── */}
-        {screen === 'fighting' && questions.length > 0 && currentQuestion && (
+        {/* ─── FIGHTING (Loading) ──────────────────────────────── */}
+        {screen === 'fighting' && battleLoading && (
+          <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex items-center justify-center min-h-[60vh]">
+            <div className="text-center">
+              <motion.div animate={{ rotate: 360 }} transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }} className="w-16 h-16 rounded-full border-4 border-violet-200 border-t-violet-500 mx-auto mb-4" />
+              <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-1">Loading Questions...</h2>
+              <p className="text-sm text-gray-500">Preparing your battle</p>
+            </div>
+          </motion.div>
+        )}
+
+        {/* ─── FIGHTING (Active) ──────────────────────────────── */}
+        {screen === 'fighting' && !battleLoading && questions.length > 0 && currentQuestion && (
           <motion.div key="fighting" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             <div className="max-w-3xl mx-auto">
               {/* Score Bar */}

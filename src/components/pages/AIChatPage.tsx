@@ -72,6 +72,22 @@ function AIChatPage() {
   }, []);
   useEffect(() => { scroll(); }, [messages, loading, imageLoading, scroll]);
 
+  // Listen for auth-expired events (token expired) and show message in chat
+  useEffect(() => {
+    const handleAuthExpired = () => {
+      setLoading(false);
+      setImageLoading(false);
+      setScanLoading(false);
+      setMessages(p => [...p, {
+        id: gid(), role: 'assistant',
+        content: '⚠️ Your session has expired. Please sign in again to continue chatting.',
+        timestamp: Date.now(), modelName: 'System',
+      }]);
+    };
+    window.addEventListener('auth-expired', handleAuthExpired);
+    return () => window.removeEventListener('auth-expired', handleAuthExpired);
+  }, []);
+
   const clearChat = useCallback(async () => {
     try { await aiApi.clearChat(); } catch {}
     setMessages([]); toast.success('Cleared');

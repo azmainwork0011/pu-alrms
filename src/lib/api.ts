@@ -21,6 +21,12 @@ export async function apiFetch<T>(
   });
   
   if (!response.ok) {
+    // Handle token expiry: clear auth state and notify the app
+    if (response.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.dispatchEvent(new Event('auth-expired'));
+    }
     const error = await response.json().catch(() => ({ error: 'Request failed' }));
     throw new Error(error.error || `HTTP ${response.status}`);
   }
