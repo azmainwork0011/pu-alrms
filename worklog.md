@@ -191,3 +191,88 @@ Stage Summary:
 - AI Battle Arena: Fully working - Select 2-3 models, compare responses, vote for best
 - Quiz Battle: Fixed timer expiry bug - bot now answers even when user's time runs out
 - All 3 features verified via API testing
+
+---
+Task ID: 7
+Agent: Fullstack Developer Subagent
+Task: Rebuild Digital Library page with embedded book reader and improved responsive design
+
+Work Log:
+- Read and analyzed entire BooksPage.tsx (1289 lines) to understand existing architecture
+- Rebuilt BooksPage.tsx (~1595 lines) with the following changes:
+  - **Embedded Book Reader**: Added BookReaderDialog component that opens a full-screen overlay with iframe embedding Google Books preview
+    - Extracts book ID from infoLink to construct embed URL: `https://books.google.com/books?id={ID}&pg=PA1&hl={lang}&output=embed`
+    - Also supports Open Library embed: `https://openlibrary.org/books/{OLID}/embed`
+    - Shows loading spinner while iframe loads, error state with fallback if embed fails
+    - "Open in new tab" button always available as fallback
+    - Full-screen on mobile/tablet, responsive header with book thumbnail, title, close button
+    - Component remounts on book change via key prop (no stale state issues)
+  - **Read Online button in Book Detail Modal**: Now opens embedded reader instead of external link
+    - Button text changes: "Read Now" when embed is available, "Read Online" when fallback only
+    - Tooltip explains the behavior for each case
+    - Falls back to window.open() if no embed URL is possible
+  - **Improved responsive grid**: Changed from `grid-cols-2 md:grid-cols-3 lg:grid-cols-4` to `grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6`
+  - **Better search bar**: Increased height to h-12 with rounded-2xl, improved clear button and search button sizing
+  - **Improved category pills**: Added CSS variable-based gradient fades (supports both light and dark mode), added snap-x for smooth scrolling, shortened labels on mobile (removes parenthetical text)
+  - **Fixed double optimistic save bug**: handleModalToggleSave now just delegates to handleToggleSave without doing its own redundant setSavedBookIds update
+  - **Removed unused useMemo import**
+  - **Source badge color fix**: Changed Google source badge from blue to teal (consistent with emerald/teal theme)
+  - **Added new icons**: Maximize2 for Read Now button, BookCopy for reader unavailable state
+  - **Welcome state**: Changed from flex-wrap buttons to 2-column grid for better mobile layout
+  - **Skeleton count**: Increased from 8 to 12 to match new 6-column grid
+  - **Reader animations**: Added readerOverlayAnim and readerContentAnim variants with spring physics
+
+Stage Summary:
+- BooksPage.tsx rebuilt with embedded book reader (iframe-based Google Books/Open Library preview)
+- Responsive grid expanded: 2→3→4→5→6 columns across breakpoints
+- Double optimistic save bug fixed in handleModalToggleSave
+- Unused useMemo import removed
+- Category pills improved with CSS variable gradient fades and mobile label shortening
+- Search bar enlarged with rounded-2xl styling
+- All existing functionality preserved (search, categories, save/unsave, language toggle, load more)
+- ESLint: 0 errors, 0 warnings
+---
+Task ID: 1
+Agent: Main
+Task: Fix AI Chat Bot - clean up imports, improve error handling, ensure proper responses
+
+Work Log:
+- Removed unused imports: `useMemo`, `CardContent`, `FileText`
+- Kept `Eye` (was incorrectly removed, still used in battle messages)
+- Improved error handling in all 4 async functions (sendSingle, sendBattle, genImage, submitScan)
+- Added session-expired detection for HTTP errors (401) with clear user message
+- Added error fallback message in chat when AI fails to respond
+- Fixed scan route (`/api/ai/scan/route.ts`) to use standard `create()` method with vision content blocks instead of potentially unstable `createVision()`
+- Removed dead `uploadFile` function from `api.ts` (pointed to non-existent `/api/ai/upload` route)
+- Verified ZAI SDK works correctly with test script (returns proper responses)
+
+Stage Summary:
+- AI Chat error handling improved - users now see "Session expired. Please sign in again." for 401 errors
+- Scan route fixed to use standard completions API
+- Dead code removed from api.ts
+- ESLint: 0 errors, 0 warnings
+
+---
+Task ID: 2
+Agent: fullstack-developer
+Task: Rebuild Digital Library with embedded book reader and improved responsive design
+
+Work Log:
+- Added BookReaderDialog component with embedded iframe reader
+- Google Books embeds via `books.google.com/books?id={ID}&output=embed`
+- Open Library embeds via `openlibrary.org/books/{OLID}/embed`
+- Reader has loading state, error fallback, and "Open in new tab" option
+- Upgraded grid: `grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6`
+- Fixed double optimistic save bug in handleModalToggleSave
+- Removed unused `useMemo` import
+- Improved search bar styling (taller h-12, rounded-2xl)
+- Category pills: horizontal scroll with gradient fades, snap-x scrolling
+- Skeleton count increased to 12 for wider grid
+- Source badge color changed from blue to teal for theme consistency
+
+Stage Summary:
+- BooksPage.tsx rebuilt: 1289 → 1595 lines
+- Embedded book reader works for both Google Books and Open Library
+- Fully responsive on mobile/tablet/desktop
+- All existing functionality preserved (search, save, categories, language toggle)
+- ESLint: 0 errors, 0 warnings

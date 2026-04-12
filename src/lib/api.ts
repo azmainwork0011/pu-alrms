@@ -213,23 +213,4 @@ export const aiApi = {
       method: 'POST',
       body: JSON.stringify({ image, question }),
     }),
-
-  uploadFile: (file: File, question?: string) => {
-    const token = localStorage.getItem('token');
-    const formData = new FormData();
-    formData.append('file', file);
-    if (question) formData.append('question', question);
-
-    return fetch('/api/ai/upload', {
-      method: 'POST',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-      body: formData,
-    }).then(async (res) => {
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ error: 'Upload failed' }));
-        throw new Error(error.error || `HTTP ${res.status}`);
-      }
-      return res.json();
-    }) as Promise<{ response: string; fileName: string }>;
-  },
 };

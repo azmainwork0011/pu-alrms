@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import ReactMarkdown from 'react-markdown';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -15,7 +15,7 @@ import { aiApi } from '@/lib/api';
 import { getInitials } from '@/components/pu-helpers';
 import {
   Send, Trash2, Copy, Camera, Search, Check, Zap, ArrowLeft,
-  Swords, ThumbsUp, Download, BrainCircuit, FileText,
+  Swords, ThumbsUp, Download, BrainCircuit,
   Sparkles, Cpu, Eye, Bot, RefreshCw, Wand2, CheckCircle2,
   ChevronRight, Rocket, Gem, Bolt, GraduationCap as GradCap,
 } from 'lucide-react';
@@ -112,7 +112,11 @@ function AIChatPage() {
     try {
       const r = await aiApi.chat(msg, 'single', selectedModel.id);
       setMessages(p => [...p, { id: gid(), role: 'assistant', content: r.response || 'No response.', timestamp: Date.now(), modelName: r.modelName || selectedModel.name, modelId: r.modelId || selectedModel.id }]);
-    } catch (e: any) { toast.error(e.message || 'Failed'); }
+    } catch (e: any) {
+      const errMsg = e?.message || 'Failed to get response';
+      toast.error(errMsg.includes('HTTP') ? 'Session expired. Please sign in again.' : errMsg);
+      setMessages(p => [...p, { id: gid(), role: 'assistant', content: 'Sorry, I encountered an error. Please try again.', timestamp: Date.now(), modelName: selectedModel.name, modelId: selectedModel.id }]);
+    }
     finally { setLoading(false); scroll(); }
   }, [input, loading, selectedModel, scroll]);
 
@@ -125,7 +129,10 @@ function AIChatPage() {
     try {
       const r = await aiApi.chat(msg, 'battle', undefined, battleModels);
       setMessages(p => [...p, { id: gid(), role: 'assistant', content: '', timestamp: Date.now(), battleResponses: r.responses || [], battleId: r.battleId }]);
-    } catch (e: any) { toast.error(e.message || 'Battle failed'); }
+    } catch (e: any) {
+      const errMsg = e?.message || 'Battle failed';
+      toast.error(errMsg.includes('HTTP') ? 'Session expired. Please sign in again.' : errMsg);
+    }
     finally { setLoading(false); scroll(); }
   }, [input, loading, battleModels, scroll]);
 
@@ -147,7 +154,10 @@ function AIChatPage() {
     try {
       const r = await aiApi.generateImage(msg);
       setMessages(p => [...p, { id: gid(), role: 'assistant', content: `Generated: "${msg}"`, generatedImage: r.image, timestamp: Date.now(), modelName: 'AI Image Gen' }]);
-    } catch { toast.error('Image gen failed'); }
+    } catch (e: any) {
+      const errMsg = e?.message || 'Image gen failed';
+      toast.error(errMsg.includes('HTTP') ? 'Session expired. Please sign in again.' : errMsg);
+    }
     finally { setImageLoading(false); scroll(); }
   }, [input, imageLoading, scroll]);
 
@@ -169,7 +179,10 @@ function AIChatPage() {
     try {
       const r = await aiApi.scanImage(scanPreview.dataUrl, scanQ || 'Describe this image');
       setMessages(p => [...p, { id: gid(), role: 'assistant', content: r.response || 'Done.', timestamp: Date.now(), modelName: 'Vision AI' }]);
-    } catch { toast.error('Scan failed'); }
+    } catch (e: any) {
+      const errMsg = e?.message || 'Scan failed';
+      toast.error(errMsg.includes('HTTP') ? 'Session expired. Please sign in again.' : errMsg);
+    }
     finally { setScanLoading(false); scroll(); }
   }, [scanPreview, scanQ, scanLoading, scroll]);
 
