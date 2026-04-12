@@ -12,7 +12,7 @@ import { useAppStore, type PageView, type UserRole } from '@/store/app';
 import {
   LayoutDashboard, ClipboardList, FlaskConical, Plus, FileText, Trophy,
   Megaphone, MessageSquare, Sparkles, Bell, User as UserIcon,
-  LogOut, Menu, GraduationCap, Moon, Sun, BookOpen,
+  LogOut, Menu, GraduationCap, Moon, Sun, BookOpen, Swords,
 } from 'lucide-react';
 import { getInitials, PageTransition, DevCredit, playNotificationSound } from '@/components/pu-helpers';
 
@@ -29,6 +29,7 @@ import ProfilePage from '@/components/pages/ProfilePage';
 import StudentCommunityPage from '@/components/pages/StudentCommunityPage';
 import AnnouncementsPage from '@/components/pages/AnnouncementsPage';
 import QuizPage from '@/components/pages/QuizPage';
+import BattlePage from '@/components/pages/BattlePage';
 import BooksPage from '@/components/pages/BooksPage';
 
 // ─── Sidebar Navigation ──────────────────────────────────
@@ -45,6 +46,7 @@ function SidebarNav({ onNavigate }: { onNavigate: (page: PageView) => void }) {
     { page: 'announcements', label: 'Announcements', icon: <Megaphone className="w-4 h-4" /> },
     { page: 'student-community', label: 'Community Chat', icon: <MessageSquare className="w-4 h-4" /> },
     { page: 'quiz', label: 'Quick Quiz', icon: <GraduationCap className="w-4 h-4" /> },
+    { page: 'quiz-battle', label: 'Quiz Battle', icon: <Swords className="w-4 h-4" /> },
     { page: 'books', label: 'Digital Library', icon: <BookOpen className="w-4 h-4" /> },
     { page: 'ai-chat', label: 'Lucky Strick AI', icon: <Sparkles className="w-4 h-4" /> },
     { page: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
@@ -139,6 +141,7 @@ export default function AppLayout() {
       case 'student-community': return <StudentCommunityPage />;
       case 'announcements': return <AnnouncementsPage />;
       case 'quiz': return <QuizPage />;
+      case 'quiz-battle': return <BattlePage />;
       case 'books': return <BooksPage />;
       default: return <DashboardPage />;
     }
@@ -175,7 +178,7 @@ export default function AppLayout() {
                 <Menu className="w-5 h-5" />
               </Button>
               <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 capitalize">
-                {currentPage === 'student-community' ? 'Community Chat' : currentPage === 'announcements' ? 'Announcements' : currentPage === 'ai-chat' ? 'Lucky Strick AI' : currentPage === 'books' ? 'Digital Library' : currentPage === 'quiz' ? 'Quick Quiz' : currentPage.replace(/-/g, ' ')}
+                {currentPage === 'student-community' ? 'Community Chat' : currentPage === 'announcements' ? 'Announcements' : currentPage === 'ai-chat' ? 'Lucky Strick AI' : currentPage === 'books' ? 'Digital Library' : currentPage === 'quiz' ? 'Quick Quiz' : currentPage === 'quiz-battle' ? 'Quiz Battle' : currentPage.replace(/-/g, ' ')}
               </h2>
             </div>
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/jwt';
-import { unlink, readdir } from 'fs/promises';
+import { unlink } from 'fs/promises';
 import path from 'path';
 
 export async function DELETE(req: NextRequest) {
@@ -40,7 +40,12 @@ export async function DELETE(req: NextRequest) {
     if (photoUrl) {
       try {
         const filePath = path.join(process.cwd(), 'public', photoUrl);
-        await unlink(filePath);
+        // Validate path to prevent traversal attacks
+        const resolved = path.resolve(filePath);
+        const publicDir = path.resolve(process.cwd(), 'public');
+        if (resolved.startsWith(publicDir) && resolved.includes('/uploads/profiles/')) {
+          await unlink(filePath);
+        }
       } catch {
         // File might not exist, that's okay
       }

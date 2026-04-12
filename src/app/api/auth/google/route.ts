@@ -49,8 +49,9 @@ export async function POST(req: NextRequest) {
     const randomPassword = crypto.randomBytes(32).toString('hex');
     const hashedPassword = await hash(randomPassword, 12);
 
+    // Only allow STUDENT role via Google sign-up (prevent privilege escalation)
+    // TEACHER role must be assigned by an admin through the registration endpoint
     let userRole = 'STUDENT';
-    if (role === 'TEACHER') userRole = 'TEACHER';
 
     const user = await db.user.create({
       data: {

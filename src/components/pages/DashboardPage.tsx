@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { differenceInDays, format } from 'date-fns';
+import { differenceInDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Progress } from '@/components/ui/progress';
 import { useAppStore } from '@/store/app';
-import { dashboardApi, assignmentApi, submissionApi } from '@/lib/api';
+import { dashboardApi, assignmentApi } from '@/lib/api';
 import {
   Clock, CheckCircle2, Calendar, TrendingUp, Users, FileText,
   ClipboardList, Upload, AlertTriangle, Star, Sparkles, MessageSquare,
