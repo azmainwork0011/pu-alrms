@@ -3,6 +3,21 @@ const API_BASE = '';
 // Auth endpoints where 401 means "wrong credentials" (not expired session)
 const AUTH_ENDPOINTS = ['/api/auth/login', '/api/auth/register', '/api/auth/temp-email', '/api/auth/google'];
 
+// Debounce auth-expired to prevent multiple rapid events from parallel API calls
+let authExpiredFired = false;
+let authExpiredTimer: ReturnType<typeof setTimeout> | null = null;
+
+function handleAuthExpired() {
+  if (authExpiredFired) return; // Already handled recently
+  authExpiredFired = true;
+  localStorage.removeItem('token');
+  localStorage.removeItem('user');
+  window.dispatchEvent(new Event('auth-expired'));
+  // Reset after 2 seconds to allow future auth-expired events
+  if (authExpiredTimer) clearTimeout(authExpiredTimer);
+  authExpiredTimer = setTimeout(() => { authExpiredFired = false; }, 2000);
+}
+
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -26,9 +41,7 @@ export async function apiFetch<T>(
   if (!response.ok) {
     // Handle token expiry: only for non-auth endpoints (where 401 means expired session)
     if (response.status === 401 && !AUTH_ENDPOINTS.some(ep => endpoint.startsWith(ep))) {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      window.dispatchEvent(new Event('auth-expired'));
+      handleAuthExpired();
     }
     const error = await response.json().catch(() => ({ error: 'Request failed' }));
     throw new Error(error.error || `HTTP ${response.status}`);
