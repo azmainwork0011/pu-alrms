@@ -100,12 +100,18 @@ function NotificationSoundSettings() {
         </div>
       )}
 
-      {/* Sound Selection Grid */}
+      {/* Sound Selection Grid - Grouped by Category */}
       {settings.enabled && (
         <div className="space-y-2 pl-12">
-          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Choose Sound (tap to select &amp; preview)</p>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {SOUND_OPTIONS.map((option: SoundOption) => {
+          <p className="text-xs font-medium text-gray-500 dark:text-gray-400">Choose Sound (tap to select & preview)</p>
+          {['Original', 'Classic', 'Trending', 'Hindi', 'Bangla'].map((cat) => {
+            const catOptions = SOUND_OPTIONS.filter(o => o.category === cat);
+            if (catOptions.length === 0) return null;
+            return (
+              <div key={cat} className="space-y-1.5">
+                <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mt-2">{cat}</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {catOptions.map((option: SoundOption) => {
               const isSelected = settings.soundType === option.id;
               const isPlaying = previewing === option.id;
               return (
@@ -171,7 +177,10 @@ function NotificationSoundSettings() {
                 </button>
               );
             })}
-          </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
