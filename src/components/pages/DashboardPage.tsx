@@ -15,7 +15,7 @@ import {
   ClipboardList, Upload, AlertTriangle, Star, Sparkles, MessageSquare,
   Bell, Trophy, BookOpen, Plus, ArrowRight, Target, Zap,
   BarChart3, GraduationCap, ChevronRight, Flame, Award,
-  CircleDot, Megaphone, Timer, Eye, Hash, Quote,
+  CircleDot, Megaphone, Timer, Eye, Hash, Quote, Library,
 } from 'lucide-react';
 import { AnimatedCounter, safeFormat, safeIsPast, getStatusColor, DashboardSkeleton, getInitials, timeAgo } from '@/components/pu-helpers';
 
@@ -641,12 +641,14 @@ function DashboardPage() {
                   Quick Actions
                 </CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-2 gap-2">
+              <CardContent className="grid grid-cols-3 gap-2">
                 {role === 'STUDENT' && [
                   { icon: <ClipboardList className="w-4 h-4" />, label: 'Assignments', page: 'assignments', color: 'text-emerald-600 dark:text-emerald-400', bg: 'hover:bg-emerald-50 dark:hover:bg-emerald-900/10' },
                   { icon: <GraduationCap className="w-4 h-4" />, label: 'Quick Quiz', page: 'quiz', color: 'text-violet-600 dark:text-violet-400', bg: 'hover:bg-violet-50 dark:hover:bg-violet-900/10' },
                   { icon: <Sparkles className="w-4 h-4" />, label: 'AI Assistant', page: 'ai-chat', color: 'text-purple-600 dark:text-purple-400', bg: 'hover:bg-purple-50 dark:hover:bg-purple-900/10' },
+                  { icon: <Library className="w-4 h-4" />, label: 'Library', page: 'books', color: 'text-cyan-600 dark:text-cyan-400', bg: 'hover:bg-cyan-50 dark:hover:bg-cyan-900/10' },
                   { icon: <MessageSquare className="w-4 h-4" />, label: 'Community', page: 'student-community', color: 'text-amber-600 dark:text-amber-400', bg: 'hover:bg-amber-50 dark:hover:bg-amber-900/10' },
+                  { icon: <Bell className="w-4 h-4" />, label: 'Alerts', page: 'notifications', color: 'text-rose-600 dark:text-rose-400', bg: 'hover:bg-rose-50 dark:hover:bg-rose-900/10' },
                 ].map((action, i) => (
                   <motion.button
                     key={action.label}
@@ -673,7 +675,9 @@ function DashboardPage() {
                   { icon: <Plus className="w-4 h-4" />, label: 'Create', page: 'create-assignment', color: 'text-emerald-600 dark:text-emerald-400', bg: 'hover:bg-emerald-50 dark:hover:bg-emerald-900/10' },
                   { icon: <FileText className="w-4 h-4" />, label: 'Grade', page: 'submissions', color: 'text-blue-600 dark:text-blue-400', bg: 'hover:bg-blue-50 dark:hover:bg-blue-900/10' },
                   { icon: <Sparkles className="w-4 h-4" />, label: 'AI', page: 'ai-chat', color: 'text-purple-600 dark:text-purple-400', bg: 'hover:bg-purple-50 dark:hover:bg-purple-900/10' },
+                  { icon: <Library className="w-4 h-4" />, label: 'Library', page: 'books', color: 'text-cyan-600 dark:text-cyan-400', bg: 'hover:bg-cyan-50 dark:hover:bg-cyan-900/10' },
                   { icon: <Megaphone className="w-4 h-4" />, label: 'Announce', page: 'announcements', color: 'text-amber-600 dark:text-amber-400', bg: 'hover:bg-amber-50 dark:hover:bg-amber-900/10' },
+                  { icon: <Bell className="w-4 h-4" />, label: 'Alerts', page: 'notifications', color: 'text-rose-600 dark:text-rose-400', bg: 'hover:bg-rose-50 dark:hover:bg-rose-900/10' },
                 ].map((action, i) => (
                   <motion.button
                     key={action.label}
@@ -700,7 +704,9 @@ function DashboardPage() {
                   { icon: <ClipboardList className="w-4 h-4" />, label: 'Assignments', page: 'assignments', color: 'text-emerald-600 dark:text-emerald-400', bg: 'hover:bg-emerald-50 dark:hover:bg-emerald-900/10' },
                   { icon: <Trophy className="w-4 h-4" />, label: 'Leaderboard', page: 'leaderboard', color: 'text-amber-600 dark:text-amber-400', bg: 'hover:bg-amber-50 dark:hover:bg-amber-900/10' },
                   { icon: <Sparkles className="w-4 h-4" />, label: 'AI', page: 'ai-chat', color: 'text-purple-600 dark:text-purple-400', bg: 'hover:bg-purple-50 dark:hover:bg-purple-900/10' },
+                  { icon: <Library className="w-4 h-4" />, label: 'Library', page: 'books', color: 'text-cyan-600 dark:text-cyan-400', bg: 'hover:bg-cyan-50 dark:hover:bg-cyan-900/10' },
                   { icon: <Users className="w-4 h-4" />, label: 'Users', page: 'profile', color: 'text-blue-600 dark:text-blue-400', bg: 'hover:bg-blue-50 dark:hover:bg-blue-900/10' },
+                  { icon: <Megaphone className="w-4 h-4" />, label: 'Announce', page: 'announcements', color: 'text-rose-600 dark:text-rose-400', bg: 'hover:bg-rose-50 dark:hover:bg-rose-900/10' },
                 ].map((action, i) => (
                   <motion.button
                     key={action.label}
