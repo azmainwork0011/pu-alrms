@@ -11,9 +11,9 @@ import crypto from 'crypto';
  * - Returns JWT + user
  * - No password required
  */
-// Simple in-memory rate limit for temp email creation (max 3 per hour per IP)
+// Simple in-memory rate limit for temp email creation (max 10 per hour per IP)
 const tempEmailRateLimit = new Map<string, { count: number; resetAt: number }>();
-const TEMP_EMAIL_MAX_PER_HOUR = 3;
+const TEMP_EMAIL_MAX_PER_HOUR = 10;
 
 export async function POST(req: NextRequest) {
   try {
