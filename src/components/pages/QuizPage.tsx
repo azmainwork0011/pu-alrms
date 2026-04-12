@@ -58,6 +58,16 @@ interface QuizResult {
   timeTaken: number;
 }
 
+interface QuizProfile {
+  totalXP: number;
+  dailyStreak: number;
+  bestStreak: number;
+  totalQuizzes: number;
+  totalCorrect: number;
+  totalQuestions: number;
+  lastQuizDate: string | null;
+}
+
 const OPTIONS = ['A', 'B', 'C', 'D'];
 
 // ─── Prize Ladder (Indian Rupees) ───────────────────────────────────────
@@ -389,6 +399,9 @@ function QuizPage() {
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [result, setResult] = useState<QuizResult | null>(null);
 
+  // ─── Profile (persistent streaks & XP) ────────────────────────────
+  const [profile, setProfile] = useState<QuizProfile>({ totalXP: 0, dailyStreak: 0, bestStreak: 0, totalQuizzes: 0, totalCorrect: 0, totalQuestions: 0, lastQuizDate: null });
+
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const tickRef = useRef<NodeJS.Timeout | null>(null);
   const heartsRef = useRef(hearts);
@@ -407,6 +420,42 @@ function QuizPage() {
   });
 
   const playSound = useCallback((fn: () => void) => { if (soundEnabled) fn(); }, [soundEnabled]);
+
+  // ─── Fetch Profile ──────────────────────────────────────────────
+  const fetchProfile = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/quiz/profile', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setProfile(data.profile);
+      }
+    } catch { /* silent */ }
+  }, [token]);
+
+  // ─── Update Profile after quiz ──────────────────────────────────
+  const updateProfile = useCallback(async (xpGained: number, correct: number, total: number) => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/quiz/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ xpGained, correctCount: correct, totalQuestions: total }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setProfile(data.profile);
+      }
+    } catch { /* silent */ }
+  }, [token]);
+
+  // Load profile on mount
+  useEffect(() => {
+    const load = async () => { await fetchProfile(); };
+    load();
+  }, [fetchProfile]);
 
   // ─── Fetch Categories ──────────────────────────────────────────────
   const fetchCategories = useCallback(async (dept: string) => {
@@ -472,23 +521,28 @@ function QuizPage() {
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ action: 'submit', categoryId: selectedCategory?.id, answers: finalAnswers, timeTaken }),
       });
+      let finalCorrect = correctCount;
+      let totalQ = finalAnswers.length;
       if (res.ok) {
         const data = await res.json();
         setResult(data.attempt);
-        setCorrectCount(data.attempt.correctCount);
+        finalCorrect = data.attempt.correctCount;
+        totalQ = data.attempt.totalQuestions;
+        setCorrectCount(finalCorrect);
         setScore(data.attempt.score);
         setScreen('results');
         playSound(data.attempt.accuracy >= 70 ? playWinFanfare : playGameOver);
       } else {
-        const totalQ = finalAnswers.length;
         const accuracy = totalQ > 0 ? Math.round((correctCount / totalQ) * 100) : 0;
         setResult({ id: 'client', score, totalPoints: totalQ * 10, correctCount, totalQuestions: totalQ, accuracy, timeTaken });
         setScreen('results');
         playSound(accuracy >= 70 ? playWinFanfare : playGameOver);
       }
+      // Update profile with XP and stats
+      updateProfile(xp, finalCorrect, totalQ);
     } catch { toast.error('Failed to submit quiz'); }
     setLoading(false);
-  }, [selectedCategory, token, playSound, correctCount, score]);
+  }, [selectedCategory, token, playSound, correctCount, score, xp, updateProfile]);
 
   // ─── Timeout handler ───────────────────────────────────────────────
   const handleTimeout = useCallback(() => {
@@ -629,10 +683,14 @@ function QuizPage() {
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ action: 'submit', categoryId: selectedCategory?.id, answers: finalAnswers, timeTaken }),
       });
+      let finalCorrect = correctCount;
+      let totalQ = finalAnswers.length;
       if (res.ok) {
         const data = await res.json();
         setResult(data.attempt);
-        setCorrectCount(data.attempt.correctCount);
+        finalCorrect = data.attempt.correctCount;
+        totalQ = data.attempt.totalQuestions;
+        setCorrectCount(finalCorrect);
         setScore(data.attempt.score);
         setScreen('results');
         const isPerfect = data.attempt.accuracy === 100;
@@ -647,7 +705,6 @@ function QuizPage() {
           setMascotMood('sad');
         }
       } else {
-        const totalQ = finalAnswers.length;
         const accuracy = totalQ > 0 ? Math.round((correctCount / totalQ) * 100) : 0;
         const clientResult: QuizResult = { id: 'client', score, totalPoints: totalQ * 10, correctCount, totalQuestions: totalQ, accuracy, timeTaken };
         setResult(clientResult);
@@ -655,9 +712,11 @@ function QuizPage() {
         playSound(accuracy >= 70 ? playWinFanfare : playGameOver);
         setMascotMood(accuracy >= 70 ? 'happy' : 'sad');
       }
+      // Update profile with XP and stats
+      updateProfile(xp, finalCorrect, totalQ);
     } catch { toast.error('Failed to submit quiz'); }
     setLoading(false);
-  }, [answers, questions, currentQ, selectedOption, selectedCategory, startTime, token, playSound, correctCount, score]);
+  }, [answers, questions, currentQ, selectedOption, selectedCategory, startTime, token, playSound, correctCount, score, xp, updateProfile]);
 
   // ─── Next Question ─────────────────────────────────────────────────
   const nextQuestion = useCallback(() => {
@@ -777,9 +836,9 @@ function QuizPage() {
               className="mt-6 sm:mt-8 grid grid-cols-3 gap-2 sm:gap-3"
             >
               {[
-                { icon: <Flame className="w-4 h-4 sm:w-5 sm:h-5" />, label: 'Daily Streak', value: '0', color: 'text-orange-400' },
-                { icon: <Zap className="w-4 h-4 sm:w-5 sm:h-5" />, label: 'Total XP', value: '0', color: 'text-amber-400' },
-                { icon: <Trophy className="w-4 h-4 sm:w-5 sm:h-5" />, label: 'Quizzes', value: '0', color: 'text-green-400' },
+                { icon: <Flame className="w-4 h-4 sm:w-5 sm:h-5" />, label: 'Daily Streak', value: String(profile.dailyStreak), color: 'text-orange-400' },
+                { icon: <Zap className="w-4 h-4 sm:w-5 sm:h-5" />, label: 'Total XP', value: String(profile.totalXP), color: 'text-amber-400' },
+                { icon: <Trophy className="w-4 h-4 sm:w-5 sm:h-5" />, label: 'Quizzes', value: String(profile.totalQuizzes), color: 'text-green-400' },
               ].map((stat, i) => (
                 <div key={i} className="flex items-center gap-2 sm:gap-3 p-2.5 sm:p-3 rounded-xl bg-[#141a3a]/80 backdrop-blur-sm border border-[#2a3060]/50">
                   <div className={`${stat.color}`}>{stat.icon}</div>
@@ -1229,6 +1288,30 @@ function QuizPage() {
                     </motion.div>
                   ))}
                 </div>
+
+                {/* Your Profile Stats */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 1.05 }}
+                  className="grid grid-cols-3 gap-2"
+                >
+                  <div className="flex flex-col items-center p-2 rounded-xl bg-orange-900/15 border border-orange-500/20">
+                    <Flame className="w-4 h-4 text-orange-400 mb-0.5" />
+                    <p className="text-sm sm:text-base font-black text-orange-400">{profile.dailyStreak}</p>
+                    <p className="text-[9px] sm:text-[10px] text-gray-500 font-semibold">Streak</p>
+                  </div>
+                  <div className="flex flex-col items-center p-2 rounded-xl bg-amber-900/15 border border-amber-500/20">
+                    <Zap className="w-4 h-4 text-amber-400 mb-0.5" />
+                    <p className="text-sm sm:text-base font-black text-amber-400">{profile.totalXP}</p>
+                    <p className="text-[9px] sm:text-[10px] text-gray-500 font-semibold">Total XP</p>
+                  </div>
+                  <div className="flex flex-col items-center p-2 rounded-xl bg-green-900/15 border border-green-500/20">
+                    <Trophy className="w-4 h-4 text-green-400 mb-0.5" />
+                    <p className="text-sm sm:text-base font-black text-green-400">{profile.totalQuizzes}</p>
+                    <p className="text-[9px] sm:text-[10px] text-gray-500 font-semibold">Quizzes</p>
+                  </div>
+                </motion.div>
 
                 {/* Extra stats */}
                 <motion.div

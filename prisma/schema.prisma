@@ -31,6 +31,7 @@ model User {
   announcements  Announcement[]
   chatMessages   ChatMessage[]
   quizAttempts   QuizAttempt[]
+  quizProfile    QuizProfile?
 }
 
 model Subject {
@@ -200,4 +201,20 @@ model QuizAttempt {
 
   user     User          @relation(fields: [userId], references: [id])
   category QuizCategory   @relation("CategoryAttempts", fields: [categoryId], references: [id])
+}
+
+model QuizProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  totalXP         Int      @default(0)
+  dailyStreak     Int      @default(0)
+  bestStreak      Int      @default(0)
+  totalQuizzes    Int      @default(0)
+  totalCorrect    Int      @default(0)
+  totalQuestions  Int      @default(0)
+  lastQuizDate    String?  // ISO date string (YYYY-MM-DD) for streak tracking
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
 }
