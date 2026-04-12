@@ -125,6 +125,10 @@ function BattlePage() {
   const pollRef = useRef<NodeJS.Timeout | null>(null);
   const botTimerRef = useRef<NodeJS.Timeout | null>(null);
   const particleIdRef = useRef(0);
+  const currentQRef = useRef(0);
+
+  // Keep currentQRef in sync
+  useEffect(() => { currentQRef.current = currentQ; }, [currentQ]);
 
   // ─── Particle Effects ────────────────────────────────────────────────
   const spawnParticles = useCallback((isCorrect: boolean) => {
@@ -384,6 +388,12 @@ function BattlePage() {
         if (next <= 0) {
           setIsAnswered(true);
           if (timerRef.current) clearInterval(timerRef.current);
+          // When time runs out, simulate bot answer with null (user didn't answer)
+          if (questions[currentQRef.current]) {
+            simulateBotAnswer(questions[currentQRef.current], currentQRef.current, null);
+            // Reveal after bot thinks
+            setTimeout(() => setIsRevealed(true), 3000);
+          }
           return 0;
         }
         return next;
@@ -391,7 +401,7 @@ function BattlePage() {
     }, 1000);
 
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
-  }, [screen, currentQ, isAnswered, questions]);
+  }, [screen, currentQ, isAnswered, questions, simulateBotAnswer]);
 
   // ─── Submit Answer ────────────────────────────────────────────────
   const submitAnswer = useCallback((option: string) => {
@@ -429,7 +439,10 @@ function BattlePage() {
       completeBattle();
       return;
     }
-    setCurrentQ(prev => prev + 1);
+    setCurrentQ(prev => {
+      currentQRef.current = prev + 1;
+      return prev + 1;
+    });
     setSelectedOption(null);
     setOpponentOption(null);
     setIsAnswered(false);
