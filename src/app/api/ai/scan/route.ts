@@ -29,14 +29,19 @@ export async function POST(req: NextRequest) {
 
     const zai = await getZAI();
 
-    const completion = await zai.chat.completions.createVision({
+    // Use standard completions.create with vision content blocks
+    const completion = await zai.chat.completions.create({
       messages: [
+        {
+          role: 'assistant',
+          content: 'You are Professor Gemini, an expert academic AI teacher at Prime University. Analyze images and answer questions thoroughly, accurately, and educationally. Use clear formatting with markdown.',
+        },
         {
           role: 'user',
           content: [
             {
               type: 'text',
-              text: `You are Professor Gemini, an expert academic AI teacher at Prime University. Analyze this image and answer the question. Be thorough, accurate, and educational. Use clear formatting.\n\nQuestion: ${question}\n\nProvide your analysis with: 1) Description of what you see 2) Detailed answer to the question 3) Relevant educational context`,
+              text: `Analyze this image and answer the question. Be thorough, accurate, and educational. Use clear formatting.\n\nQuestion: ${question}\n\nProvide your analysis with: 1) Description of what you see 2) Detailed answer to the question 3) Relevant educational context`,
             },
             {
               type: 'image_url',
@@ -47,14 +52,14 @@ export async function POST(req: NextRequest) {
           ],
         },
       ],
-      thinking: { type: 'disabled' },
+      thinking: { type: 'disabled' } as any,
     });
 
-    const response = completion.choices[0]?.message?.content || 'Could not analyze the image. Please try again with a clearer image.';
+    const response = completion.choices?.[0]?.message?.content || 'Could not analyze the image. Please try again with a clearer image.';
 
     return NextResponse.json({ response });
   } catch (error: any) {
-    console.error('Image scan error:', error);
-    return NextResponse.json({ error: 'Failed to scan image' }, { status: 500 });
+    console.error('Image scan error:', error.message || error);
+    return NextResponse.json({ error: 'Failed to scan image. Please try again.' }, { status: 500 });
   }
 }
