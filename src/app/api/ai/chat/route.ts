@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/jwt';
-import { createZAI } from '@/lib/zai';
+import { getZAI } from '@/lib/zai';
 
 // In-memory conversation store (keyed by userId:modelId)
 const conversations: Map<string, { role: string; content: string }[]> = new Map();
@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
     const { message, mode, modelId, selectedModels } = body;
     if (!message) return NextResponse.json({ error: 'Message is required' }, { status: 400 });
 
-    const zai = await createZAI(req);
+    const zai = await getZAI();
 
     // ─── BATTLE MODE ──────────────────────────────────────
     if (mode === 'battle') {
@@ -183,7 +183,7 @@ export async function POST(req: NextRequest) {
               { role: 'assistant', content: `${model.sysPrefix}\n\n${BASE_SYSTEM}` },
               { role: 'user', content: message },
             ],
-            thinking: { type: 'disabled' },
+            thinking: { type: 'disabled' } as any,
           });
           const text = completion.choices[0]?.message?.content;
           if (text) responses.push({ modelId: model.id, text: anonymize(text) });
@@ -228,7 +228,7 @@ export async function POST(req: NextRequest) {
 
     const completion = await zai.chat.completions.create({
       messages: conv,
-      thinking: { type: 'disabled' },
+      thinking: { type: 'disabled' } as any,
     });
 
     const raw = completion.choices[0]?.message?.content || 'No response generated. Please try again.';

@@ -519,7 +519,7 @@ function DashboardPage() {
                   {role === 'TEACHER' ? 'Recent Assignments' : 'Upcoming Deadlines'}
                 </CardTitle>
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button variant="ghost" size="sm" className="text-xs text-gray-400 hover:text-emerald-600 h-7" onClick={() => useAppStore.getState().setPage('assignments')}>
+                  <Button variant="ghost" size="sm" className="text-xs text-gray-400 hover:text-emerald-600 h-11 px-3" onClick={() => useAppStore.getState().setPage('assignments')}>
                     View All <ArrowRight className="w-3 h-3 ml-1" />
                   </Button>
                 </motion.div>
@@ -559,7 +559,7 @@ function DashboardPage() {
                   {role === 'TEACHER' ? 'Pending Grading' : role === 'ADMIN' ? 'Recent Submissions' : 'Recent Submissions'}
                 </CardTitle>
                 <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                  <Button variant="ghost" size="sm" className="text-xs text-gray-400 hover:text-blue-600 h-7" onClick={() => useAppStore.getState().setPage('submissions')}>
+                  <Button variant="ghost" size="sm" className="text-xs text-gray-400 hover:text-blue-600 h-11 px-3" onClick={() => useAppStore.getState().setPage('submissions')}>
                     View All <ArrowRight className="w-3 h-3 ml-1" />
                   </Button>
                 </motion.div>
@@ -970,7 +970,7 @@ function DashboardPage() {
                       className="p-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 space-y-1 cursor-pointer"
                     >
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className={`text-[9px] ${a.priority === 'CRITICAL' ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400 border-red-200 dark:border-red-800' : a.priority === 'HIGH' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border-amber-200' : 'border-gray-200 dark:border-gray-700'}`}>
+                        <Badge variant="outline" className={`text-[10px] ${a.priority === 'CRITICAL' ? 'bg-red-100 text-red-700 dark:bg-red-900/20 dark:text-red-400 border-red-200 dark:border-red-800' : a.priority === 'HIGH' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/20 dark:text-amber-400 border-amber-200' : 'border-gray-200 dark:border-gray-700'}`}>
                           {a.priority || 'NORMAL'}
                         </Badge>
                         <span className="text-[10px] text-gray-400">{timeAgo(a.createdAt)}</span>

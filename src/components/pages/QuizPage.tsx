@@ -724,7 +724,7 @@ function QuizPage() {
 
   // ─── Render ─────────────────────────────────────────────────────────
   return (
-    <div className="min-h-[calc(100vh-8rem)] bg-gradient-to-b from-[#0a0e27] via-[#0f1538] to-[#060a1f] relative overflow-hidden">
+    <div className="min-h-0 sm:min-h-[calc(100vh-8rem)] bg-gradient-to-b from-[#0a0e27] via-[#0f1538] to-[#060a1f] relative overflow-hidden">
       <StarField />
       <ConfettiExplosion active={showConfetti} />
       <XPParticles active={showXPPop} />
@@ -785,7 +785,7 @@ function QuizPage() {
                   <div className={`${stat.color}`}>{stat.icon}</div>
                   <div className="min-w-0">
                     <p className="text-base sm:text-lg font-black text-white">{stat.value}</p>
-                    <p className="text-[9px] sm:text-[10px] text-gray-500 truncate">{stat.label}</p>
+                    <p className="text-[10px] sm:text-[11px] text-gray-500 truncate">{stat.label}</p>
                   </div>
                 </div>
               ))}
@@ -799,14 +799,14 @@ function QuizPage() {
         {screen === 'category-select' && (
           <motion.div key="category-select" {...fadeSlideRight} className="max-w-3xl mx-auto px-4 pt-4 pb-8">
             <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-              <Button variant="ghost" size="icon" onClick={() => setScreen('dept-select')} className="h-9 w-9 text-gray-400 hover:text-white hover:bg-[#1e2550] rounded-xl">
+              <Button variant="ghost" size="icon" onClick={() => setScreen('dept-select')} className="h-11 w-11 text-gray-400 hover:text-white hover:bg-[#1e2550] rounded-xl">
                 <ArrowLeft className="w-4 h-4" />
               </Button>
               <div className="flex-1 min-w-0">
                 <h2 className="text-lg sm:text-xl font-black text-white truncate">Choose a Topic</h2>
                 <p className="text-xs sm:text-sm text-gray-400">{DEPARTMENTS.find(d => d.id === selectedDept)?.name}</p>
               </div>
-              <Button variant="ghost" size="icon" className="h-9 w-9 text-gray-400 hover:text-white hover:bg-[#1e2550] rounded-xl" onClick={() => setSoundEnabled(!soundEnabled)}>
+              <Button variant="ghost" size="icon" className="h-11 w-11 text-gray-400 hover:text-white hover:bg-[#1e2550] rounded-xl" onClick={() => setSoundEnabled(!soundEnabled)}>
                 {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
               </Button>
             </div>
@@ -833,7 +833,7 @@ function QuizPage() {
                   >
                     <div className="flex items-start justify-between mb-2 sm:mb-3">
                       <span className="text-2xl sm:text-3xl">{cat.icon}</span>
-                      <Badge className={`${DIFF_STYLES[cat.difficulty]?.bg || 'bg-gray-800'} ${DIFF_STYLES[cat.difficulty]?.color || 'text-gray-400'} text-[9px] sm:text-[10px] border-0 font-semibold`}>
+                      <Badge className={`${DIFF_STYLES[cat.difficulty]?.bg || 'bg-gray-800'} ${DIFF_STYLES[cat.difficulty]?.color || 'text-gray-400'} text-[10px] sm:text-[11px] border-0 font-semibold`}>
                         {DIFF_STYLES[cat.difficulty]?.label || cat.difficulty}
                       </Badge>
                     </div>
@@ -866,7 +866,7 @@ function QuizPage() {
               <div className="flex-1 max-w-2xl w-full">
                 {/* ─── Top Stats Bar ──────────────────────────────── */}
                 <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
-                  <button onClick={() => setSoundEnabled(!soundEnabled)} className="w-9 h-9 sm:w-8 sm:h-8 rounded-lg bg-[#141a3a]/80 border border-[#2a3060]/50 flex items-center justify-center text-gray-400 hover:text-white hover:border-[#3a4080] transition-colors shrink-0">
+                  <button onClick={() => setSoundEnabled(!soundEnabled)} className="w-11 h-11 sm:w-10 sm:h-10 rounded-lg bg-[#141a3a]/80 border border-[#2a3060]/50 flex items-center justify-center text-gray-400 hover:text-white hover:border-[#3a4080] transition-colors shrink-0">
                     {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
                   </button>
 
@@ -909,7 +909,7 @@ function QuizPage() {
                       {currentQ + 1} / {questions.length}
                     </span>
                     {combo >= 2 && (
-                      <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-[9px] sm:text-[10px] font-bold text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded-full">
+                      <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-[10px] sm:text-xs font-bold text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded-full">
                         x{Math.min(combo, 5)} COMBO
                       </motion.span>
                     )}
@@ -947,10 +947,10 @@ function QuizPage() {
                   >
                     <div className="bg-[#141a3a]/80 backdrop-blur-sm rounded-2xl border border-[#2a3060]/50 p-4 sm:p-6 mb-3 sm:mb-4">
                       <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3 flex-wrap">
-                        <Badge className={`${DIFF_STYLES[questions[currentQ].difficulty]?.bg || 'bg-gray-800'} ${DIFF_STYLES[questions[currentQ].difficulty]?.color || 'text-gray-400'} text-[9px] sm:text-[10px] border-0 font-semibold`}>
+                        <Badge className={`${DIFF_STYLES[questions[currentQ].difficulty]?.bg || 'bg-gray-800'} ${DIFF_STYLES[questions[currentQ].difficulty]?.color || 'text-gray-400'} text-[10px] sm:text-[11px] border-0 font-semibold`}>
                           {DIFF_STYLES[questions[currentQ].difficulty]?.label || questions[currentQ].difficulty}
                         </Badge>
-                        <Badge className="bg-amber-500/10 text-amber-400 text-[9px] sm:text-[10px] border border-amber-500/30 font-semibold">
+                        <Badge className="bg-amber-500/10 text-amber-400 text-[10px] sm:text-[11px] border border-amber-500/30 font-semibold">
                           {PRIZES[currentQ] || `${questions[currentQ].points} pts`}
                         </Badge>
                       </div>
@@ -1225,7 +1225,7 @@ function QuizPage() {
                       className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl ${item.bg} border text-center`}
                     >
                       <p className={`text-2xl sm:text-3xl font-black ${item.color}`}>{item.val}</p>
-                      <p className={`text-[9px] sm:text-[10px] font-bold ${item.color.replace('400', '500/80')} uppercase tracking-wide mt-0.5`}>{item.label}</p>
+                      <p className={`text-[10px] sm:text-xs font-bold ${item.color.replace('400', '500/80')} uppercase tracking-wide mt-0.5`}>{item.label}</p>
                     </motion.div>
                   ))}
                 </div>

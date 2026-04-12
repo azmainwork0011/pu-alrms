@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifyToken } from '@/lib/jwt';
-import { createZAI } from '@/lib/zai';
+import { getZAI } from '@/lib/zai';
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 });
     }
 
-    const zai = await createZAI(req);
+    const zai = await getZAI();
 
     // Enhance prompt with educational/quality style
     const enhancedPrompt = `High quality, detailed, professional illustration: ${prompt}. Clean, modern style, well-composed, vibrant colors, sharp focus.`;

@@ -103,7 +103,7 @@ function ThemeToggle() {
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9"
+            className="h-11 w-11"
             onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
           >
             {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -168,7 +168,7 @@ export default function AppLayout() {
         <header className="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center justify-between h-14 px-4">
             <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" className="md:hidden h-9 w-9" onClick={toggleSidebar}>
+              <Button variant="ghost" size="icon" className="md:hidden h-11 w-11" onClick={toggleSidebar}>
                 <Menu className="w-5 h-5" />
               </Button>
               <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 capitalize">
@@ -182,7 +182,7 @@ export default function AppLayout() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative h-9 w-9"
+                className="relative h-11 w-11"
                 onClick={() => { playNotificationSound(); setPage('notifications'); }}
               >
                 <Bell className="w-4 h-4" />
@@ -199,7 +199,7 @@ export default function AppLayout() {
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="flex items-center gap-2 h-9 px-2">
+                  <Button variant="ghost" className="flex items-center gap-2 h-11 px-3">
                     <Avatar className="w-7 h-7">
                       <AvatarImage src={user?.avatar} />
                       <AvatarFallback className="text-xs">{user?.name ? getInitials(user.name) : '?'}</AvatarFallback>

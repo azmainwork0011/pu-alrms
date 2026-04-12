@@ -1,46 +1,21 @@
-import { NextRequest } from 'next/server';
-import fs from 'fs/promises';
-import path from 'path';
-import os from 'os';
+import ZAI from 'z-ai-web-dev-sdk';
+
+// Singleton ZAI instance — SDK auto-reads config from /etc/.z-ai-config
+let zaiInstance: InstanceType<typeof ZAI> | null = null;
 
 /**
- * Load z-ai-web-dev-sdk config and merge X-Token from the incoming gateway request.
- * The gateway forwards X-Token header which is required by the AI backend.
+ * Create or return cached ZAI instance.
+ * The SDK automatically reads config from:
+ *   1. process.cwd()/.z-ai-config
+ *   2. ~/.z-ai-config
+ *   3. /etc/.z-ai-config
+ *
+ * No manual config loading or X-Token forwarding needed —
+ * the config already contains baseUrl, apiKey, token, chatId, userId.
  */
-async function loadBaseConfig() {
-  const homeDir = os.homedir();
-  const configPaths = [
-    path.join(process.cwd(), '.z-ai-config'),
-    path.join(homeDir, '.z-ai-config'),
-    '/etc/.z-ai-config',
-  ];
-  for (const filePath of configPaths) {
-    try {
-      const configStr = await fs.readFile(filePath, 'utf-8');
-      const config = JSON.parse(configStr);
-      if (config.baseUrl && config.apiKey) {
-        return config;
-      }
-    } catch {}
+export async function getZAI(): Promise<InstanceType<typeof ZAI>> {
+  if (!zaiInstance) {
+    zaiInstance = await ZAI.create();
   }
-  throw new Error('z-ai-web-dev-sdk config not found');
-}
-
-let cachedConfig: any = null;
-
-export async function createZAI(req: NextRequest) {
-  // Cache base config to avoid reading file on every request
-  if (!cachedConfig) {
-    cachedConfig = await loadBaseConfig();
-  }
-
-  // Forward X-Token from gateway request if present
-  const xToken = req.headers.get('x-token');
-  const config = { ...cachedConfig };
-  if (xToken) {
-    config.token = xToken;
-  }
-
-  const ZAI = (await import('z-ai-web-dev-sdk')).default;
-  return new ZAI(config);
+  return zaiInstance;
 }
