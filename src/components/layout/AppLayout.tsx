@@ -28,6 +28,7 @@ import NotificationsPage from '@/components/pages/NotificationsPage';
 import ProfilePage from '@/components/pages/ProfilePage';
 import StudentCommunityPage from '@/components/pages/StudentCommunityPage';
 import AnnouncementsPage from '@/components/pages/AnnouncementsPage';
+import QuizPage from '@/components/pages/QuizPage';
 
 // ─── Sidebar Navigation ──────────────────────────────────
 function SidebarNav({ onNavigate }: { onNavigate: (page: PageView) => void }) {
@@ -42,6 +43,7 @@ function SidebarNav({ onNavigate }: { onNavigate: (page: PageView) => void }) {
     { page: 'leaderboard', label: 'Leaderboard', icon: <Trophy className="w-4 h-4" />, roles: ['STUDENT', 'CR', 'ADMIN'] },
     { page: 'announcements', label: 'Announcements', icon: <Megaphone className="w-4 h-4" /> },
     { page: 'student-community', label: 'Community Chat', icon: <MessageSquare className="w-4 h-4" /> },
+    { page: 'quiz', label: 'Quick Quiz', icon: <GraduationCap className="w-4 h-4" /> },
     { page: 'ai-chat', label: 'Lucky Strick AI', icon: <Sparkles className="w-4 h-4" /> },
     { page: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
     { page: 'profile', label: 'Profile', icon: <UserIcon className="w-4 h-4" /> },
@@ -134,6 +136,7 @@ export default function AppLayout() {
       case 'profile': return <ProfilePage />;
       case 'student-community': return <StudentCommunityPage />;
       case 'announcements': return <AnnouncementsPage />;
+      case 'quiz': return <QuizPage />;
       default: return <DashboardPage />;
     }
   };
@@ -169,7 +172,7 @@ export default function AppLayout() {
                 <Menu className="w-5 h-5" />
               </Button>
               <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 capitalize">
-                {currentPage === 'student-community' ? 'Community Chat' : currentPage === 'announcements' ? 'Announcements' : currentPage.replace(/-/g, ' ')}
+                {currentPage === 'student-community' ? 'Community Chat' : currentPage === 'announcements' ? 'Announcements' : currentPage === 'ai-chat' ? 'Lucky Strick AI' : currentPage.replace(/-/g, ' ')}
               </h2>
             </div>
 
