@@ -1,5 +1,8 @@
 const API_BASE = '';
 
+// Auth endpoints where 401 means "wrong credentials" (not expired session)
+const AUTH_ENDPOINTS = ['/api/auth/login', '/api/auth/register', '/api/auth/temp-email', '/api/auth/google'];
+
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -21,8 +24,8 @@ export async function apiFetch<T>(
   });
   
   if (!response.ok) {
-    // Handle token expiry: clear auth state and notify the app
-    if (response.status === 401) {
+    // Handle token expiry: only for non-auth endpoints (where 401 means expired session)
+    if (response.status === 401 && !AUTH_ENDPOINTS.some(ep => endpoint.startsWith(ep))) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       window.dispatchEvent(new Event('auth-expired'));
@@ -80,11 +83,20 @@ export const authApi = {
       body: JSON.stringify(data),
     }),
 
-  tempEmailAuth: (name?: string) =>
-    apiFetch<{ token: string; user: any; tempEmail: string }>('/api/auth/temp-email', {
+  tempEmailAuth: (name?: string) => {
+    // Use raw fetch for temp email to avoid auth-expired interference
+    return fetch('/api/auth/temp-email', {
       method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
-    }),
+    }).then(async (res) => {
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: 'Temp login failed' }));
+        throw new Error(error.error || `HTTP ${res.status}`);
+      }
+      return res.json();
+    }) as Promise<{ token: string; user: any; tempEmail: string }>;
+  },
 };
 
 export const assignmentApi = {
