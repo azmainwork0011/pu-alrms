@@ -15,11 +15,11 @@ model User {
   role        String   @default("STUDENT") // ADMIN, TEACHER, STUDENT, CR
   avatar      String?
   coverPhoto  String?
-  rollNumber  String?  // e.g. "2024001"
-  batch       String?  // e.g. "CSE-66"
-  department  String?  // e.g. "Computer Science & Engineering"
-  phone       String?  // e.g. "+8801XXXXXXXXX"
-  bio         String?  // short bio / about
+  rollNumber  String?
+  batch       String?
+  department  String?
+  phone       String?
+  bio         String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -30,6 +30,7 @@ model User {
   notifications  Notification[]
   announcements  Announcement[]
   chatMessages   ChatMessage[]
+  quizAttempts   QuizAttempt[]
 }
 
 model Subject {
@@ -37,7 +38,7 @@ model Subject {
   name      String
   code      String
   teacherId String
-  batch     String?  // batch group
+  batch     String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -50,11 +51,11 @@ model Assignment {
   title       String
   description String
   subjectId   String
-  type        String   @default("ASSIGNMENT") // ASSIGNMENT, LAB_REPORT
-  batch       String?  // e.g. "CSE-66", "CSE-67" — targets a specific batch
+  type        String   @default("ASSIGNMENT")
+  batch       String?
   deadline    DateTime
   fileUrl     String?
-  status      String   @default("ACTIVE") // ACTIVE, CLOSED, ARCHIVED
+  status      String   @default("ACTIVE")
   createdBy   String
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -66,27 +67,27 @@ model Assignment {
 }
 
 model Submission {
-  id          String    @id @default(cuid())
+  id           String    @id @default(cuid())
   assignmentId String
-  studentId   String
-  fileName    String
-  fileUrl     String?
-  status      String    @default("SUBMITTED") // SUBMITTED, LATE, GRADED
-  marks       Float?
-  feedback    String?
-  submittedAt DateTime  @default(now())
-  gradedAt    DateTime?
+  studentId    String
+  fileName     String
+  fileUrl      String?
+  status       String    @default("SUBMITTED")
+  marks        Float?
+  feedback     String?
+  submittedAt  DateTime  @default(now())
+  gradedAt     DateTime?
 
   assignment Assignment @relation(fields: [assignmentId], references: [id])
   student    User       @relation(fields: [studentId], references: [id])
 }
 
 model Comment {
-  id          String   @id @default(cuid())
+  id           String   @id @default(cuid())
   assignmentId String
-  userId      String
-  content     String
-  createdAt   DateTime @default(now())
+  userId       String
+  content      String
+  createdAt    DateTime @default(now())
 
   assignment Assignment @relation(fields: [assignmentId], references: [id])
   user       User       @relation(fields: [userId], references: [id])
@@ -97,7 +98,7 @@ model Notification {
   userId    String
   title     String
   message   String
-  type      String   @default("INFO") // INFO, DEADLINE, FEEDBACK, ASSIGNMENT, ANNOUNCEMENT
+  type      String   @default("INFO")
   isRead    Boolean  @default(false)
   createdAt DateTime @default(now())
 
@@ -108,8 +109,8 @@ model Announcement {
   id        String   @id @default(cuid())
   title     String
   message   String
-  type      String   @default("GENERAL") // GENERAL, URGENT, ASSIGNMENT, EXAM, RESULT
-  priority  String   @default("NORMAL")  // NORMAL, HIGH, CRITICAL
+  type      String   @default("GENERAL")
+  priority  String   @default("NORMAL")
   createdBy String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -118,26 +119,85 @@ model Announcement {
 }
 
 model ChatRoom {
-  id        String   @id @default(cuid())
-  name      String
-  type      String   @default("BATCH")  // BATCH, SUBJECT, GENERAL
-  subjectId String?
-  batch     String?
-  createdAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  name          String
+  type          String   @default("BATCH")
+  batch         String?
+  department    String?
+  isPrivate     Boolean  @default(false)
+  roomPassword  String?
+  encryptionKey String   @default("")
+  status        String   @default("ACTIVE")
+  maxMembers    Int      @default(100)
+  allowFiles    Boolean  @default(true)
+  description   String?
+  createdBy     String?
+  lastActivity  DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   messages ChatMessage[]
 }
 
 model ChatMessage {
-  id        String   @id @default(cuid())
-  roomId    String
-  userId    String
-  content   String
-  messageType String @default("TEXT") // TEXT, IMAGE, FILE
-  fileUrl   String?
-  fileName  String?
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  roomId     String
+  userId     String
+  content    String
+  messageType String  @default("TEXT")
+  fileUrl    String?
+  fileName   String?
+  createdAt  DateTime @default(now())
 
   room ChatRoom @relation(fields: [roomId], references: [id])
   user User     @relation(fields: [userId], references: [id])
+}
+
+model QuizCategory {
+  id          String   @id @default(cuid())
+  name        String
+  department  String
+  icon        String   @default("📚")
+  description String?
+  difficulty  String   @default("MEDIUM")
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  questions QuizQuestion[] @relation("CategoryQuestions")
+  attempts  QuizAttempt[]  @relation("CategoryAttempts")
+}
+
+model QuizQuestion {
+  id           String   @id @default(cuid())
+  categoryId   String
+  question     String
+  optionA      String
+  optionB      String
+  optionC      String
+  optionD      String
+  correctOption String
+  difficulty   String   @default("MEDIUM")
+  points       Int      @default(10)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  category QuizCategory @relation("CategoryQuestions", fields: [categoryId], references: [id])
+}
+
+model QuizAttempt {
+  id             String   @id @default(cuid())
+  userId         String
+  categoryId     String
+  score          Int      @default(0)
+  totalPoints    Int      @default(0)
+  correctCount   Int      @default(0)
+  totalQuestions Int      @default(0)
+  accuracy       Float    @default(0)
+  timeTaken      Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  user     User          @relation(fields: [userId], references: [id])
+  category QuizCategory   @relation("CategoryAttempts", fields: [categoryId], references: [id])
 }

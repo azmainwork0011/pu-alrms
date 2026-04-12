@@ -489,20 +489,12 @@ export async function seedQuizData() {
           optionC: q.optionC,
           optionD: q.optionD,
           correctOption: q.correctOption,
-          explanation: q.explanation,
           difficulty: q.difficulty,
           points: q.difficulty === 'EASY' ? 10 : q.difficulty === 'MEDIUM' ? 15 : 20,
         },
         update: {},
       });
     }
-
-    // Update question count
-    const count = await db.quizQuestion.count({ where: { categoryId: category.id } });
-    await db.quizCategory.update({
-      where: { id: category.id },
-      data: { questionCount: count },
-    });
 
     console.log(`[Seed] ✓ ${cat.name} (${cat.department}): ${cat.questions.length} questions`);
   }

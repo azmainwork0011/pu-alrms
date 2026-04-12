@@ -13,26 +13,42 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Category ID is required' }, { status: 400 });
     }
 
-    // Get all questions for this category, then randomize
     const allQuestions = await db.quizQuestion.findMany({
-      where: { categoryId },
+      where: { categoryId, isActive: true },
     });
 
+    console.log(`[Quiz] categoryId=${categoryId}, found=${allQuestions.length}`);
+
     if (allQuestions.length === 0) {
+      // Try without isActive filter as fallback
+      const all = await db.quizQuestion.findMany({ where: { categoryId } });
+      console.log(`[Quiz] Without isActive filter: found=${all.length}`);
+      if (all.length > 0) {
+        const shuffled = all.sort(() => Math.random() - 0.5);
+        const questions = shuffled.slice(0, Math.min(count, shuffled.length));
+        const safeQuestions = questions.map(q => ({
+          id: q.id,
+          question: q.question,
+          optionA: q.optionA,
+          optionB: q.optionB,
+          optionC: q.optionC,
+          optionD: q.optionD,
+          correctOption: q.correctOption,
+          difficulty: q.difficulty,
+          points: q.points,
+        }));
+        return NextResponse.json({
+          questions: safeQuestions,
+          total: all.length,
+          selected: safeQuestions.length,
+        });
+      }
       return NextResponse.json({ error: 'No questions available for this category' }, { status: 404 });
     }
 
-    // Shuffle and take the requested count
     const shuffled = allQuestions.sort(() => Math.random() - 0.5);
     const questions = shuffled.slice(0, Math.min(count, shuffled.length));
 
-    // Increment timesPlayed
-    await db.quizQuestion.updateMany({
-      where: { id: { in: questions.map(q => q.id) } },
-      data: { timesPlayed: { increment: 1 } },
-    });
-
-    // Include correctOption so the client can show correct/wrong feedback
     const safeQuestions = questions.map(q => ({
       id: q.id,
       question: q.question,
@@ -56,7 +72,7 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/quiz/questions — Submit quiz answers (TEACHER/ADMIN: create; STUDENT: submit)
+// POST /api/quiz/questions — Submit quiz answers or create questions
 export async function POST(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
@@ -77,7 +93,6 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: 'Invalid submission data' }, { status: 400 });
       }
 
-      // Get all questions with correct answers
       const questions = await db.quizQuestion.findMany({
         where: { id: { in: answers.map((a: any) => a.questionId) } },
       });
@@ -86,31 +101,18 @@ export async function POST(req: NextRequest) {
 
       let correctCount = 0;
       let totalPoints = 0;
-      const gradedAnswers = answers.map((a: any) => {
+
+      for (const a of answers) {
         const q = questionMap.get(a.questionId);
-        const isCorrect = q && a.selectedOption === q.correctOption;
-        if (isCorrect) {
+        if (q && a.selectedOption === q.correctOption) {
           correctCount++;
-          totalPoints += q?.points || 10;
-          // Increment timesCorrect
-          if (q) {
-            db.quizQuestion.update({
-              where: { id: q.id },
-              data: { timesCorrect: { increment: 1 } },
-            }).catch(() => {});
-          }
+          totalPoints += q.points || 10;
         }
-        return {
-          questionId: a.questionId,
-          selectedOption: a.selectedOption,
-          isCorrect,
-        };
-      });
+      }
 
       const accuracy = answers.length > 0 ? (correctCount / answers.length) * 100 : 0;
       const maxPossible = questions.reduce((sum, q) => sum + q.points, 0);
 
-      // Save attempt
       const attempt = await db.quizAttempt.create({
         data: {
           userId: payload.userId,
@@ -121,7 +123,6 @@ export async function POST(req: NextRequest) {
           totalQuestions: answers.length,
           timeTaken: timeTaken || 0,
           accuracy: Math.round(accuracy * 100) / 100,
-          answers: JSON.stringify(gradedAnswers),
         },
       });
 
@@ -135,7 +136,6 @@ export async function POST(req: NextRequest) {
           accuracy: attempt.accuracy,
           timeTaken: attempt.timeTaken,
         },
-        answers: gradedAnswers,
       });
     }
 
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Only teachers and admins can create questions' }, { status: 403 });
     }
 
-    const { categoryId, question, optionA, optionB, optionC, optionD, correctOption, explanation, difficulty, points } = body;
+    const { categoryId, question, optionA, optionB, optionC, optionD, correctOption, difficulty, points } = body;
 
     if (!categoryId || !question || !optionA || !optionB || !optionC || !optionD || !correctOption) {
       return NextResponse.json({ error: 'All fields are required' }, { status: 400 });
@@ -159,16 +159,9 @@ export async function POST(req: NextRequest) {
         optionC,
         optionD,
         correctOption,
-        explanation: explanation || null,
         difficulty: difficulty || 'MEDIUM',
         points: points || 10,
       },
-    });
-
-    // Update category question count
-    await db.quizCategory.update({
-      where: { id: categoryId },
-      data: { questionCount: { increment: 1 } },
     });
 
     return NextResponse.json({ question: q }, { status: 201 });
