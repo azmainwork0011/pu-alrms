@@ -28,7 +28,8 @@ export type PageView =
   | 'notifications'
   | 'profile'
   | 'student-community'
-  | 'announcements';
+  | 'announcements'
+  | 'quiz';
 
 interface AppState {
   // Auth
