@@ -35,6 +35,11 @@ model User {
   savedBooks     SavedBook[]
   battlesAsP1    BattleRoom[] @relation("BattlePlayer1")
   battlesAsP2    BattleRoom[] @relation("BattlePlayer2")
+  cqProfile       CQProfile?
+  cqFriends       CQFriend[]  @relation("UserFriends")
+  cqFriendOf      CQFriend[]  @relation("FriendOf")
+  cqBattlesP1     CQBattleSession[] @relation("CQBattleP1")
+  cqBattlesP2     CQBattleSession[] @relation("CQBattleP2")
 }
 
 model Subject {
@@ -262,4 +267,65 @@ model BattleRoom {
   player1  User          @relation("BattlePlayer1", fields: [player1Id], references: [id])
   player2  User?         @relation("BattlePlayer2", fields: [player2Id], references: [id])
   category QuizCategory? @relation(fields: [categoryId], references: [id])
+}
+
+model CQProfile {
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  level            Int      @default(1)
+  totalXP          Int      @default(0)
+  currentLevelXP   Int      @default(0)
+  xpToNextLevel    Int      @default(100)
+  battlesWon       Int      @default(0)
+  battlesLost      Int      @default(0)
+  totalBattles     Int      @default(0)
+  lessonsCompleted Int      @default(0)
+  questionsAnswered Int     @default(0)
+  correctAnswers   Int      @default(0)
+  miniGamesPlayed  Int      @default(0)
+  dailyStreak      Int      @default(0)
+  bestStreak       Int      @default(0)
+  lastActiveDate   String?
+  title            String   @default("Code Novice")
+  avatar           String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model CQFriend {
+  id        String   @id @default(cuid())
+  userId    String
+  friendId  String
+  status    String   @default("PENDING")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user   User @relation("UserFriends", fields: [userId], references: [id])
+  friend User @relation("FriendOf", fields: [friendId], references: [id])
+
+  @@unique([userId, friendId])
+}
+
+model CQBattleSession {
+  id              String   @id @default(cuid())
+  player1Id       String
+  player2Id       String?
+  language        String?
+  status          String   @default("WAITING")
+  totalRounds     Int      @default(10)
+  timePerRound    Int      @default(15)
+  player1HP       Int      @default(100)
+  player2HP       Int      @default(100)
+  player1Score    Int      @default(0)
+  player2Score    Int      @default(0)
+  currentRound    Int      @default(0)
+  winnerId        String?
+  completedAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  player1 User @relation("CQBattleP1", fields: [player1Id], references: [id])
+  player2 User? @relation("CQBattleP2", fields: [player2Id], references: [id])
 }
