@@ -1,0 +1,13 @@
+{
+  "name": "battle-service",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "bun --hot index.ts"
+  },
+  "dependencies": {
+    "socket.io": "^4.7.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.0.0"
+  }
+}
