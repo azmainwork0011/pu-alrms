@@ -404,3 +404,47 @@ Stage Summary:
 - Library UI significantly de-bulked — search bar, cards, modals, icons, states all resized
 - Full responsiveness verified across mobile/tablet/desktop
 - ESLint: 0 errors, 0 warnings
+---
+Task ID: 2
+Agent: Main Agent
+Task: Fix Digital Library responsive design - compact book cards, mobile/desktop friendly
+
+Work Log:
+- Analyzed current BooksPage.tsx (1598 lines) and identified bulkiness issues
+- Increased MAX_RESULTS from 12 to 24 for wider grid support
+- Changed book grid from `grid-cols-2/3/4/5/6` to `grid-cols-3/4/5/6/8` (more columns on all breakpoints)
+- Reduced gap from `gap-3 sm:gap-4` to `gap-2 sm:gap-3`
+- Made BookCard ultra-compact:
+  - Rounded corners: `rounded-xl` → `rounded-lg`
+  - Cover aspect: uniform `aspect-[3/4]` (removed sm:variant)
+  - Save button: `w-8 h-8` → `w-6 h-6 sm:w-7 sm:h-7` (less dominant)
+  - Heart icon: `w-4.5` → `w-3.5 sm:w-4`
+  - Replaced source Badge with subtle 2px colored dot (teal=Google, orange=OpenLibrary)
+  - PDF badge: smaller `text-[8px] px-1`
+  - Content padding: `p-2 sm:p-2.5` → `p-1.5 sm:p-2`
+  - Title: `text-xs sm:text-sm` → `text-[11px] sm:text-xs`
+  - Author: `text-[11px] sm:text-xs` → `text-[10px] sm:text-[11px]`
+  - Removed category badge from card (detail modal has it)
+  - Hover effect: `hover:shadow-lg hover:-translate-y-1` → `hover:shadow-md hover:-translate-y-0.5`
+- Updated BookCardSkeleton to match compact card design
+- Updated BookCoverFallback: `aspect-[2/3]` → `aspect-[3/4]`, icon `w-8` → `w-6`
+- Header: logo `w-8` → `w-7`, title `text-xl/2xl` → `text-base/lg`, subtitle `text-xs/sm` → `text-[10px]/xs`
+- Language toggle: more compact padding and text size
+- Search bar: `h-10 rounded-xl` → `h-9 rounded-lg`, smaller icon/text
+- Category pills: `px-3 sm:px-4 py-2` → `px-2.5 sm:px-3 py-1.5`, icon `w-3.5` → `w-3`, text `text-xs` → `text-[10px] sm:text-xs`
+- Page spacing: `space-y-5 px-2` → `space-y-3 px-1`
+- Welcome/Error/Empty states: all reduced padding, icon sizes, margins
+- Load More button: `h-10` → `h-8`, `mt-6` → `mt-4`
+- Skeleton count: 12 → 24 (matches wider grid)
+- Min content height: 400px → 300px
+- Gradient fades: narrowed from `w-4/w-8` to `w-3/w-6`
+- ESLint: 0 errors, 0 warnings
+- Dev server: running, API tested successfully
+
+Stage Summary:
+- Book cards now ultra-compact with 3 columns on mobile, up to 8 on desktop
+- All UI elements (header, search, categories, states) proportionally reduced
+- Source indicator replaced with subtle colored dot to save card space
+- More books visible per screen (3→8 cols vs old 2→6 cols)
+- Fully responsive across mobile/tablet/desktop
+- ESLint clean, API verified working
