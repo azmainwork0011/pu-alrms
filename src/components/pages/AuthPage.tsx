@@ -28,23 +28,24 @@ function AuthPage() {
   const { setAuth } = useAppStore();
 
   // Persist login role and email across reloads
-  const [loginRole, setLoginRoleState] = useState<'STUDENT' | 'TEACHER' | 'ADMIN'>(() => {
-    if (typeof window !== 'undefined') {
-      return (localStorage.getItem('login-role') as 'STUDENT' | 'TEACHER' | 'ADMIN') || 'STUDENT';
-    }
-    return 'STUDENT';
-  });
+  const [loginRole, setLoginRoleState] = useState<'STUDENT' | 'TEACHER' | 'ADMIN'>('STUDENT');
   const setLoginRole = useCallback((role: 'STUDENT' | 'TEACHER' | 'ADMIN') => {
     setLoginRoleState(role);
-    localStorage.setItem('login-role', role);
+    try { localStorage.setItem('login-role', role); } catch {}
   }, []);
 
-  // Restore saved email on mount
+  // Restore saved role + email on mount (after hydration)
   useEffect(() => {
-    const savedEmail = localStorage.getItem('login-email');
-    if (savedEmail) {
-      setFormData(prev => ({ ...prev, email: savedEmail }));
-    }
+    try {
+      const savedRole = localStorage.getItem('login-role');
+      if (savedRole && ['STUDENT', 'TEACHER', 'ADMIN'].includes(savedRole)) {
+        setLoginRoleState(savedRole as 'STUDENT' | 'TEACHER' | 'ADMIN');
+      }
+      const savedEmail = localStorage.getItem('login-email');
+      if (savedEmail) {
+        setFormData(prev => ({ ...prev, email: savedEmail }));
+      }
+    } catch {}
   }, []);
 
   // Google OAuth dialog state
@@ -186,14 +187,14 @@ function AuthPage() {
                   <button
                     key={role}
                     type="button"
-                    className={`flex-1 py-3 text-xs font-medium rounded-md transition-all ${
+                    className={`flex-1 py-3.5 text-xs sm:text-sm font-medium rounded-md transition-all ${
                       loginRole === role
                         ? `bg-gradient-to-r ${roleConfig[role].gradient} text-white shadow-sm`
                         : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
                     }`}
                     onClick={() => setLoginRole(role)}
                   >
-                    {role === 'STUDENT' ? '🎓 Student' : role === 'TEACHER' ? '👨‍🏫 Teacher' : '👨‍💼 Admin'}
+                    {role === 'STUDENT' ? '🎓 Student' : role === 'TEACHER' ? '📚 Teacher' : '🛡️ Admin'}
                   </button>
                 ))}
               </div>
@@ -244,7 +245,7 @@ function AuthPage() {
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 p-2.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? <Unlock className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -283,7 +284,7 @@ function AuthPage() {
 
               <Button
                 type="submit"
-                className={`w-full bg-gradient-to-r ${currentRole.gradient} hover:opacity-90 text-white border-0 shadow-lg`}
+                className={`w-full h-11 bg-gradient-to-r ${currentRole.gradient} hover:opacity-90 text-white border-0 shadow-lg`}
                 disabled={loading || (activeTab === 'register' && formData.email && !isValidEmail(formData.email))}
               >
                 {loading ? (
@@ -299,7 +300,7 @@ function AuthPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1 gap-2 text-xs dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
+                    className="flex-1 gap-2 text-xs h-11 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
                     onClick={() => setGoogleOpen(true)}
                   >
                     <Globe className="w-4 h-4" />
@@ -310,7 +311,7 @@ function AuthPage() {
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1 gap-2 text-xs dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
+                    className="flex-1 gap-2 text-xs h-11 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
                     onClick={() => setTempEmailOpen(true)}
                   >
                     <KeyRound className="w-4 h-4" />
@@ -327,8 +328,7 @@ function AuthPage() {
                         <Button
                           type="button"
                           variant="outline"
-                          size="sm"
-                          className={`w-full text-xs h-auto py-3 flex-col gap-1.5 ${acc.role === 'STUDENT' ? 'border-amber-200 hover:bg-amber-50 dark:border-amber-800 dark:hover:bg-amber-950/30' : acc.role === 'TEACHER' ? 'border-emerald-200 hover:bg-emerald-50 dark:border-emerald-800 dark:hover:bg-emerald-950/30' : 'border-rose-200 hover:bg-rose-50 dark:border-rose-800 dark:hover:bg-rose-950/30'}`}
+                          className={`w-full text-xs h-12 py-3 flex-col gap-1.5 ${acc.role === 'STUDENT' ? 'border-amber-200 hover:bg-amber-50 dark:border-amber-800 dark:hover:bg-amber-950/30' : acc.role === 'TEACHER' ? 'border-emerald-200 hover:bg-emerald-50 dark:border-emerald-800 dark:hover:bg-emerald-950/30' : 'border-rose-200 hover:bg-rose-50 dark:border-rose-800 dark:hover:bg-rose-950/30'}`}
                           onClick={() => quickLogin(acc.email, acc.password)}
                           disabled={loading}
                         >

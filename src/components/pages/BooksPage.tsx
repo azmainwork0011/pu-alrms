@@ -235,8 +235,8 @@ function StarRating({
 function BookCardSkeleton() {
   return (
     <div className="rounded-xl border dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden">
-      <Skeleton className="w-full aspect-[2/3]" />
-      <div className="p-3 space-y-2">
+      <Skeleton className="w-full aspect-[3/4]" />
+      <div className="p-2 space-y-2">
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-3 w-1/2" />
@@ -254,7 +254,7 @@ function BookCardSkeleton() {
 function BookCoverFallback({ className = '' }: { className?: string }) {
   return (
     <div className={`w-full aspect-[2/3] bg-gradient-to-br from-emerald-100 via-teal-50 to-cyan-100 dark:from-emerald-900/40 dark:via-teal-900/30 dark:to-cyan-900/40 flex items-center justify-center ${className}`}>
-      <BookOpen className="w-12 h-12 text-emerald-400 dark:text-emerald-600" />
+      <BookOpen className="w-8 h-8 text-emerald-400 dark:text-emerald-600" />
     </div>
   );
 }
@@ -281,7 +281,7 @@ function BookCard({
     >
       <div className="rounded-xl border dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer h-full flex flex-col">
         {/* Cover Image */}
-        <div className="relative w-full aspect-[2/3] sm:aspect-[3/4] overflow-hidden bg-gray-100 dark:bg-gray-800">
+        <div className="relative w-full aspect-[3/4] sm:aspect-[4/5] overflow-hidden bg-gray-100 dark:bg-gray-800">
           {book.coverUrl ? (
             <img
               src={book.coverUrl}
@@ -302,7 +302,7 @@ function BookCard({
           <motion.button
             whileTap={{ scale: 0.75 }}
             onClick={(e) => onToggleSave(e, book)}
-            className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10 w-10 h-10 sm:w-9 sm:h-9 rounded-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-white dark:hover:bg-gray-800 transition-colors"
+            className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10 w-8 h-8 sm:w-8 sm:h-8 rounded-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-white dark:hover:bg-gray-800 transition-colors"
           >
             <AnimatePresence mode="wait">
               <motion.div
@@ -449,7 +449,7 @@ function BookReaderDialog({
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-11 w-11 sm:h-8 sm:w-auto sm:px-2.5 text-xs gap-1.5 p-0 sm:p-0"
+                          className="h-9 w-9 sm:h-8 sm:w-auto sm:px-2.5 text-xs gap-1.5 p-0 sm:p-0"
                           onClick={() => window.open(fallbackUrl, '_blank', 'noopener,noreferrer')}
                         >
                           <ExternalLink className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
@@ -465,7 +465,7 @@ function BookReaderDialog({
                     variant="outline"
                     size="sm"
                     onClick={onClose}
-                    className="h-11 w-11 sm:h-8 sm:w-auto sm:px-3 text-xs gap-1.5 border-gray-300 dark:border-gray-700 p-0 sm:p-0"
+                    className="h-9 w-9 sm:h-8 sm:w-auto sm:px-3 text-xs gap-1.5 border-gray-300 dark:border-gray-700 p-0 sm:p-0"
                   >
                     <X className="w-5 h-5 sm:w-3.5 sm:h-3.5" />
                     <span className="hidden sm:inline">Close</span>
@@ -597,7 +597,7 @@ function BookDetailModal({
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 z-20 w-11 h-11 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-white dark:hover:bg-gray-700 transition-colors"
+            className="absolute top-3 right-3 z-20 w-9 h-9 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-white dark:hover:bg-gray-700 transition-colors"
           >
             <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
           </button>
@@ -605,8 +605,8 @@ function BookDetailModal({
           <ScrollArea className="max-h-[92vh]">
             <div className="flex flex-col sm:flex-row">
               {/* Cover */}
-              <div className="sm:w-56 shrink-0 bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center p-6 sm:p-4">
-                <div className="w-full max-w-[180px] aspect-[2/3] rounded-lg overflow-hidden shadow-lg">
+              <div className="sm:w-48 shrink-0 bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center p-4 sm:p-4">
+                <div className="w-full max-w-[140px] aspect-[2/3] rounded-lg overflow-hidden shadow-lg">
                   {book.coverUrl ? (
                     <img
                       src={book.coverUrl}
@@ -620,7 +620,7 @@ function BookDetailModal({
                   ) : null}
                   <div className={book.coverUrl ? 'hidden' : ''}>
                     <div className="w-full aspect-[2/3] bg-gradient-to-br from-emerald-200 via-teal-100 to-cyan-200 dark:from-emerald-900/60 dark:via-teal-900/40 dark:to-cyan-900/60 flex items-center justify-center rounded-lg">
-                      <BookOpen className="w-16 h-16 text-emerald-500 dark:text-emerald-400" />
+                      <BookOpen className="w-10 h-10 text-emerald-500 dark:text-emerald-400" />
                     </div>
                   </div>
                 </div>
@@ -825,21 +825,21 @@ function WelcomeState({ onCategoryClick }: { onCategoryClick: (cat: string) => v
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="flex flex-col items-center justify-center py-16 sm:py-24 text-center"
+      className="flex flex-col items-center justify-center py-10 sm:py-16 text-center"
     >
       <motion.div
         animate={{ y: [0, -6, 0] }}
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
         className="mb-6"
       >
-        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-          <Library className="w-10 h-10 text-white" />
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
+          <Library className="w-7 h-7 text-white" />
         </div>
       </motion.div>
       <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
         Explore Our Digital Library
       </h2>
-      <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mb-8">
+      <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mb-6">
         Search for books, browse by category, or save your favorites. Start by typing a query or selecting a category below.
       </p>
       <div className="grid grid-cols-2 gap-3 px-4 max-w-md w-full">
@@ -873,10 +873,10 @@ function ErrorState({
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="flex flex-col items-center justify-center py-16 text-center"
+      className="flex flex-col items-center justify-center py-10 text-center"
     >
-      <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-4">
-        <AlertCircle className="w-8 h-8 text-red-500 dark:text-red-400" />
+      <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-4">
+        <AlertCircle className="w-6 h-6 text-red-500 dark:text-red-400" />
       </div>
       <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
         Something went wrong
@@ -897,10 +897,10 @@ function EmptyResults({ query }: { query: string }) {
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="flex flex-col items-center justify-center py-16 text-center"
+      className="flex flex-col items-center justify-center py-10 text-center"
     >
-      <div className="w-16 h-16 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
-        <Search className="w-8 h-8 text-gray-400 dark:text-gray-500" />
+      <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
+        <Search className="w-6 h-6 text-gray-400 dark:text-gray-500" />
       </div>
       <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
         No books found
@@ -1317,8 +1317,8 @@ export default function BooksPage() {
       >
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md shadow-emerald-500/15">
-              <Library className="w-5 h-5 text-white" />
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md shadow-emerald-500/15">
+              <Library className="w-4 h-4 text-white" />
             </div>
             <div>
               <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -1360,7 +1360,7 @@ export default function BooksPage() {
         {/* Search Bar */}
         <form onSubmit={handleSearchSubmit} className="relative">
           <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400 dark:text-gray-500 pointer-events-none" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500 pointer-events-none" />
             <Input
               ref={searchInputRef}
               type="text"
@@ -1371,7 +1371,7 @@ export default function BooksPage() {
               }
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="h-12 pl-11 pr-20 text-sm bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 rounded-2xl shadow-sm focus-visible:shadow-md focus-visible:border-emerald-400 focus-visible:ring-emerald-400/20 transition-all"
+              className="h-10 pl-10 pr-16 text-sm bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 rounded-xl shadow-sm focus-visible:shadow-md focus-visible:border-emerald-400 focus-visible:ring-emerald-400/20 transition-all"
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
               {query && (
@@ -1535,13 +1535,13 @@ export default function BooksPage() {
 
             {/* Load More */}
             {hasMore && !isSavedTab && (
-              <div className="flex justify-center mt-8 px-2 sm:px-0">
+              <div className="flex justify-center mt-6 px-2 sm:px-0">
                 <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full sm:w-auto">
                   <Button
                     variant="outline"
                     onClick={handleLoadMore}
                     disabled={loadingMore}
-                    className="w-full sm:w-auto sm:min-w-[160px] h-11 border-gray-300 dark:border-gray-700 rounded-xl gap-2 text-sm"
+                    className="w-full sm:w-auto sm:min-w-[160px] h-10 border-gray-300 dark:border-gray-700 rounded-xl gap-2 text-sm"
                   >
                     {loadingMore ? (
                       <>

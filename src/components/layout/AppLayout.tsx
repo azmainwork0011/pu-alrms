@@ -61,7 +61,7 @@ function SidebarNav({ onNavigate }: { onNavigate: (page: PageView) => void }) {
         <motion.div key={item.page} whileHover={{ x: 2 }} whileTap={{ scale: 0.98 }}>
           <Button
             variant={currentPage === item.page ? 'secondary' : 'ghost'}
-            className={`w-full justify-start gap-3 ${currentPage === item.page ? 'bg-emerald-100 text-emerald-800 font-medium dark:bg-emerald-900/30 dark:text-emerald-300' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}`}
+            className={`w-full h-10 md:h-9 justify-start gap-3 ${currentPage === item.page ? 'bg-emerald-100 text-emerald-800 font-medium dark:bg-emerald-900/30 dark:text-emerald-300' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}`}
             onClick={() => onNavigate(item.page)}
           >
             {item.icon}
@@ -186,7 +186,7 @@ export default function AppLayout() {
               <Button variant="ghost" size="icon" className="md:hidden h-11 w-11" onClick={toggleSidebar}>
                 <Menu className="w-5 h-5" />
               </Button>
-              <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 capitalize">
+              <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 capitalize truncate max-w-[160px] sm:max-w-none">
                 {currentPage === 'student-community' ? 'Community Chat' : currentPage === 'announcements' ? 'Announcements' : currentPage === 'ai-chat' ? 'Lucky Strick AI' : currentPage === 'books' ? 'Digital Library' : currentPage === 'quiz' ? 'Quick Quiz' : currentPage === 'quiz-battle' ? 'Quiz Battle' : currentPage.replace(/-/g, ' ')}
               </h2>
             </div>
