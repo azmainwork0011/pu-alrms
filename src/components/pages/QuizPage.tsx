@@ -81,9 +81,10 @@ const PRIZES = [
 const MILESTONE_INDICES = new Set([4, 9, 13]);
 
 const DEPARTMENTS = [
+  { id: 'ALL', name: 'All Topics', icon: <BookOpen className="w-7 h-7 sm:w-8 sm:h-8" />, color: 'from-emerald-500 to-green-600', accent: 'bg-emerald-500', desc: 'Mix of all departments' },
   { id: 'CSE', name: 'Computer Science', icon: <GraduationCap className="w-7 h-7 sm:w-8 sm:h-8" />, color: 'from-cyan-500 to-blue-600', accent: 'bg-cyan-500', desc: 'Coding, Data Structures, Algorithms' },
   { id: 'LLB', name: 'Law (LLB)', icon: <ScaleIcon className="w-7 h-7 sm:w-8 sm:h-8" />, color: 'from-amber-500 to-orange-600', accent: 'bg-amber-500', desc: 'Law, Ethics, Constitution' },
-  { id: 'EEE', name: 'Electrical Engineering', icon: <Lightbulb className="w-7 h-7 sm:w-8 sm:h-8" />, color: 'from-emerald-500 to-teal-600', accent: 'bg-emerald-500', desc: 'Circuits, Electronics, Power Systems' },
+  { id: 'EEE', name: 'Electrical Engineering', icon: <Lightbulb className="w-7 h-7 sm:w-8 sm:h-8" />, color: 'from-teal-500 to-emerald-600', accent: 'bg-teal-500', desc: 'Circuits, Electronics, Power Systems' },
   { id: 'BBA', name: 'Business Administration', icon: <BarChart3 className="w-7 h-7 sm:w-8 sm:h-8" />, color: 'from-rose-500 to-pink-600', accent: 'bg-rose-500', desc: 'Management, Accounting, Mathematics' },
 ];
 
@@ -229,7 +230,7 @@ function XPParticles({ active }: { active: boolean }) {
   );
 }
 
-// ─── Circular Timer ──────────────────────────────────────────────────────
+// ─── Circular Timer (kept for reference, now we use horizontal bar) ──────
 function CircularTimer({ timeLeft, maxTime = 30 }: { timeLeft: number; maxTime?: number }) {
   const size = 48;
   const stroke = 3.5;
@@ -357,6 +358,41 @@ function PrizeLadder({ currentQ, totalQ }: { currentQ: number; totalQ: number })
   );
 }
 
+// ─── Duolingo-style horizontal timer bar ────────────────────────────────
+function DuoTimerBar({ timeLeft, maxTime = 30 }: { timeLeft: number; maxTime?: number }) {
+  const pct = (timeLeft / maxTime) * 100;
+  const isLow = timeLeft <= 5;
+  const isWarning = timeLeft <= 10 && timeLeft > 5;
+
+  return (
+    <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+      <motion.div
+        className={`h-full rounded-full transition-colors duration-300 ${
+          isLow ? 'bg-red-500' : isWarning ? 'bg-amber-500' : 'bg-emerald-500'
+        }`}
+        initial={{ width: '100%' }}
+        animate={{ width: `${pct}%` }}
+        transition={{ duration: 0.4, ease: 'linear' }}
+      />
+    </div>
+  );
+}
+
+// ─── XP Floating Text ───────────────────────────────────────────────────
+function XPFloatingText({ amount, active }: { amount: number; active: boolean }) {
+  if (!active) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 1, y: 0, scale: 0.8 }}
+      animate={{ opacity: 0, y: -60, scale: 1.2 }}
+      transition={{ duration: 1.2, ease: 'easeOut' }}
+      className="absolute -top-2 right-0 text-emerald-600 font-black text-base sm:text-lg pointer-events-none z-30"
+    >
+      +{amount} XP
+    </motion.div>
+  );
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────
 function QuizPage() {
   const { user, token, setPage } = useAppStore();
@@ -390,6 +426,7 @@ function QuizPage() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [mascotMood, setMascotMood] = useState<'happy' | 'sad' | 'thinking' | 'cheering' | 'sleeping'>('happy');
   const [feedbackMsg, setFeedbackMsg] = useState('');
+  const [lastXPGain, setLastXPGain] = useState(0);
 
   const [fiftyFifty, setFiftyFifty] = useState(true);
   const [skipUsed, setSkipUsed] = useState(false);
@@ -461,7 +498,10 @@ function QuizPage() {
   const fetchCategories = useCallback(async (dept: string) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/quiz/categories?department=${dept}`);
+      const url = dept === 'ALL'
+        ? '/api/quiz/categories'
+        : `/api/quiz/categories?department=${dept}`;
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setCategories(data.categories || []);
@@ -502,6 +542,7 @@ function QuizPage() {
           setCombo(0);
           setIsCorrect(false);
           setMascotMood('thinking');
+          setLastXPGain(0);
           setScreen('playing');
           playSound(playKBCIntro);
         } else {
@@ -633,6 +674,7 @@ function QuizPage() {
       setScore(prev => prev + pts);
       setCorrectCount(prev => prev + 1);
       setXp(prev => prev + xpGain);
+      setLastXPGain(xpGain);
       setMascotMood('cheering');
       setShowConfetti(true);
       setShowXPPop(true);
@@ -733,6 +775,7 @@ function QuizPage() {
     setHiddenOptions([]);
     setIsCorrect(false);
     setMascotMood('thinking');
+    setLastXPGain(0);
     setTimeout(() => { playSound(playQuestionReveal); }, 200);
   }, [currentQ, questions.length, finishQuiz, playSound]);
 
@@ -755,7 +798,7 @@ function QuizPage() {
 
   const useExtraTime = useCallback(() => {
     if (extraTimeUsed || isAnswered) return;
-    setExtraTimeUsed(true); // Mark as used so it can't be reused
+    setExtraTimeUsed(true);
     playSound(playLifelineUsed);
     setTimeLeft(prev => prev + 10);
   }, [extraTimeUsed, isAnswered, playSound]);
@@ -783,17 +826,24 @@ function QuizPage() {
 
   // ─── Render ─────────────────────────────────────────────────────────
   return (
-    <div className="min-h-0 sm:min-h-[calc(100vh-8rem)] bg-gradient-to-b from-[#0a0e27] via-[#0f1538] to-[#060a1f] relative overflow-hidden">
-      <StarField />
+    <div className="min-h-0 sm:min-h-[calc(100vh-8rem)] relative overflow-hidden">
+      {/* Background: dark for dept/cat select, light for playing/feedback */}
+      {(screen === 'playing' || screen === 'feedback') ? null : (
+        <>
+          <div className="absolute inset-0 bg-gradient-to-b from-[#0a0e27] via-[#0f1538] to-[#060a1f]" />
+          <StarField />
+        </>
+      )}
+
       <ConfettiExplosion active={showConfetti} />
       <XPParticles active={showXPPop} />
 
       <AnimatePresence mode="wait">
         {/* ═══════════════════════════════════════════════════════════ */}
-        {/* DEPARTMENT SELECT                                          */}
+        {/* DEPARTMENT SELECT (dark theme - entry screen)              */}
         {/* ═══════════════════════════════════════════════════════════ */}
         {screen === 'dept-select' && (
-          <motion.div key="dept-select" {...fadeSlideUp} className="max-w-3xl mx-auto px-4 pt-6 sm:pt-8 pb-8">
+          <motion.div key="dept-select" {...fadeSlideUp} className="relative z-10 max-w-3xl mx-auto px-4 pt-6 sm:pt-8 pb-8">
             <div className="text-center mb-6 sm:mb-8">
               <motion.div initial={{ scale: 0, rotate: -20 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', delay: 0.1, damping: 10 }}>
                 <KBCOwl mood="cheering" />
@@ -816,14 +866,20 @@ function QuizPage() {
                   whileHover={{ y: -3, transition: { duration: 0.2 } }}
                   whileTap={{ scale: 0.98, transition: { duration: 0.1 } }}
                   onClick={() => { setSelectedDept(dept.id); fetchCategories(dept.id); }}
-                  className="relative text-left p-4 sm:p-5 rounded-2xl bg-[#141a3a]/80 backdrop-blur-sm border border-[#2a3060]/50 transition-all group hover:border-amber-500/40 hover:shadow-[0_0_20px_rgba(255,215,0,0.1)] active:scale-[0.98]"
+                  className={`relative text-left p-4 sm:p-5 rounded-2xl bg-[#141a3a]/80 backdrop-blur-sm border transition-all group active:scale-[0.98] ${
+                    dept.id === 'ALL'
+                      ? 'border-emerald-500/40 hover:border-emerald-400/60 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)]'
+                      : 'border-[#2a3060]/50 hover:border-amber-500/40 hover:shadow-[0_0_20px_rgba(255,215,0,0.1)]'
+                  }`}
                 >
                   <div className={`w-11 h-11 sm:w-14 sm:h-14 rounded-xl sm:rounded-2xl bg-gradient-to-br ${dept.color} flex items-center justify-center mb-2.5 sm:mb-3 text-white shadow-lg`}>
                     {dept.icon}
                   </div>
                   <h3 className="font-bold text-white text-base sm:text-lg mb-0.5">{dept.name}</h3>
                   <p className="text-[11px] sm:text-xs text-gray-400">{dept.desc}</p>
-                  <ChevronRight className="w-5 h-5 text-gray-600 absolute top-4 right-4 sm:top-6 sm:right-5 opacity-0 group-hover:opacity-100 group-hover:text-amber-400 transition-all" />
+                  <ChevronRight className={`w-5 h-5 absolute top-4 right-4 sm:top-6 sm:right-5 opacity-0 group-hover:opacity-100 transition-all ${
+                    dept.id === 'ALL' ? 'text-emerald-400' : 'text-amber-400'
+                  }`} style={{ color: '' }} />
                 </motion.button>
               ))}
             </div>
@@ -832,7 +888,7 @@ function QuizPage() {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.6 }}
+              transition={{ delay: 0.7 }}
               className="mt-6 sm:mt-8 grid grid-cols-3 gap-2 sm:gap-3"
             >
               {[
@@ -853,71 +909,93 @@ function QuizPage() {
         )}
 
         {/* ═══════════════════════════════════════════════════════════ */}
-        {/* CATEGORY SELECT                                            */}
+        {/* CATEGORY SELECT (light theme with dark header)              */}
         {/* ═══════════════════════════════════════════════════════════ */}
         {screen === 'category-select' && (
-          <motion.div key="category-select" {...fadeSlideRight} className="max-w-3xl mx-auto px-4 pt-4 pb-8">
-            <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
-              <Button variant="ghost" size="icon" onClick={() => setScreen('dept-select')} className="h-11 w-11 text-gray-400 hover:text-white hover:bg-[#1e2550] rounded-xl">
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-              <div className="flex-1 min-w-0">
-                <h2 className="text-lg sm:text-xl font-black text-white truncate">Choose a Topic</h2>
-                <p className="text-xs sm:text-sm text-gray-400">{DEPARTMENTS.find(d => d.id === selectedDept)?.name}</p>
+          <motion.div key="category-select" {...fadeSlideRight} className="relative z-10">
+            {/* Dark header */}
+            <div className="bg-gradient-to-b from-[#0a0e27] to-[#0f1538] px-4 pt-4 pb-6">
+              <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-2 max-w-3xl mx-auto">
+                <Button variant="ghost" size="icon" onClick={() => setScreen('dept-select')} className="h-11 w-11 text-gray-400 hover:text-white hover:bg-[#1e2550] rounded-xl">
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg sm:text-xl font-black text-white truncate">Choose a Topic</h2>
+                  <p className="text-xs sm:text-sm text-gray-400">{DEPARTMENTS.find(d => d.id === selectedDept)?.name}</p>
+                </div>
+                <Button variant="ghost" size="icon" className="h-11 w-11 text-gray-400 hover:text-white hover:bg-[#1e2550] rounded-xl" onClick={() => setSoundEnabled(!soundEnabled)}>
+                  {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+                </Button>
               </div>
-              <Button variant="ghost" size="icon" className="h-11 w-11 text-gray-400 hover:text-white hover:bg-[#1e2550] rounded-xl" onClick={() => setSoundEnabled(!soundEnabled)}>
-                {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
-              </Button>
             </div>
 
-            {loading ? (
-              <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-amber-400" /></div>
-            ) : categories.length === 0 ? (
-              <div className="text-center py-20">
-                <BookOpen className="w-10 h-10 sm:w-12 sm:h-12 text-gray-600 mx-auto mb-3" />
-                <p className="text-gray-500 text-sm">No quiz categories for {selectedDept}</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-                {categories.map((cat, i) => (
-                  <motion.div
-                    key={cat.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.06 }}
-                    whileHover={{ y: -3 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => startQuiz(cat)}
-                    className="group cursor-pointer p-4 sm:p-5 rounded-2xl bg-[#141a3a]/80 backdrop-blur-sm border border-[#2a3060]/50 hover:border-amber-500/40 hover:shadow-[0_0_20px_rgba(255,215,0,0.1)] transition-all active:scale-[0.98]"
-                  >
-                    <div className="flex items-start justify-between mb-2 sm:mb-3">
-                      <span className="text-2xl sm:text-3xl">{cat.icon}</span>
-                      <Badge className={`${DIFF_STYLES[cat.difficulty]?.bg || 'bg-gray-800'} ${DIFF_STYLES[cat.difficulty]?.color || 'text-gray-400'} text-[10px] sm:text-[11px] border-0 font-semibold`}>
-                        {DIFF_STYLES[cat.difficulty]?.label || cat.difficulty}
-                      </Badge>
-                    </div>
-                    <h3 className="font-bold text-white text-sm sm:text-base mb-1">{cat.name}</h3>
-                    <p className="text-[11px] sm:text-xs text-gray-400 mb-3 sm:mb-4 line-clamp-2">{cat.description || 'Test your knowledge'}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[11px] sm:text-xs text-gray-500 flex items-center gap-1">
-                        <BookOpen className="w-3 h-3" /> {cat.questionCount} questions
-                      </span>
-                      <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg sm:rounded-xl bg-amber-500 flex items-center justify-center text-black shadow-lg shadow-amber-500/20">
-                        <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            {/* Light body */}
+            <div className="bg-gray-50 min-h-[calc(100vh-12rem)] px-4 pb-8">
+              {loading ? (
+                <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-emerald-500" /></div>
+              ) : categories.length === 0 ? (
+                <div className="text-center py-20">
+                  <BookOpen className="w-10 h-10 sm:w-12 sm:h-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-500 text-sm">No quiz categories for this selection</p>
+                </div>
+              ) : (
+                <div className="max-w-3xl mx-auto pt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                  {categories.map((cat, i) => (
+                    <motion.div
+                      key={cat.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.06 }}
+                      whileHover={{ y: -3, transition: { duration: 0.2 } }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => startQuiz(cat)}
+                      className="group cursor-pointer bg-white rounded-2xl shadow-sm border border-gray-200 hover:border-emerald-400 hover:shadow-md transition-all overflow-hidden active:scale-[0.98]"
+                    >
+                      <div className="p-4 sm:p-5">
+                        <div className="flex items-start justify-between mb-2 sm:mb-3">
+                          <span className="text-2xl sm:text-3xl">{cat.icon}</span>
+                          <Badge className={`text-[10px] sm:text-[11px] border-0 font-semibold ${
+                            cat.difficulty === 'EASY' ? 'bg-emerald-100 text-emerald-700' :
+                            cat.difficulty === 'MEDIUM' ? 'bg-amber-100 text-amber-700' :
+                            'bg-red-100 text-red-700'
+                          }`}>
+                            {DIFF_STYLES[cat.difficulty]?.label || cat.difficulty}
+                          </Badge>
+                        </div>
+                        <h3 className="font-bold text-gray-900 text-sm sm:text-base mb-1">{cat.name}</h3>
+                        <p className="text-[11px] sm:text-xs text-gray-500 mb-3 sm:mb-4 line-clamp-2">{cat.description || 'Test your knowledge'}</p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] sm:text-xs text-gray-400 flex items-center gap-1">
+                            <BookOpen className="w-3 h-3" /> {cat.questionCount} questions
+                          </span>
+                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-emerald-500 flex items-center justify-center text-white shadow-lg shadow-emerald-500/20 group-hover:shadow-emerald-500/40 transition-shadow">
+                            <ChevronRight className="w-4 h-4 sm:w-4.5 sm:h-4.5" />
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            )}
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
 
         {/* ═══════════════════════════════════════════════════════════ */}
-        {/* QUIZ PLAYING                                               */}
+        {/* QUIZ PLAYING (Duolingo light theme)                         */}
         {/* ═══════════════════════════════════════════════════════════ */}
         {screen === 'playing' && questions.length > 0 && (
-          <motion.div key="playing" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}>
+          <motion.div key="playing" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="relative z-10 bg-gray-50 min-h-0 sm:min-h-[calc(100vh-8rem)]">
+            {/* ─── Top progress bar (full width, emerald) ─── */}
+            <div className="w-full h-3 bg-gray-200">
+              <motion.div
+                className="h-full bg-gradient-to-r from-emerald-500 to-emerald-400 rounded-r-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${progressPct}%` }}
+                transition={{ duration: 0.4, ease: 'easeOut' }}
+              />
+            </div>
+
             <div className="flex gap-4 lg:gap-6 max-w-6xl mx-auto px-3 sm:px-4 pt-3 sm:pt-4 pb-6 sm:pb-8">
               <PrizeLadder currentQ={currentQ} totalQ={questions.length} />
 
@@ -925,23 +1003,26 @@ function QuizPage() {
               <div className="flex-1 max-w-2xl w-full">
                 {/* ─── Top Stats Bar ──────────────────────────────── */}
                 <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
-                  <button onClick={() => setSoundEnabled(!soundEnabled)} className="w-11 h-11 sm:w-10 sm:h-10 rounded-lg bg-[#141a3a]/80 border border-[#2a3060]/50 flex items-center justify-center text-gray-400 hover:text-white hover:border-[#3a4080] transition-colors shrink-0">
+                  <button onClick={() => setSoundEnabled(!soundEnabled)} className="w-11 h-11 sm:w-10 sm:h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors shrink-0 shadow-sm">
                     {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
                   </button>
 
-                  {/* Streak + XP */}
-                  <div className="flex items-center gap-1.5 sm:gap-3">
-                    {streak >= 2 && (
-                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/30">
-                        <Flame className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-orange-400" />
-                        <span className="text-[10px] sm:text-xs font-black text-orange-400">{streak}</span>
-                      </motion.div>
-                    )}
-                    <div className="flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30">
-                      <Zap className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
-                      <span className="text-[10px] sm:text-xs font-black text-amber-400">{xp}</span>
+                  {/* XP counter with floating animation */}
+                  <div className="relative">
+                    <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200 shadow-sm">
+                      <Zap className="w-3.5 h-3.5 text-amber-500" />
+                      <span className="text-xs font-black text-amber-600">{xp}</span>
                     </div>
+                    <XPFloatingText amount={lastXPGain} active={showXPPop && lastXPGain > 0} />
                   </div>
+
+                  {/* Streak */}
+                  {streak >= 2 && (
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-orange-50 border border-orange-200 shadow-sm">
+                      <Flame className="w-3.5 h-3.5 text-orange-500" />
+                      <span className="text-xs font-black text-orange-600">{streak}</span>
+                    </motion.div>
+                  )}
 
                   {/* Hearts */}
                   <div className="flex items-center gap-0.5 sm:gap-1">
@@ -949,11 +1030,11 @@ function QuizPage() {
                       {Array.from({ length: maxHearts }).map((_, i) => (
                         <motion.div key={i} initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: i * 0.05 }}>
                           {i < hearts ? (
-                            <motion.div animate={showHeartsLost && i === hearts ? { scale: [1, 1.3, 0], opacity: [1, 1, 0] } : {}}>
-                              <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 fill-red-500 drop-shadow-[0_0_6px_rgba(239,68,68,0.6)]" />
+                            <motion.div animate={showHeartsLost && i === hearts ? { scale: [1, 1.4, 0], opacity: [1, 1, 0] } : {}}>
+                              <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 fill-red-500" />
                             </motion.div>
                           ) : (
-                            <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-gray-700" />
+                            <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-gray-300" />
                           )}
                         </motion.div>
                       ))}
@@ -961,35 +1042,24 @@ function QuizPage() {
                   </div>
                 </div>
 
-                {/* ─── Progress Bar ───────────────────────────────── */}
-                <div className="mb-3 sm:mb-4">
-                  <div className="flex items-center justify-between mb-1 sm:mb-1.5">
-                    <span className="text-[11px] sm:text-xs font-bold text-gray-400">
-                      {currentQ + 1} / {questions.length}
-                    </span>
-                    {combo >= 2 && (
-                      <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-[10px] sm:text-xs font-bold text-orange-400 bg-orange-500/10 px-1.5 py-0.5 rounded-full">
-                        x{Math.min(combo, 5)} COMBO
-                      </motion.span>
-                    )}
-                  </div>
-                  <div className="w-full h-2.5 sm:h-3 bg-[#1a2040] rounded-full overflow-hidden border border-[#2a3060]/50">
-                    <motion.div
-                      className="h-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-400"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${progressPct}%` }}
-                      transition={{ duration: 0.4, ease: 'easeOut' }}
-                    />
-                  </div>
-                </div>
-
-                {/* ─── Mascot + Timer ─────────────────────────────── */}
+                {/* ─── Question counter ────────────────────────────── */}
                 <div className="flex items-center justify-between mb-2 sm:mb-3 px-1">
-                  <KBCOwl mood={mascotMood} size="sm" />
-                  <CircularTimer timeLeft={timeLeft} />
+                  <span className="text-xs font-bold text-gray-500">
+                    Question {currentQ + 1} of {questions.length}
+                  </span>
+                  {combo >= 2 && (
+                    <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-[10px] sm:text-xs font-bold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">
+                      x{Math.min(combo, 5)} COMBO
+                    </motion.span>
+                  )}
                 </div>
 
-                {/* ─── Question Card ──────────────────────────────── */}
+                {/* ─── Duolingo Timer Bar ──────────────────────────── */}
+                <div className="mb-4 sm:mb-5">
+                  <DuoTimerBar timeLeft={timeLeft} maxTime={30} />
+                </div>
+
+                {/* ─── Question Card (white, Duolingo-style) ──────── */}
                 <AnimatePresence mode="wait">
                   <motion.div key={currentQ}
                     initial={{ opacity: 0, x: 40 }}
@@ -1004,81 +1074,74 @@ function QuizPage() {
                         : { duration: 0.25 }
                     }
                   >
-                    <div className="bg-[#141a3a]/80 backdrop-blur-sm rounded-2xl border border-[#2a3060]/50 p-4 sm:p-6 mb-3 sm:mb-4">
+                    {/* Question */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6 mb-4 sm:mb-5">
                       <div className="flex items-center gap-1.5 sm:gap-2 mb-2 sm:mb-3 flex-wrap">
-                        <Badge className={`${DIFF_STYLES[questions[currentQ].difficulty]?.bg || 'bg-gray-800'} ${DIFF_STYLES[questions[currentQ].difficulty]?.color || 'text-gray-400'} text-[10px] sm:text-[11px] border-0 font-semibold`}>
+                        <Badge className={`text-[10px] sm:text-[11px] border-0 font-semibold ${
+                          questions[currentQ].difficulty === 'EASY' ? 'bg-emerald-100 text-emerald-700' :
+                          questions[currentQ].difficulty === 'MEDIUM' ? 'bg-amber-100 text-amber-700' :
+                          'bg-red-100 text-red-700'
+                        }`}>
                           {DIFF_STYLES[questions[currentQ].difficulty]?.label || questions[currentQ].difficulty}
                         </Badge>
-                        <Badge className="bg-amber-500/10 text-amber-400 text-[10px] sm:text-[11px] border border-amber-500/30 font-semibold">
+                        <Badge className="bg-gray-100 text-gray-600 text-[10px] sm:text-[11px] border-0 font-semibold">
                           {PRIZES[currentQ] || `${questions[currentQ].points} pts`}
                         </Badge>
                       </div>
-                      <h3 className="text-sm sm:text-base md:text-lg font-bold text-white leading-relaxed">
+                      <h3 className="text-sm sm:text-base md:text-lg font-bold text-gray-900 leading-relaxed">
                         {questions[currentQ].question}
                       </h3>
                     </div>
 
-                    {/* ─── Options ─────────────────────────────────── */}
-                    <div className="space-y-2 sm:space-y-3">
+                    {/* ─── Options (Duolingo-style: big, rounded, letter prefix) ─── */}
+                    <div className="space-y-2.5 sm:space-y-3">
                       {(['optionA', 'optionB', 'optionC', 'optionD'] as const).map((opt, i) => {
                         const letter = OPTIONS[i];
                         const isHidden = hiddenOptions.includes(letter);
                         const isSelected = selectedOption === letter;
                         const isTheCorrectOption = questions[currentQ].correctOption === letter;
 
-                        let borderColor = 'border-[#2a3060]/50';
-                        let bgColor = 'bg-[#141a3a]/80';
+                        // Duolingo-style button classes
+                        let btnClasses = 'bg-white border-gray-200 text-gray-800 hover:border-emerald-400 hover:shadow-sm';
+                        let letterClasses = 'bg-gray-100 text-gray-600 border border-gray-200';
                         let icon = null;
 
                         if (isAnswered && isHidden) {
-                          borderColor = 'border-gray-800/50';
-                          bgColor = 'bg-[#0a0e20]/50';
+                          btnClasses = 'bg-gray-50 border-gray-100 text-gray-300 opacity-50';
+                          letterClasses = 'bg-gray-100 text-gray-400 border border-gray-100';
                         } else if (isAnswered && isSelected && isCorrect) {
-                          borderColor = 'border-green-400';
-                          bgColor = 'bg-green-900/20';
-                          icon = <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.4 }}><CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-green-400" /></motion.div>;
+                          btnClasses = 'bg-emerald-500 border-emerald-500 text-white shadow-md shadow-emerald-500/30';
+                          letterClasses = 'bg-white text-emerald-600 border border-white/30';
+                          icon = <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.15, damping: 8 }}><CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" /></motion.div>;
                         } else if (isAnswered && isSelected && !isCorrect) {
-                          borderColor = 'border-red-500/70';
-                          bgColor = 'bg-red-900/20';
-                          icon = <motion.div animate={{ x: [0, -3, 3, 0] }} transition={{ duration: 0.3 }}><XCircle className="w-5 h-5 sm:w-6 sm:h-6 text-red-400" /></motion.div>;
-                        } else if (isAnswered && !isSelected && isTheCorrectOption && !isCorrect) {
-                          borderColor = 'border-green-500/70';
-                          bgColor = 'bg-green-900/20';
-                          icon = <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-green-400" />;
+                          btnClasses = 'bg-red-500 border-red-500 text-white shadow-md shadow-red-500/30';
+                          letterClasses = 'bg-white text-red-600 border border-white/30';
+                          icon = <motion.div animate={{ x: [0, -3, 3, 0] }} transition={{ duration: 0.3 }}><XCircle className="w-5 h-5 sm:w-6 sm:h-6 text-white" /></motion.div>;
+                        } else if (isAnswered && isTheCorrectOption && !isSelected && !isCorrect) {
+                          btnClasses = 'bg-emerald-50 border-emerald-400 text-emerald-700 shadow-sm';
+                          letterClasses = 'bg-emerald-500 text-white border border-emerald-500';
+                          icon = <CheckCircle2 className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-500" />;
                         }
 
                         return (
                           <motion.button
                             key={opt}
                             initial={{ opacity: 0, y: 15 }}
-                            animate={{ opacity: isHidden ? 0.2 : 1, y: 0 }}
+                            animate={{ opacity: isHidden ? 0.3 : 1, y: 0 }}
                             transition={{ delay: i * 0.08, duration: 0.3 }}
                             whileHover={!isAnswered && !isHidden ? { scale: 1.01, y: -1 } : {}}
                             whileTap={!isAnswered && !isHidden ? { scale: 0.98 } : {}}
                             onClick={() => { if (!isHidden && !isAnswered) submitAnswer(letter); }}
                             disabled={isAnswered || isHidden}
-                            className={`w-full flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl sm:rounded-2xl border-2 text-left transition-all backdrop-blur-sm min-h-[52px] sm:min-h-0 ${borderColor} ${bgColor} ${isHidden ? 'opacity-20 pointer-events-none' : ''} ${isAnswered && isSelected && isCorrect ? 'shadow-[0_0_20px_rgba(34,197,94,0.3)]' : ''} ${isAnswered && isSelected && !isCorrect ? 'shadow-[0_0_15px_rgba(239,68,68,0.2)]' : ''} ${!isAnswered && !isHidden ? 'cursor-pointer hover:border-amber-500/40 hover:shadow-[0_0_15px_rgba(255,215,0,0.08)] active:scale-[0.98]' : 'cursor-default'}`}
+                            className={`w-full flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-2xl border-2 text-left transition-all min-h-[56px] sm:min-h-[60px] ${btnClasses} ${
+                              isHidden ? 'pointer-events-none' : ''
+                            } ${!isAnswered && !isHidden ? 'cursor-pointer active:scale-[0.98]' : 'cursor-default'}`}
                           >
-                            <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-lg sm:rounded-xl flex items-center justify-center shrink-0 font-black text-xs sm:text-sm transition-all ${
-                              isAnswered && isSelected && isCorrect
-                                ? 'bg-green-500 text-white'
-                                : isAnswered && isSelected && !isCorrect
-                                  ? 'bg-red-500 text-white'
-                                  : isAnswered && isTheCorrectOption && !isSelected
-                                    ? 'bg-green-500 text-white'
-                                    : 'bg-[#1a2040] text-gray-400 border border-[#2a3060]/50'
-                            }`}>
+                            {/* Letter prefix circle */}
+                            <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 font-black text-sm sm:text-base transition-all ${letterClasses}`}>
                               {letter}
                             </div>
-                            <span className={`flex-1 font-medium text-xs sm:text-sm ${
-                              isAnswered && isSelected && isCorrect
-                                ? 'text-green-300'
-                                : isAnswered && isSelected && !isCorrect
-                                  ? 'text-red-300'
-                                  : isAnswered && isTheCorrectOption && !isSelected
-                                    ? 'text-green-300'
-                                    : 'text-gray-300'
-                            }`}>
+                            <span className="flex-1 font-medium text-sm sm:text-base">
                               {isHidden ? '???' : questions[currentQ][opt]}
                             </span>
                             {icon}
@@ -1087,34 +1150,34 @@ function QuizPage() {
                       })}
                     </div>
 
-                    {/* ─── Lifelines Row ───────────────────────────── */}
-                    <div className="flex gap-1.5 sm:gap-2 mt-3 sm:mt-4">
+                    {/* ─── Lifelines Row (Duolingo-styled) ─────────── */}
+                    <div className="flex gap-2 sm:gap-2.5 mt-4 sm:mt-5">
                       <Button size="sm" disabled={!fiftyFifty || isAnswered} onClick={useFiftyFifty}
-                        className={`flex-1 h-11 sm:h-10 rounded-xl sm:rounded-2xl text-[11px] sm:text-xs font-bold gap-1 sm:gap-1.5 border-2 transition-all ${
+                        className={`flex-1 h-12 sm:h-11 rounded-2xl text-[11px] sm:text-xs font-bold gap-1.5 sm:gap-1.5 border-2 transition-all shadow-sm ${
                           fiftyFifty && !isAnswered
-                            ? 'bg-[#141a3a]/80 border-amber-500/30 text-amber-400 hover:border-amber-500/60 hover:bg-amber-500/10'
-                            : 'bg-[#0a0e20]/50 border-gray-800/50 text-gray-600 cursor-not-allowed'
+                            ? 'bg-white border-gray-200 text-gray-700 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50'
+                            : 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
                         }`}
                       >
-                        <BarChart2 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />50:50
+                        <BarChart2 className="w-3.5 h-3.5 sm:w-3.5 sm:h-3.5" />50:50
                       </Button>
                       <Button size="sm" disabled={skipUsed} onClick={useSkip}
-                        className={`flex-1 h-11 sm:h-10 rounded-xl sm:rounded-2xl text-[11px] sm:text-xs font-bold gap-1 sm:gap-1.5 border-2 transition-all ${
+                        className={`flex-1 h-12 sm:h-11 rounded-2xl text-[11px] sm:text-xs font-bold gap-1.5 sm:gap-1.5 border-2 transition-all shadow-sm ${
                           !skipUsed
-                            ? 'bg-[#141a3a]/80 border-amber-500/30 text-amber-400 hover:border-amber-500/60 hover:bg-amber-500/10'
-                            : 'bg-[#0a0e20]/50 border-gray-800/50 text-gray-600 cursor-not-allowed'
+                            ? 'bg-white border-gray-200 text-gray-700 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50'
+                            : 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
                         }`}
                       >
-                        <SkipForward className="w-3 h-3 sm:w-3.5 sm:h-3.5" />Skip
+                        <SkipForward className="w-3.5 h-3.5 sm:w-3.5 sm:h-3.5" />Skip
                       </Button>
                       <Button size="sm" disabled={extraTimeUsed || isAnswered} onClick={useExtraTime}
-                        className={`flex-1 h-11 sm:h-10 rounded-xl sm:rounded-2xl text-[11px] sm:text-xs font-bold gap-1 sm:gap-1.5 border-2 transition-all ${
+                        className={`flex-1 h-12 sm:h-11 rounded-2xl text-[11px] sm:text-xs font-bold gap-1.5 sm:gap-1.5 border-2 transition-all shadow-sm ${
                           !extraTimeUsed && !isAnswered
-                            ? 'bg-[#141a3a]/80 border-amber-500/30 text-amber-400 hover:border-amber-500/60 hover:bg-amber-500/10'
-                            : 'bg-[#0a0e20]/50 border-gray-800/50 text-gray-600 cursor-not-allowed'
+                            ? 'bg-white border-gray-200 text-gray-700 hover:border-emerald-400 hover:text-emerald-600 hover:bg-emerald-50'
+                            : 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed'
                         }`}
                       >
-                        <Timer className="w-3 h-3 sm:w-3.5 sm:h-3.5" />+10s
+                        <Timer className="w-3.5 h-3.5 sm:w-3.5 sm:h-3.5" />+10s
                       </Button>
                     </div>
                   </motion.div>
@@ -1125,7 +1188,7 @@ function QuizPage() {
         )}
 
         {/* ═══════════════════════════════════════════════════════════ */}
-        {/* FEEDBACK SCREEN (between questions)                       */}
+        {/* FEEDBACK SCREEN (Duolingo popup between questions)          */}
         {/* ═══════════════════════════════════════════════════════════ */}
         {screen === 'feedback' && (
           <motion.div
@@ -1133,9 +1196,8 @@ function QuizPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-b from-[#0a0e27] via-[#0f1538] to-[#060a1f] p-4"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-gray-50 p-4"
           >
-            <StarField />
             <ConfettiExplosion active={isCorrect && showConfetti} />
 
             <motion.div
@@ -1154,50 +1216,57 @@ function QuizPage() {
               </motion.div>
 
               <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="mt-4 sm:mt-6">
+                {/* Duolingo-style feedback banner */}
                 <motion.div
                   initial={{ scale: 0 }}
                   animate={{ scale: 1 }}
                   transition={{ type: 'spring', delay: 0.3, damping: 8 }}
-                  className={`inline-block px-6 sm:px-8 py-2.5 sm:py-3 rounded-2xl mb-3 sm:mb-4 ${
+                  className={`inline-flex items-center gap-2 px-6 sm:px-8 py-3 sm:py-3.5 rounded-2xl mb-3 sm:mb-4 shadow-lg ${
                     isCorrect
-                      ? 'bg-green-600 text-white shadow-lg shadow-green-500/30'
-                      : 'bg-red-600 text-white shadow-lg shadow-red-500/30'
+                      ? 'bg-emerald-500 text-white shadow-emerald-500/30'
+                      : 'bg-red-500 text-white shadow-red-500/30'
                   }`}
                 >
-                  <span className="text-xl sm:text-2xl font-black">
-                    {isCorrect ? '✓ Correct!' : '✗ Wrong!'}
+                  {isCorrect ? (
+                    <CheckCircle2 className="w-6 h-6" />
+                  ) : (
+                    <XCircle className="w-6 h-6" />
+                  )}
+                  <span className="text-lg sm:text-xl font-black">
+                    {isCorrect ? 'Correct!' : 'Wrong!'}
                   </span>
                 </motion.div>
 
-                <p className="text-base sm:text-lg font-bold text-white mb-1">{feedbackMsg}</p>
+                <p className="text-base sm:text-lg font-bold text-gray-800 mb-1">{feedbackMsg}</p>
 
                 {isCorrect && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="flex items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4 flex-wrap">
-                    <div className="flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30">
-                      <Zap className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
-                      <span className="text-xs sm:text-sm font-black text-amber-400">+{10 + Math.min(combo, 5) * 3} XP</span>
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-200">
+                      <Zap className="w-4 h-4 text-amber-500" />
+                      <span className="text-xs sm:text-sm font-black text-amber-600">+{10 + Math.min(combo, 5) * 3} XP</span>
                     </div>
                     {combo >= 2 && (
-                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-1 px-2.5 sm:px-3 py-1 rounded-full bg-orange-500/10 border border-orange-500/30">
-                        <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-400" />
-                        <span className="text-xs sm:text-sm font-black text-orange-400">{combo}x</span>
+                      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-orange-50 border border-orange-200">
+                        <Flame className="w-4 h-4 text-orange-500" />
+                        <span className="text-xs sm:text-sm font-black text-orange-600">{combo}x streak</span>
                       </motion.div>
                     )}
                   </motion.div>
                 )}
 
                 {!isCorrect && (
-                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="flex items-center justify-center gap-1 mb-3 sm:mb-4">
-                    <Heart className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-400 fill-red-400" />
-                    <span className="text-xs sm:text-sm font-bold text-red-400">{hearts} hearts remaining</span>
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="flex items-center justify-center gap-1.5 mb-3 sm:mb-4">
+                    <Heart className="w-4 h-4 text-red-500 fill-red-500" />
+                    <span className="text-xs sm:text-sm font-bold text-gray-500">{hearts} {hearts === 1 ? 'heart' : 'hearts'} remaining</span>
                   </motion.div>
                 )}
               </motion.div>
 
+              {/* Duolingo-style continue button */}
               <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}>
                 <Button
                   onClick={nextQuestion}
-                  className="w-full h-12 sm:h-14 rounded-2xl text-sm sm:text-base font-black border-0 transition-all active:translate-y-0.5 bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/30"
+                  className="w-full h-12 sm:h-14 rounded-2xl text-sm sm:text-base font-black border-0 transition-all active:translate-y-0.5 bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-500/30"
                 >
                   {currentQ >= questions.length - 1 ? 'See Results' : 'Continue'}
                 </Button>
@@ -1207,7 +1276,7 @@ function QuizPage() {
         )}
 
         {/* ═══════════════════════════════════════════════════════════ */}
-        {/* RESULTS SCREEN                                             */}
+        {/* RESULTS SCREEN (Duolingo-style)                             */}
         {/* ═══════════════════════════════════════════════════════════ */}
         {screen === 'results' && result && (
           <motion.div
@@ -1216,151 +1285,162 @@ function QuizPage() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.4 }}
-            className="max-w-lg mx-auto px-4 pt-4 sm:pt-6 pb-8"
+            className="relative z-10 bg-gray-50 min-h-0 sm:min-h-[calc(100vh-8rem)]"
           >
             <ConfettiExplosion active={result.accuracy >= 70} />
 
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ type: 'spring', damping: 12, stiffness: 150, delay: 0.1 }}
-              className="bg-[#141a3a]/80 backdrop-blur-sm rounded-2xl border border-[#2a3060]/50 overflow-hidden"
-            >
-              {/* Result header */}
-              <div className={`relative p-5 sm:p-8 text-center ${
-                result.accuracy >= 90 ? 'bg-gradient-to-b from-amber-900/40 to-transparent' :
-                result.accuracy >= 70 ? 'bg-gradient-to-b from-green-900/30 to-transparent' :
-                'bg-gradient-to-b from-red-900/30 to-transparent'
-              }`}>
-                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2, damping: 10 }}>
-                  <KBCOwl mood={result.accuracy >= 70 ? 'cheering' : 'sad'} />
-                </motion.div>
-
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="mt-3 sm:mt-4">
-                  <motion.div
-                    initial={{ scale: 0, rotate: -10 }}
-                    animate={{ scale: 1, rotate: 0 }}
-                    transition={{ type: 'spring', delay: 0.4, damping: 8 }}
-                    className={`inline-block px-5 sm:px-6 py-1.5 sm:py-2 rounded-2xl text-black font-black text-2xl sm:text-3xl ${
-                      result.accuracy >= 90 ? 'bg-amber-500 shadow-lg shadow-amber-500/30' :
-                      result.accuracy >= 70 ? 'bg-green-500 shadow-lg shadow-green-500/30' :
-                      'bg-red-500 shadow-lg shadow-red-500/30'
-                    }`}
-                  >
-                    {getGrade(result.accuracy).label}
+            <div className="max-w-lg mx-auto px-4 pt-4 sm:pt-6 pb-8">
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', damping: 12, stiffness: 150, delay: 0.1 }}
+                className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden"
+              >
+                {/* Result header with big grade circle */}
+                <div className={`relative p-5 sm:p-8 text-center ${
+                  result.accuracy >= 90 ? 'bg-gradient-to-b from-amber-50 to-white' :
+                  result.accuracy >= 70 ? 'bg-gradient-to-b from-emerald-50 to-white' :
+                  'bg-gradient-to-b from-red-50 to-white'
+                }`}>
+                  <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2, damping: 10 }}>
+                    <KBCOwl mood={result.accuracy >= 70 ? 'cheering' : 'sad'} />
                   </motion.div>
-                </motion.div>
 
-                <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className={`text-base sm:text-lg font-bold mt-2 sm:mt-3 ${getGrade(result.accuracy).color}`}>
-                  {getGrade(result.accuracy).msg}
-                </motion.p>
-
-                {/* Stars */}
-                <div className="flex justify-center gap-0.5 sm:gap-1 mt-2">
-                  {Array.from({ length: 5 }).map((_, i) => (
-                    <motion.div key={i} initial={{ opacity: 0, y: -10, scale: 0 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: 0.55 + i * 0.1, type: 'spring' }}>
-                      <Star className={`w-6 h-6 sm:w-7 sm:h-7 ${i < getGrade(result.accuracy).stars ? 'fill-amber-400 text-amber-400' : 'text-gray-700'}`} />
-                    </motion.div>
-                  ))}
-                </div>
-
-                <p className="text-[10px] sm:text-xs text-gray-500 mt-2">{selectedCategory?.name}</p>
-              </div>
-
-              {/* Stats grid */}
-              <CardContent className="p-4 sm:p-6 space-y-3 sm:space-y-4">
-                <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                  {[
-                    { val: animScore, label: 'Score', color: 'text-green-400', bg: 'bg-green-900/20 border-green-500/20' },
-                    { val: animXP, label: 'XP Earned', color: 'text-amber-400', bg: 'bg-amber-900/20 border-amber-500/20' },
-                    { val: `${animAccuracy}%`, label: 'Accuracy', color: 'text-blue-400', bg: 'bg-blue-900/20 border-blue-500/20' },
-                    { val: animStreak, label: 'Best Streak', color: 'text-orange-400', bg: 'bg-orange-900/20 border-orange-500/20' },
-                  ].map((item, i) => (
+                  {/* Duolingo-style big grade circle */}
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }} className="mt-3 sm:mt-4 flex justify-center">
                     <motion.div
-                      key={i}
-                      initial={{ opacity: 0, y: 15 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.7 + i * 0.1 }}
-                      className={`p-3 sm:p-4 rounded-xl sm:rounded-2xl ${item.bg} border text-center`}
+                      initial={{ scale: 0, rotate: -10 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ type: 'spring', delay: 0.4, damping: 8 }}
+                      className={`w-24 h-24 sm:w-28 sm:h-28 rounded-full flex items-center justify-center shadow-lg ${
+                        result.accuracy >= 90 ? 'bg-amber-500 shadow-amber-500/30' :
+                        result.accuracy >= 70 ? 'bg-emerald-500 shadow-emerald-500/30' :
+                        result.accuracy >= 40 ? 'bg-blue-500 shadow-blue-500/30' :
+                        'bg-red-500 shadow-red-500/30'
+                      }`}
                     >
-                      <p className={`text-2xl sm:text-3xl font-black ${item.color}`}>{item.val}</p>
-                      <p className={`text-[10px] sm:text-xs font-bold ${item.color.replace('400', '500/80')} uppercase tracking-wide mt-0.5`}>{item.label}</p>
+                      <span className="text-4xl sm:text-5xl font-black text-white">
+                        {getGrade(result.accuracy).label}
+                      </span>
                     </motion.div>
-                  ))}
+                  </motion.div>
+
+                  <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 }} className={`text-base sm:text-lg font-bold mt-2 sm:mt-3 ${
+                    result.accuracy >= 90 ? 'text-amber-600' :
+                    result.accuracy >= 70 ? 'text-emerald-600' :
+                    result.accuracy >= 40 ? 'text-blue-600' :
+                    'text-red-600'
+                  }`}>
+                    {getGrade(result.accuracy).msg}
+                  </motion.p>
+
+                  {/* Stars */}
+                  <div className="flex justify-center gap-1 sm:gap-1.5 mt-3">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <motion.div key={i} initial={{ opacity: 0, y: -10, scale: 0 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ delay: 0.55 + i * 0.1, type: 'spring' }}>
+                        <Star className={`w-7 h-7 sm:w-8 sm:h-8 ${i < getGrade(result.accuracy).stars ? 'fill-amber-400 text-amber-400' : 'text-gray-200'}`} />
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  <p className="text-xs text-gray-400 mt-2">{selectedCategory?.name}</p>
                 </div>
 
-                {/* Your Profile Stats */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 1.05 }}
-                  className="grid grid-cols-3 gap-2"
-                >
-                  <div className="flex flex-col items-center p-2 rounded-xl bg-orange-900/15 border border-orange-500/20">
-                    <Flame className="w-4 h-4 text-orange-400 mb-0.5" />
-                    <p className="text-sm sm:text-base font-black text-orange-400">{profile.dailyStreak}</p>
-                    <p className="text-[9px] sm:text-[10px] text-gray-500 font-semibold">Streak</p>
+                {/* Stats grid */}
+                <CardContent className="p-4 sm:p-6 space-y-3 sm:space-y-4">
+                  <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
+                    {[
+                      { val: animScore, label: 'Score', color: 'text-emerald-600', bg: 'bg-emerald-50 border-emerald-100' },
+                      { val: animXP, label: 'XP Earned', color: 'text-amber-600', bg: 'bg-amber-50 border-amber-100' },
+                      { val: `${animAccuracy}%`, label: 'Accuracy', color: 'text-blue-600', bg: 'bg-blue-50 border-blue-100' },
+                      { val: animStreak, label: 'Best Streak', color: 'text-orange-600', bg: 'bg-orange-50 border-orange-100' },
+                    ].map((item, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.7 + i * 0.1 }}
+                        className={`p-3 sm:p-4 rounded-2xl ${item.bg} border text-center`}
+                      >
+                        <p className={`text-2xl sm:text-3xl font-black ${item.color}`}>{item.val}</p>
+                        <p className={`text-[10px] sm:text-xs font-bold text-gray-400 uppercase tracking-wide mt-0.5`}>{item.label}</p>
+                      </motion.div>
+                    ))}
                   </div>
-                  <div className="flex flex-col items-center p-2 rounded-xl bg-amber-900/15 border border-amber-500/20">
-                    <Zap className="w-4 h-4 text-amber-400 mb-0.5" />
-                    <p className="text-sm sm:text-base font-black text-amber-400">{profile.totalXP}</p>
-                    <p className="text-[9px] sm:text-[10px] text-gray-500 font-semibold">Total XP</p>
-                  </div>
-                  <div className="flex flex-col items-center p-2 rounded-xl bg-green-900/15 border border-green-500/20">
-                    <Trophy className="w-4 h-4 text-green-400 mb-0.5" />
-                    <p className="text-sm sm:text-base font-black text-green-400">{profile.totalQuizzes}</p>
-                    <p className="text-[9px] sm:text-[10px] text-gray-500 font-semibold">Quizzes</p>
-                  </div>
-                </motion.div>
 
-                {/* Extra stats */}
-                <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 1.1 }}
-                  className="flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-white/[0.03] border border-[#2a3060]/30"
-                >
-                  <span className="text-[11px] sm:text-xs text-gray-500">{result.correctCount} correct out of {result.totalQuestions}</span>
-                  <span className="text-[11px] sm:text-xs text-gray-500">{result.timeTaken}s</span>
-                </motion.div>
-
-                {/* Perfect badge */}
-                {result.accuracy === 100 && (
+                  {/* Your Profile Stats */}
                   <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 1.2, type: 'spring' }}
-                    className="flex items-center justify-center gap-1.5 sm:gap-2 p-2.5 sm:p-3 rounded-xl bg-gradient-to-r from-amber-900/30 to-amber-900/10 border border-amber-500/30"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1.05 }}
+                    className="grid grid-cols-3 gap-2"
                   >
-                    <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
-                    <span className="text-xs sm:text-sm font-bold text-amber-300">Perfect Score! Outstanding!</span>
-                    <PartyPopper className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
+                    <div className="flex flex-col items-center p-2.5 rounded-xl bg-orange-50 border border-orange-100">
+                      <Flame className="w-4 h-4 text-orange-500 mb-0.5" />
+                      <p className="text-sm sm:text-base font-black text-orange-600">{profile.dailyStreak}</p>
+                      <p className="text-[9px] sm:text-[10px] text-gray-400 font-semibold">Streak</p>
+                    </div>
+                    <div className="flex flex-col items-center p-2.5 rounded-xl bg-amber-50 border border-amber-100">
+                      <Zap className="w-4 h-4 text-amber-500 mb-0.5" />
+                      <p className="text-sm sm:text-base font-black text-amber-600">{profile.totalXP}</p>
+                      <p className="text-[9px] sm:text-[10px] text-gray-400 font-semibold">Total XP</p>
+                    </div>
+                    <div className="flex flex-col items-center p-2.5 rounded-xl bg-emerald-50 border border-emerald-100">
+                      <Trophy className="w-4 h-4 text-emerald-500 mb-0.5" />
+                      <p className="text-sm sm:text-base font-black text-emerald-600">{profile.totalQuizzes}</p>
+                      <p className="text-[9px] sm:text-[10px] text-gray-400 font-semibold">Quizzes</p>
+                    </div>
                   </motion.div>
-                )}
 
-                {/* Action buttons */}
-                <motion.div
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1.3 }}
-                  className="flex gap-2 sm:gap-3 pt-1 sm:pt-2"
-                >
-                  <Button
-                    variant="outline"
-                    className="flex-1 h-11 sm:h-12 rounded-xl sm:rounded-2xl font-bold text-sm border-2 border-[#2a3060]/50 text-gray-300 hover:border-[#3a4080] bg-[#141a3a]/80 hover:bg-[#1a2050]"
-                    onClick={() => { setScreen('category-select'); setMascotMood('happy'); }}
+                  {/* Extra stats */}
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: 1.1 }}
+                    className="flex items-center justify-between p-2.5 sm:p-3 rounded-xl bg-gray-50 border border-gray-100"
                   >
-                    <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />Try Again
-                  </Button>
-                  <Button
-                    className="flex-1 h-11 sm:h-12 rounded-xl sm:rounded-2xl font-bold text-sm border-0 bg-amber-500 hover:bg-amber-400 text-black shadow-lg shadow-amber-500/20"
-                    onClick={() => { setScreen('dept-select'); setMascotMood('cheering'); }}
+                    <span className="text-[11px] sm:text-xs text-gray-400">{result.correctCount} correct out of {result.totalQuestions}</span>
+                    <span className="text-[11px] sm:text-xs text-gray-400">{result.timeTaken}s</span>
+                  </motion.div>
+
+                  {/* Perfect badge */}
+                  {result.accuracy === 100 && (
+                    <motion.div
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 1.2, type: 'spring' }}
+                      className="flex items-center justify-center gap-2 p-3 sm:p-3.5 rounded-xl bg-gradient-to-r from-amber-50 to-amber-100 border border-amber-200"
+                    >
+                      <Crown className="w-5 h-5 text-amber-500" />
+                      <span className="text-xs sm:text-sm font-bold text-amber-700">Perfect Score! Outstanding!</span>
+                      <PartyPopper className="w-5 h-5 text-amber-500" />
+                    </motion.div>
+                  )}
+
+                  {/* Action buttons */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 1.3 }}
+                    className="flex gap-2.5 sm:gap-3 pt-1 sm:pt-2"
                   >
-                    <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />New Topic
-                  </Button>
-                </motion.div>
-              </CardContent>
-            </motion.div>
+                    <Button
+                      variant="outline"
+                      className="flex-1 h-11 sm:h-12 rounded-2xl font-bold text-sm border-2 border-gray-200 text-gray-600 hover:border-gray-300 bg-white hover:bg-gray-50"
+                      onClick={() => { setScreen('category-select'); setMascotMood('happy'); }}
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />Try Again
+                    </Button>
+                    <Button
+                      className="flex-1 h-11 sm:h-12 rounded-2xl font-bold text-sm border-0 bg-emerald-500 hover:bg-emerald-400 text-white shadow-lg shadow-emerald-500/20"
+                      onClick={() => { setScreen('dept-select'); setMascotMood('cheering'); }}
+                    >
+                      <BookOpen className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1.5" />New Topic
+                    </Button>
+                  </motion.div>
+                </CardContent>
+              </motion.div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
