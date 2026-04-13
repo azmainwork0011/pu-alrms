@@ -517,7 +517,9 @@ function QuizPage() {
     setSelectedCategory(category);
     setLoading(true);
     try {
-      const res = await fetch(`/api/quiz/questions?categoryId=${encodeURIComponent(category.id)}&count=10`);
+      const res = await fetch(`/api/quiz/questions?categoryId=${encodeURIComponent(category.id)}&count=10`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
       if (res.ok) {
         const data = await res.json();
         if (data.questions && data.questions.length > 0) {
@@ -551,7 +553,7 @@ function QuizPage() {
       }
     } catch { toast.error('Failed to start quiz'); }
     setLoading(false);
-  }, [playSound]);
+  }, [playSound, token]);
 
   // ─── Direct finish (for game over) ────────────────────────────────
   const finishQuizDirect = useCallback(async (finalAnswers: { questionId: string; selectedOption: string }[], timeTaken: number) => {
