@@ -448,3 +448,85 @@ Stage Summary:
 - More books visible per screen (3→8 cols vs old 2→6 cols)
 - Fully responsive across mobile/tablet/desktop
 - ESLint clean, API verified working
+---
+Task ID: 3
+Agent: fullstack-developer
+Task: Rebuild Quick Quiz with Duolingo-style UI and fix all departments
+
+Work Log:
+- Read entire QuizPage.tsx (1371 lines) and worklog.md to understand existing codebase
+- Added "All Topics" department as first item in DEPARTMENTS array (id: 'ALL', emerald gradient, BookOpen icon)
+- Fixed fetchCategories: when dept === 'ALL', calls `/api/quiz/categories` without department parameter
+- Rebuilt PLAYING screen with Duolingo-style light theme:
+  - Background: `bg-gray-50` (light gray) instead of dark space theme
+  - Question card: white `bg-white` with `rounded-2xl`, subtle shadow, gray-200 border
+  - Answer options: white bg, `rounded-2xl`, `border-2`, `hover:border-emerald-400`
+  - Correct: `bg-emerald-500 text-white border-emerald-500` with green checkmark
+  - Wrong: `bg-red-500 text-white border-red-500` with red X and shake animation
+  - Reveal correct: `bg-emerald-50 border-emerald-400 text-emerald-700`
+  - Letter prefix: larger `w-9/w-10 h-9/h-10 rounded-xl` circles with dark/light states
+- Added DuoTimerBar component: horizontal emerald bar that shrinks, turns amber at 10s, red at 5s
+- Added full-width emerald progress bar at very top of playing screen
+- Added XPFloatingText component: "+N XP" animates upward and fades on correct answer
+- Made feedback screen light-themed (bg-gray-50) with emerald/red banners
+- Made results screen Duolingo-style with big grade circle (24/28 size), pastel stat cards
+- Category select: dark header with light body, category cards are white with emerald hover accents
+- Department select: kept dark theme, "All Topics" has emerald hover/glow
+- Stats bar on dept-select: staggered animation delay (0.7s instead of 0.6s)
+- All lifelines (50:50, Skip, +10s) restyled: white bg, gray-200 border, emerald hover
+- Kept all existing components: ScaleIcon, DIFF_STYLES, StarField, KBCOwl, ConfettiExplosion, XPParticles, CircularTimer, PrizeLadder
+- Kept all state management, API calls, timer logic, sound functions, animation hooks
+- Kept getCorrectFeedback, getWrongFeedback, getGrade functions
+- Verified: ESLint 0 errors, 0 warnings
+
+Stage Summary:
+- QuizPage.tsx completely rebuilt with Duolingo-style design
+- "All Topics" department added — fetches all categories without department filter
+- Playing screen uses light theme (white cards, gray-50 background, emerald accents)
+- Horizontal timer bar (emerald→amber→red) replaces dark circular timer as primary
+- Big rounded answer buttons with letter prefix circles
+- XP floating text animation on correct answers
+- Light-themed feedback popup between questions
+- Results screen with big grade circle and pastel stat cards
+- All existing functionality preserved (hearts, streaks, XP, lifelines, PrizeLadder)
+- ESLint: 0 errors, 0 warnings
+---
+Task ID: 3
+Agent: fullstack-developer
+Task: Rebuild Quick Quiz with Duolingo-style UI and fix all departments
+
+Work Log:
+- Read entire QuizPage.tsx (1371 lines) and all quiz API routes
+- Identified root cause: No "All Departments" option existed; fetchCategories always passed department param
+- Rebuilt QuizPage.tsx (1451 lines) with Duolingo-style design
+- Added "All Topics" as first department card with emerald gradient
+- Fixed fetchCategories to call API without ?department= when "ALL" selected
+- Verified API returns all 23 categories when no department filter applied
+
+Duolingo-style changes:
+- Playing screen: Light bg-gray-50 theme (was dark space theme)
+- Question card: White bg-white rounded-2xl shadow-sm
+- Answer buttons: Large rounded-2xl with emerald/red color states
+- Horizontal timer bar: Emerald bar shrinking, turns amber at ≤10s, red at ≤5s
+- Progress bar: Full-width emerald gradient at top
+- XP floating animation: +N XP floats up and fades on correct answer
+- Correct: bg-emerald-500 text-white with checkmark
+- Wrong: bg-red-500 text-white with shake, correct answer highlighted green
+- Hearts: Red hearts with bounce animation on loss
+- Feedback popup: Light bg with emerald/red banner and owl mascot
+- Results: Big grade circle, pastel stat cards
+- Category select: Light body with white cards and emerald hover
+
+Preserved:
+- All state management, API calls, timer logic, sound functions
+- All components: ScaleIcon, DIFF_STYLES, StarField, KBCOwl, ConfettiExplosion, XPParticles, CircularTimer, PrizeLadder
+- All lifelines (50:50, Skip, +10s), hearts system, streak/XP system
+- Profile persistence (streak, XP, total quizzes)
+
+ESLint: 0 errors, 0 warnings
+
+Stage Summary:
+- Quick Quiz now has "All Topics" option that fetches all 23 categories across all departments
+- Duolingo-style light theme for playing/feedback/results screens
+- All departments (CSE: 7, LLB: 5, EEE: 5, BBA: 6) verified working via API
+- Smooth animations, timer bar, XP popups, heart system all functional
