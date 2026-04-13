@@ -8,12 +8,20 @@ export async function GET(req: NextRequest) {
     const department = searchParams.get('department');
     const limit = parseInt(searchParams.get('limit') || '50', 10);
 
+    // Build where clause — filter by department via categoryId lookup
+    const whereClause: any = {};
+    if (department) {
+      const deptCategories = await db.quizCategory.findMany({
+        where: { department },
+        select: { id: true },
+      });
+      whereClause.categoryId = { in: deptCategories.map(c => c.id) };
+    }
+
     // Get best attempt per user
     const bestAttempts = await db.quizAttempt.groupBy({
       by: ['userId'],
-      where: department ? {
-        category: { department },
-      } : {},
+      where: whereClause,
       _max: { score: true, accuracy: true },
       _min: { timeTaken: true },
       _count: { id: true },
