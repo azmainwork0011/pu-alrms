@@ -96,7 +96,7 @@ const CATEGORIES = [
   { label: 'Saved Books', value: '__saved__', icon: Heart },
 ];
 
-const MAX_RESULTS = 12;
+const MAX_RESULTS = 24;
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 
@@ -234,16 +234,11 @@ function StarRating({
 
 function BookCardSkeleton() {
   return (
-    <div className="rounded-xl border dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden">
+    <div className="rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden">
       <Skeleton className="w-full aspect-[3/4]" />
-      <div className="p-2 space-y-2">
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-3/4" />
-        <Skeleton className="h-3 w-1/2" />
-        <div className="flex items-center justify-between pt-1">
-          <Skeleton className="h-5 w-20 rounded-full" />
-          <Skeleton className="h-4 w-16" />
-        </div>
+      <div className="p-1.5 space-y-1">
+        <Skeleton className="h-3 w-full" />
+        <Skeleton className="h-2.5 w-3/4" />
       </div>
     </div>
   );
@@ -253,8 +248,8 @@ function BookCardSkeleton() {
 
 function BookCoverFallback({ className = '' }: { className?: string }) {
   return (
-    <div className={`w-full aspect-[2/3] bg-gradient-to-br from-emerald-100 via-teal-50 to-cyan-100 dark:from-emerald-900/40 dark:via-teal-900/30 dark:to-cyan-900/40 flex items-center justify-center ${className}`}>
-      <BookOpen className="w-8 h-8 text-emerald-400 dark:text-emerald-600" />
+    <div className={`w-full aspect-[3/4] bg-gradient-to-br from-emerald-100 via-teal-50 to-cyan-100 dark:from-emerald-900/40 dark:via-teal-900/30 dark:to-cyan-900/40 flex items-center justify-center ${className}`}>
+      <BookOpen className="w-6 h-6 text-emerald-400 dark:text-emerald-600" />
     </div>
   );
 }
@@ -279,9 +274,9 @@ function BookCard({
       variants={cardFadeIn}
       className="group"
     >
-      <div className="rounded-xl border dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer h-full flex flex-col">
+      <div className="rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer h-full flex flex-col">
         {/* Cover Image */}
-        <div className="relative w-full aspect-[3/4] sm:aspect-[4/5] overflow-hidden bg-gray-100 dark:bg-gray-800">
+        <div className="relative w-full aspect-[3/4] overflow-hidden bg-gray-100 dark:bg-gray-800">
           {book.coverUrl ? (
             <img
               src={book.coverUrl}
@@ -302,7 +297,7 @@ function BookCard({
           <motion.button
             whileTap={{ scale: 0.75 }}
             onClick={(e) => onToggleSave(e, book)}
-            className="absolute top-1.5 right-1.5 sm:top-2 sm:right-2 z-10 w-8 h-8 sm:w-8 sm:h-8 rounded-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-white dark:hover:bg-gray-800 transition-colors"
+            className="absolute top-1 right-1 z-10 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white dark:hover:bg-gray-800 transition-colors"
           >
             <AnimatePresence mode="wait">
               <motion.div
@@ -313,7 +308,7 @@ function BookCard({
                 transition={{ type: 'spring', stiffness: 400, damping: 15 }}
               >
                 <Heart
-                  className={`w-4.5 h-4.5 ${
+                  className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${
                     isSaved
                       ? 'text-rose-500 fill-rose-500'
                       : 'text-gray-500 dark:text-gray-400'
@@ -323,52 +318,37 @@ function BookCard({
             </AnimatePresence>
           </motion.button>
 
-          {/* Source Badge */}
-          <div className="absolute bottom-2 left-2">
-            <Badge
-              variant="secondary"
-              className={`text-[9px] px-1.5 py-0.5 font-medium backdrop-blur-sm ${
-                book.source === 'google'
-                  ? 'bg-teal-100/90 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300 border-0'
-                  : 'bg-orange-100/90 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300 border-0'
-              }`}
-            >
-              {book.source === 'google' ? 'Google' : 'OpenLibrary'}
-            </Badge>
-          </div>
-
           {/* PDF Available Badge */}
           {book.pdfAvailable && book.pdfLink && (
-            <div className="absolute bottom-2 right-2">
-              <Badge className="text-[9px] px-1.5 py-0.5 font-medium bg-emerald-100/90 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-0 backdrop-blur-sm">
+            <div className="absolute bottom-1 left-1">
+              <Badge className="text-[8px] px-1 py-0 font-medium bg-emerald-100/90 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 border-0 backdrop-blur-sm leading-none">
                 PDF
               </Badge>
             </div>
           )}
+
+          {/* Source indicator - subtle dot */}
+          <div className="absolute bottom-1 right-1">
+            <div className={`w-2 h-2 rounded-full backdrop-blur-sm ${
+              book.source === 'google'
+                ? 'bg-teal-400/80'
+                : 'bg-orange-400/80'
+            }`} title={book.source === 'google' ? 'Google Books' : 'Open Library'} />
+          </div>
         </div>
 
-        {/* Card Content */}
-        <div className="p-2 sm:p-2.5 flex-1 flex flex-col min-h-0" onClick={onClick}>
-          <h3 className="text-xs sm:text-sm font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 leading-snug">
+        {/* Card Content - ultra compact */}
+        <div className="p-1.5 sm:p-2 flex-1 flex flex-col min-h-0" onClick={onClick}>
+          <h3 className="text-[11px] sm:text-xs font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 leading-tight">
             {book.title}
           </h3>
           {book.authors && (
-            <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5 sm:mt-1 line-clamp-1">
+            <p className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
               {book.authors}
             </p>
           )}
-          <div className="flex items-center justify-between mt-auto pt-2">
-            {book.categories?.length > 0 && (
-              <Badge
-                variant="outline"
-                className="text-[9px] px-1.5 py-0 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 shrink-0 max-w-[60%] truncate"
-              >
-                {book.categories[0]}
-              </Badge>
-            )}
-            <div className="ml-auto shrink-0">
-              <StarRating rating={book.averageRating} size="sm" />
-            </div>
+          <div className="flex items-center justify-end mt-auto pt-1">
+            <StarRating rating={book.averageRating} size="sm" />
           </div>
         </div>
       </div>
@@ -825,33 +805,33 @@ function WelcomeState({ onCategoryClick }: { onCategoryClick: (cat: string) => v
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="flex flex-col items-center justify-center py-10 sm:py-16 text-center"
+      className="flex flex-col items-center justify-center py-6 sm:py-10 text-center"
     >
       <motion.div
-        animate={{ y: [0, -6, 0] }}
+        animate={{ y: [0, -4, 0] }}
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-        className="mb-6"
+        className="mb-4"
       >
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-          <Library className="w-7 h-7 text-white" />
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md shadow-emerald-500/20">
+          <Library className="w-5 h-5 text-white" />
         </div>
       </motion.div>
-      <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+      <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 mb-1.5">
         Explore Our Digital Library
       </h2>
-      <p className="text-sm text-gray-500 dark:text-gray-400 max-w-md mb-6">
-        Search for books, browse by category, or save your favorites. Start by typing a query or selecting a category below.
+      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 max-w-sm mb-4 px-4">
+        Search for books, browse by category, or save your favorites.
       </p>
-      <div className="grid grid-cols-2 gap-3 px-4 max-w-md w-full">
+      <div className="grid grid-cols-2 gap-2 px-4 max-w-sm w-full">
         {featuredCategories.map((cat) => (
           <motion.button
             key={cat.value}
-            whileHover={{ scale: 1.04, y: -2 }}
-            whileTap={{ scale: 0.96 }}
+            whileHover={{ scale: 1.03, y: -1 }}
+            whileTap={{ scale: 0.97 }}
             onClick={() => onCategoryClick(cat.value)}
-            className="flex items-center gap-2 px-3 py-3 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all text-sm font-medium text-gray-700 dark:text-gray-300"
+            className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all text-xs font-medium text-gray-700 dark:text-gray-300"
           >
-            <cat.icon className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <cat.icon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="truncate">{cat.label}</span>
           </motion.button>
         ))}
@@ -873,17 +853,17 @@ function ErrorState({
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="flex flex-col items-center justify-center py-10 text-center"
+      className="flex flex-col items-center justify-center py-8 text-center"
     >
-      <div className="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-4">
-        <AlertCircle className="w-6 h-6 text-red-500 dark:text-red-400" />
+      <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-3">
+        <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400" />
       </div>
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
         Something went wrong
       </h3>
-      <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm mb-4">{message}</p>
-      <Button variant="outline" onClick={onRetry} className="gap-2">
-        <RefreshCw className="w-4 h-4" />
+      <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xs mb-3 px-4">{message}</p>
+      <Button variant="outline" onClick={onRetry} className="gap-1.5 text-xs h-9">
+        <RefreshCw className="w-3.5 h-3.5" />
         Try Again
       </Button>
     </motion.div>
@@ -897,17 +877,17 @@ function EmptyResults({ query }: { query: string }) {
     <motion.div
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
-      className="flex flex-col items-center justify-center py-10 text-center"
+      className="flex flex-col items-center justify-center py-8 text-center"
     >
-      <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4">
-        <Search className="w-6 h-6 text-gray-400 dark:text-gray-500" />
+      <div className="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-3">
+        <Search className="w-5 h-5 text-gray-400 dark:text-gray-500" />
       </div>
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-2">
+      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
         No books found
       </h3>
-      <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
+      <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xs px-4">
         {query
-          ? `No results for "${query}". Try different keywords or browse a category.`
+          ? `No results for "${query}". Try different keywords.`
           : 'No books found in this category. Try a different one.'}
       </p>
     </motion.div>
@@ -1307,34 +1287,34 @@ export default function BooksPage() {
   // ═══════════════════════════════════════════════════════════════════
 
   return (
-    <div className="space-y-5 overflow-x-hidden px-2 sm:px-0 pb-safe" style={{ WebkitOverflowScrolling: 'touch' }}>
+    <div className="space-y-3 overflow-x-hidden px-1 sm:px-0 pb-safe" style={{ WebkitOverflowScrolling: 'touch' }}>
       {/* ─── Header ──────────────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="space-y-4"
+        className="space-y-3"
       >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-md shadow-emerald-500/15">
-              <Library className="w-4 h-4 text-white" />
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-sm shadow-emerald-500/15">
+              <Library className="w-3.5 h-3.5 text-white" />
             </div>
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg font-bold text-gray-900 dark:text-gray-100">
                 Digital Library
               </h1>
-              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-[10px] sm:text-xs text-gray-500 dark:text-gray-400 truncate">
                 Search, browse, and save your favorite books
               </p>
             </div>
           </div>
 
           {/* Language Toggle */}
-          <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-lg p-0.5 shrink-0">
+          <div className="flex items-center bg-gray-100 dark:bg-gray-800 rounded-md p-0.5 shrink-0">
             <button
               onClick={() => handleLanguageChange('en')}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+              className={`px-2 sm:px-2.5 py-1 rounded-md text-[10px] sm:text-xs font-medium transition-all duration-200 ${
                 language === 'en'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
@@ -1345,7 +1325,7 @@ export default function BooksPage() {
             </button>
             <button
               onClick={() => handleLanguageChange('bn')}
-              className={`px-2.5 sm:px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+              className={`px-2 sm:px-2.5 py-1 rounded-md text-[10px] sm:text-xs font-medium transition-all duration-200 ${
                 language === 'bn'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
@@ -1360,20 +1340,20 @@ export default function BooksPage() {
         {/* Search Bar */}
         <form onSubmit={handleSearchSubmit} className="relative">
           <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500 pointer-events-none" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 dark:text-gray-500 pointer-events-none" />
             <Input
               ref={searchInputRef}
               type="text"
               placeholder={
                 language === 'bn'
                   ? 'বই খুঁজুন...'
-                  : 'Search for books by title, author, or topic...'
+                  : 'Search by title, author, or topic...'
               }
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="h-10 pl-10 pr-16 text-sm bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 rounded-xl shadow-sm focus-visible:shadow-md focus-visible:border-emerald-400 focus-visible:ring-emerald-400/20 transition-all"
+              className="h-9 pl-9 pr-14 text-xs sm:text-sm bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 rounded-lg shadow-sm focus-visible:shadow-md focus-visible:border-emerald-400 focus-visible:ring-emerald-400/20 transition-all"
             />
-            <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
               {query && (
                 <button
                   type="button"
@@ -1382,15 +1362,15 @@ export default function BooksPage() {
                     setDebouncedQuery('');
                     searchInputRef.current?.focus();
                   }}
-                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                 >
-                  <X className="w-4 h-4 text-gray-400" />
+                  <X className="w-3.5 h-3.5 text-gray-400" />
                 </button>
               )}
               <Button
                 type="submit"
                 size="sm"
-                className="h-9 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-medium"
+                className="h-7 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-[11px] font-medium"
               >
                 Search
               </Button>
@@ -1407,13 +1387,13 @@ export default function BooksPage() {
         className="relative"
       >
         {/* Left gradient fade */}
-        <div className="absolute left-0 top-0 bottom-0 w-4 sm:w-8 bg-gradient-to-r from-white dark:from-gray-950 to-transparent z-10 pointer-events-none rounded-l-lg" />
+        <div className="absolute left-0 top-0 bottom-0 w-3 sm:w-6 bg-gradient-to-r from-white dark:from-gray-950 to-transparent z-10 pointer-events-none rounded-l-lg" />
         {/* Right gradient fade */}
-        <div className="absolute right-0 top-0 bottom-0 w-4 sm:w-8 bg-gradient-to-l from-white dark:from-gray-950 to-transparent z-10 pointer-events-none rounded-r-lg" />
+        <div className="absolute right-0 top-0 bottom-0 w-3 sm:w-6 bg-gradient-to-l from-white dark:from-gray-950 to-transparent z-10 pointer-events-none rounded-r-lg" />
 
         <div
           ref={categoryScrollRef}
-          className="flex gap-2 overflow-x-auto py-1 px-1 -mx-1 snap-x [&::-webkit-scrollbar]:hidden"
+          className="flex gap-1.5 overflow-x-auto py-0.5 px-0.5 -mx-0.5 snap-x [&::-webkit-scrollbar]:hidden"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
         >
           {CATEGORIES.map((cat) => {
@@ -1424,13 +1404,13 @@ export default function BooksPage() {
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.96 }}
                 onClick={() => handleCategoryClick(cat.value)}
-                className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-full text-xs font-medium whitespace-nowrap shrink-0 transition-all duration-200 border snap-start ${
+                className={`flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium whitespace-nowrap shrink-0 transition-all duration-200 border snap-start ${
                   isActive
                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-500/25'
                     : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800 hover:border-emerald-300 dark:hover:border-emerald-700 hover:text-emerald-700 dark:hover:text-emerald-400'
                 }`}
               >
-                <cat.icon className="w-3.5 h-3.5" />
+                <cat.icon className="w-3 h-3" />
                 <span className="hidden sm:inline">{cat.label}</span>
                 <span className="sm:hidden">{cat.label.split(' (')[0]}</span>
               </motion.button>
@@ -1481,16 +1461,16 @@ export default function BooksPage() {
       )}
 
       {/* ─── Content Area ────────────────────────────────────────────── */}
-      <div className="min-h-[400px]">
+      <div className="min-h-[300px]">
         {/* Initial loading skeletons */}
         {loading && !books.length && (
           <motion.div
             variants={staggerContainer}
             initial="hidden"
             animate="visible"
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4"
+            className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2 sm:gap-3"
           >
-            {Array.from({ length: 12 }).map((_, i) => (
+            {Array.from({ length: 24 }).map((_, i) => (
               <motion.div key={i} variants={cardFadeIn}>
                 <BookCardSkeleton />
               </motion.div>
@@ -1519,7 +1499,7 @@ export default function BooksPage() {
               initial="hidden"
               animate="visible"
               key={`${activeCategory}-${debouncedQuery}-${language}-${page}`}
-              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4"
+              className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2 sm:gap-3"
             >
               {books.map((book, index) => (
                 <BookCard
@@ -1535,13 +1515,13 @@ export default function BooksPage() {
 
             {/* Load More */}
             {hasMore && !isSavedTab && (
-              <div className="flex justify-center mt-6 px-2 sm:px-0">
+              <div className="flex justify-center mt-4 px-2 sm:px-0">
                 <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full sm:w-auto">
                   <Button
                     variant="outline"
                     onClick={handleLoadMore}
                     disabled={loadingMore}
-                    className="w-full sm:w-auto sm:min-w-[160px] h-10 border-gray-300 dark:border-gray-700 rounded-xl gap-2 text-sm"
+                    className="w-full sm:w-auto sm:min-w-[140px] h-8 border-gray-300 dark:border-gray-700 rounded-lg gap-1.5 text-xs"
                   >
                     {loadingMore ? (
                       <>
@@ -1565,8 +1545,8 @@ export default function BooksPage() {
 
         {/* Loading More Indicator */}
         {loadingMore && books.length > 0 && (
-          <div className="flex justify-center mt-6">
-            <Loader2 className="w-6 h-6 animate-spin text-emerald-500" />
+          <div className="flex justify-center mt-4">
+            <Loader2 className="w-5 h-5 animate-spin text-emerald-500" />
           </div>
         )}
       </div>
