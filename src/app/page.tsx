@@ -1,29 +1,12 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useAppStore } from '@/store/app';
-import AuthPage from '@/components/pages/AuthPage';
-import AppLayout from '@/components/layout/AppLayout';
 
-// ─── Static Loading Shell ──────────────────────────────
-// This renders IDENTICAL HTML on server and client.
-// No animations, no dynamic classes, no browser APIs.
-// The real UI is swapped in only after client-side mount.
-function LoadingShell() {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50">
-      <div className="flex flex-col items-center gap-5">
-        <div className="relative w-20 h-20 rounded-2xl overflow-hidden shadow-xl border-2 border-white/60">
-          <img src="/logo.png" alt="PU-ALRMS" className="w-full h-full object-cover" />
-        </div>
-        <div className="text-center">
-          <h2 className="text-lg font-bold text-gray-900">PU-ALRMS</h2>
-          <p className="text-sm text-gray-500 mt-1">Loading your experience...</p>
-        </div>
-      </div>
-    </div>
-  );
-}
+// ─── Client-only page imports (no SSR → no hydration) ──────
+const AuthPage = dynamic(() => import('@/components/pages/AuthPage'), { ssr: false });
+const AppLayout = dynamic(() => import('@/components/layout/AppLayout'), { ssr: false });
 
 // ─── Error Fallback ───────────────────────────────────────
 function ErrorFallback({ error, onRetry }: { error: Error; onRetry: () => void }) {
@@ -56,6 +39,9 @@ export default function Home() {
 
   // ── Mount gate: client-only after this point ──
   useEffect(() => {
+    // Mark document as hydrated (hides CSS-only loading overlay)
+    document.documentElement.classList.add('hydrated');
+
     // Hydrate auth state from localStorage (has its own try/catch)
     useAppStore.getState().hydrate();
     setMounted(true);
@@ -89,12 +75,17 @@ export default function Home() {
     window.location.reload();
   }, []);
 
-  // ── Server + pre-mount client: render identical static shell ──
-  if (!mounted) {
-    return <LoadingShell />;
-  }
+  // ── Server + pre-mount client: render NOTHING ──
+  // Both server and client output identical empty content.
+  // The CSS-only loading overlay (on <html> pseudo-elements) provides
+  // visual feedback during this brief period.
+  // No browser extension can cause a mismatch because there is no
+  // server-rendered markup to conflict with.
+  if (!mounted) return null;
 
-  // ── Client-only after mount: read store and render real UI ──
+  // ── Client-only after mount: render real UI ──
+  // These are loaded with ssr: false, so they render client-side only.
+  // No hydration occurs for these components.
   if (error) {
     return <ErrorFallback error={error} onRetry={handleRetry} />;
   }

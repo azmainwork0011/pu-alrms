@@ -112,6 +112,45 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* ─── CSS-only loading overlay ───────────────────────────────
+   Shows before React hydrates. Uses <html> pseudo-elements so
+   it is NOT part of React's DOM tree — immune to browser extension
+   injections and cannot cause hydration mismatches.
+   Hidden when <html> gets class="hydrated" (added by page.tsx on mount). */
+html:not(.hydrated)::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: linear-gradient(135deg, #ecfdf5 0%, #ffffff 50%, #f0fdfa 100%);
+  pointer-events: none;
+}
+
+html:not(.hydrated)::after {
+  content: '';
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  margin-top: -22px;
+  margin-left: -22px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #059669;
+  border-radius: 50%;
+  z-index: 100000;
+  animation: pu-spin 0.8s linear infinite;
+}
+
+html.hydrated::before,
+html.hydrated::after {
+  display: none !important;
+}
+
+@keyframes pu-spin {
+  to { transform: rotate(360deg); }
+}
+
 @layer base {
   *,
   *::before,
