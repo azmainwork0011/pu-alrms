@@ -112,8 +112,8 @@ function AnnouncementsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <Megaphone className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <Megaphone className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 dark:text-emerald-400" />
             Announcements
           </h1>
           <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">
@@ -123,7 +123,7 @@ function AnnouncementsPage() {
         {canCreate && (
           <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
             <Button onClick={() => { setShowCreate(true); setEditId(null); setForm({ title: '', message: '', type: 'GENERAL', priority: 'NORMAL' }); }} className="bg-emerald-600 hover:bg-emerald-700">
-              <Plus className="w-4 h-4 mr-2" /> New Announcement
+              <Plus className="w-4 h-4 mr-1.5" /><span className="hidden sm:inline">New Announcement</span><span className="sm:hidden">New</span>
             </Button>
           </motion.div>
         )}
@@ -187,7 +187,7 @@ function AnnouncementsPage() {
       {/* Announcements List */}
       {announcements.length === 0 ? (
         <Card className="border dark:border-gray-800">
-          <CardContent className="p-12 text-center">
+          <CardContent className="p-8 sm:p-12 text-center">
             <Megaphone className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
             <p className="text-gray-500 dark:text-gray-400">No announcements yet</p>
             {canCreate && <p className="text-gray-400 dark:text-gray-500 text-sm mt-1">Create the first announcement to notify all students</p>}
@@ -204,11 +204,11 @@ function AnnouncementsPage() {
                       {getPriorityIcon(ann.priority)}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <h3 className="font-semibold text-gray-900 dark:text-white">{ann.title}</h3>
+                          <h3 className="font-semibold text-gray-900 dark:text-white truncate">{ann.title}</h3>
                           <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${getTypeStyle(ann.type)}`}>{ann.type}</span>
                           {ann.priority === 'CRITICAL' && <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300">CRITICAL</span>}
                         </div>
-                        <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">{ann.message}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap line-clamp-4">{ann.message}</p>
                         <div className="flex items-center gap-3 mt-2 text-xs text-gray-400 dark:text-gray-500">
                           <span className="flex items-center gap-1"><UserIcon className="w-3 h-3" />{ann.creator?.name || 'Unknown'}</span>
                           <span>{timeAgo(ann.createdAt)}</span>

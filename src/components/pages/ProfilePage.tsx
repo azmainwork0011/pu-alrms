@@ -271,7 +271,7 @@ function ProfilePage() {
   const roleGlow = role === 'ADMIN' ? 'shadow-red-300/40 dark:shadow-red-900/20' : role === 'TEACHER' ? 'shadow-emerald-300/40 dark:shadow-emerald-900/20' : role === 'CR' ? 'shadow-violet-300/40 dark:shadow-violet-900/20' : 'shadow-amber-300/40 dark:shadow-amber-900/20';
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <div className="max-w-3xl mx-auto space-y-5 pb-safe">
       {/* ══════════════════════════════════════════════════════════ */}
       {/* HERO: Cover + Avatar + Name                               */}
       {/* ══════════════════════════════════════════════════════════ */}
@@ -304,7 +304,7 @@ function ProfilePage() {
             <button
               type="button"
               onClick={() => pickFile('cover')}
-              className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-black/40 hover:bg-black/60 text-white/80 hover:text-white transition-all backdrop-blur-md text-xs font-medium"
+              className="absolute top-3 right-3 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-black/40 hover:bg-black/60 active:bg-black/70 text-white/80 hover:text-white transition-all backdrop-blur-md text-xs font-medium min-h-[44px]"
               disabled={!!uploading}
             >
               {uploading === 'cover' ? (
@@ -338,13 +338,13 @@ function ProfilePage() {
                 <button
                   type="button"
                   onClick={() => pickFile('avatar')}
-                  className="absolute inset-0 bg-black/0 hover:bg-black/50 transition-all duration-200 flex items-center justify-center group"
+                  className="absolute inset-0 bg-black/30 sm:bg-black/0 hover:bg-black/50 sm:hover:bg-black/50 transition-all duration-200 flex items-center justify-center group"
                   disabled={!!uploading}
                 >
                   {uploading === 'avatar' ? (
                     <div className="w-6 h-6 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
-                    <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-all">
+                    <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-sm px-3 py-2 rounded-lg opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-all">
                       <Camera className="w-4 h-4 text-white" />
                       <span className="text-xs text-white font-medium">Change</span>
                     </div>

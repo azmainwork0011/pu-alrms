@@ -274,12 +274,12 @@ function StudentCommunityPage() {
   const currentRoomInfo = rooms.find(r => r.id === activeRoom);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)] gap-4">
+    <div className="flex flex-col h-[calc(100vh-8.5rem)] sm:h-[calc(100vh-8rem)] gap-3 sm:gap-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-              <MessageSquare className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600 dark:text-emerald-400" />
               Community Chat
             </h1>
             <p className="text-gray-500 dark:text-gray-400 text-sm mt-0.5">
@@ -386,7 +386,7 @@ function StudentCommunityPage() {
 
       {/* Chat Card */}
       <Card className="border dark:border-gray-800 flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3">
           {!isJoined ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
@@ -426,7 +426,7 @@ function StudentCommunityPage() {
                       </div>
                       <div className="mt-1">
                         {msg.messageType === 'IMAGE' && msg.content ? (
-                          <img src={msg.content} alt="Shared" className="rounded-lg max-h-48 object-contain cursor-pointer hover:opacity-90 transition-opacity bg-gray-50 dark:bg-gray-800/50" />
+                          <img src={msg.content} alt="Shared" className="rounded-lg max-h-48 max-w-[200px] sm:max-w-[260px] object-contain cursor-pointer hover:opacity-90 transition-opacity bg-gray-50 dark:bg-gray-800/50" />
                         ) : msg.messageType === 'FILE' && msg.fileUrl ? (
                           <div className="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-800 border dark:border-gray-700">
                             <Paperclip className="w-4 h-4 text-gray-400" />
@@ -461,7 +461,7 @@ function StudentCommunityPage() {
         <div className="border-t p-3 dark:border-gray-800">
           <form onSubmit={(e) => { e.preventDefault(); sendMessage(); }} className="flex gap-2 items-end">
             <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.pdf,.doc,.docx,.txt,.zip" onChange={handleFileSelect} />
-            <Button type="button" variant="ghost" size="icon" className="shrink-0 h-10 w-10 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800" onClick={() => fileInputRef.current?.click()} disabled={!isConnected || !isJoined}>
+            <Button type="button" variant="ghost" size="icon" className="shrink-0 h-11 w-11 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800" onClick={() => fileInputRef.current?.click()} disabled={!isConnected || !isJoined}>
               <Paperclip className="w-4 h-4" />
             </Button>
             <div className="flex-1 relative">
@@ -475,7 +475,7 @@ function StudentCommunityPage() {
                 className="pr-10 dark:bg-gray-800 dark:border-gray-700"
               />
             </div>
-            <Button type="submit" disabled={!isConnected || !isJoined || !inputMessage.trim()} className="bg-emerald-600 hover:bg-emerald-700 shrink-0 h-10 w-10 p-0">
+            <Button type="submit" disabled={!isConnected || !isJoined || !inputMessage.trim()} className="bg-emerald-600 hover:bg-emerald-700 shrink-0 h-11 w-11 p-0">
               <Send className="w-4 h-4" />
             </Button>
           </form>

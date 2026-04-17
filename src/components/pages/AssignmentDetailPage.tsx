@@ -391,7 +391,7 @@ function AssignmentDetailPage() {
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="text-xs h-7 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400"
+                                  className="text-xs h-9 sm:h-7 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400"
                                   onClick={() => openGradeDialog(s.id)}
                                 >
                                   <PenTool className="w-3 h-3 mr-1" /> Grade

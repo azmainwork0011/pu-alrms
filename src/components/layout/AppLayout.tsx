@@ -191,7 +191,7 @@ export default function AppLayout() {
               </h2>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 sm:gap-2">
               <ThemeToggle />
 
               <Button
@@ -240,7 +240,7 @@ export default function AppLayout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 md:p-6">
+        <main className="flex-1 p-4 pb-[env(safe-area-inset-bottom)] md:p-6">
           <PageTransition keyProp={currentPage}>
             {renderPage()}
           </PageTransition>

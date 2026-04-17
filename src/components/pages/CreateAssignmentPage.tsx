@@ -217,7 +217,7 @@ function CreateAssignmentPage() {
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.98 }}
                       onClick={() => setForm({ ...form, type: t.value })}
-                      className={`relative p-4 rounded-xl border-2 text-left transition-all ${
+                      className={`relative p-3 sm:p-4 rounded-xl border-2 text-left transition-all ${
                         form.type === t.value
                           ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 shadow-sm'
                           : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600'
@@ -286,7 +286,7 @@ function CreateAssignmentPage() {
                   <button
                     type="button"
                     onClick={() => { setForm(prev => ({ ...prev, subjectId: '' })); setSubjectSearch(''); }}
-                    className="p-1.5 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/40 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                    className="p-2 h-9 w-9 rounded-lg hover:bg-violet-100 dark:hover:bg-violet-900/40 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors flex items-center justify-center"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -302,7 +302,7 @@ function CreateAssignmentPage() {
                     <button
                       type="button"
                       onClick={() => { setShowNewSubjectForm(false); setNewSubject({ name: '', code: '' }); }}
-                      className="p-1 rounded hover:bg-violet-100 dark:hover:bg-violet-900/40 text-gray-400"
+                      className="p-1.5 h-8 w-8 rounded hover:bg-violet-100 dark:hover:bg-violet-900/40 text-gray-400 flex items-center justify-center"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
