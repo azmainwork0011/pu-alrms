@@ -58,6 +58,20 @@ function AnimatedBg() {
   );
 }
 
+// ─── Network Error Detection ────────────────────────────
+function isNetworkError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    msg.includes('Failed to fetch') ||
+    msg.includes('NetworkError') ||
+    msg.includes('Network request failed') ||
+    msg.includes('net::ERR_') ||
+    msg.includes('Aborted') ||
+    msg.includes('timeout') ||
+    msg.includes('ECONNREFUSED')
+  );
+}
+
 function AuthPage() {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [loading, setLoading] = useState(false);
@@ -107,16 +121,22 @@ function AuthPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Prevent double-submission
+    if (loading) return;
     setLoading(true);
     try {
       const result = activeTab === 'login'
         ? await authApi.login(formData.email, formData.password)
         : await authApi.register(formData);
       setAuth(result.user, result.token);
-      localStorage.removeItem('login-email');
+      try { localStorage.removeItem('login-email'); } catch {}
       toast.success(activeTab === 'login' ? 'Welcome back!' : 'Account created successfully!');
     } catch (err: any) {
-      toast.error(err.message || 'Authentication failed');
+      if (isNetworkError(err)) {
+        toast.error('Network error — please check your connection and try again');
+      } else {
+        toast.error(err.message || 'Authentication failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -132,6 +152,7 @@ function AuthPage() {
       toast.error('Please enter a valid email address');
       return;
     }
+    if (googleLoading) return;
     setGoogleLoading(true);
     try {
       const result = await authApi.googleAuth({
@@ -143,7 +164,11 @@ function AuthPage() {
       toast.success(result.isExisting ? `Welcome back, ${result.user.name}!` : `Account created via Google for ${result.user.name}!`);
       setGoogleOpen(false);
     } catch (err: any) {
-      toast.error(err.message || 'Google sign-in failed');
+      if (isNetworkError(err)) {
+        toast.error('Network error — please check your connection and try again');
+      } else {
+        toast.error(err.message || 'Google sign-in failed');
+      }
     } finally {
       setGoogleLoading(false);
     }
@@ -151,6 +176,7 @@ function AuthPage() {
 
   // ─── Temp Email Handler ─────────────────────────────────
   const handleTempEmailAuth = async () => {
+    if (tempLoading) return;
     setTempLoading(true);
     try {
       const result = await authApi.tempEmailAuth(tempName.trim() || undefined);
@@ -158,7 +184,11 @@ function AuthPage() {
       toast.success(`Welcome! Your temp email: ${result.tempEmail}`);
       setTempEmailOpen(false);
     } catch (err: any) {
-      toast.error(err.message || 'Temp login failed');
+      if (isNetworkError(err)) {
+        toast.error('Network error — please check your connection and try again');
+      } else {
+        toast.error(err.message || 'Temp login failed');
+      }
     } finally {
       setTempLoading(false);
     }
@@ -171,15 +201,20 @@ function AuthPage() {
   ];
 
   const quickLogin = async (email: string, password: string) => {
+    if (loading) return;
     setLoading(true);
     try {
       const result = await authApi.login(email, password);
       setAuth(result.user, result.token);
-      localStorage.removeItem('login-email');
+      try { localStorage.removeItem('login-email'); } catch {}
       toast.success('Welcome back!');
     } catch (err: any) {
-      localStorage.setItem('login-email', email);
-      toast.error(err.message || 'Login failed');
+      try { localStorage.setItem('login-email', email); } catch {}
+      if (isNetworkError(err)) {
+        toast.error('Network error — please check your connection and try again');
+      } else {
+        toast.error(err.message || 'Login failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -316,11 +351,12 @@ function AuthPage() {
                     <Input
                       id="email"
                       type="email"
+                      autoComplete="email"
                       placeholder={activeTab === 'login' ? currentRole.placeholder : 'you@pu.edu'}
                       value={formData.email}
                       onChange={(e) => {
                         setFormData({ ...formData, email: e.target.value });
-                        localStorage.setItem('login-email', e.target.value);
+                        try { localStorage.setItem('login-email', e.target.value); } catch {}
                       }}
                       required
                       className="pl-10 h-11 bg-gray-50/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700 focus:border-emerald-400 dark:focus:border-emerald-500 transition-colors"
@@ -341,6 +377,7 @@ function AuthPage() {
                     <Input
                       id="password"
                       type={showPassword ? 'text' : 'password'}
+                      autoComplete={activeTab === 'register' ? 'new-password' : 'current-password'}
                       placeholder="Enter password"
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}

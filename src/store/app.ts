@@ -84,11 +84,18 @@ export const useAppStore = create<AppState>((set) => ({
   notificationCount: 0,
 
   setAuth: (user, token) => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(user));
-    }
+    // Always update Zustand state first (guaranteed to work)
     set({ user, token, isAuthenticated: true });
+    // Persist to localStorage — failures are silently ignored so login never gets stuck
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(user));
+      } catch {
+        // localStorage might be full, blocked (private mode), or unavailable
+        // User is still logged in for this session; they'll just need to re-login on next visit
+      }
+    }
   },
 
   updateUser: (data) => set((state) => {
@@ -101,8 +108,14 @@ export const useAppStore = create<AppState>((set) => ({
 
   logout: () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      try {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('login-email');
+        localStorage.removeItem('login-role');
+      } catch {
+        // Ignore localStorage errors during logout
+      }
     }
     set({ user: null, token: null, isAuthenticated: false, currentPage: 'dashboard', notificationCount: 0 });
   },
@@ -115,13 +128,17 @@ export const useAppStore = create<AppState>((set) => ({
 
   hydrate: () => {
     try {
+      if (typeof window === 'undefined') {
+        set({ mounted: true });
+        return;
+      }
       const token = localStorage.getItem('token');
       const userStr = localStorage.getItem('user');
       if (token && userStr) {
         // Check token expiry client-side to avoid dashboard flash
         if (isTokenExpired(token)) {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
+          try { localStorage.removeItem('token'); } catch {}
+          try { localStorage.removeItem('user'); } catch {}
           set({ user: null, token: null, isAuthenticated: false, mounted: true });
           return;
         }
@@ -131,9 +148,9 @@ export const useAppStore = create<AppState>((set) => ({
         set({ mounted: true });
       }
     } catch {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      set({ mounted: true });
+      try { localStorage.removeItem('token'); } catch {}
+      try { localStorage.removeItem('user'); } catch {}
+      set({ user: null, token: null, isAuthenticated: false, mounted: true });
     }
   },
 }));

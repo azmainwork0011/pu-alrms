@@ -1,5 +1,8 @@
 const API_BASE = '';
 
+// Default request timeout (15 seconds)
+const DEFAULT_TIMEOUT = 15000;
+
 // Auth endpoints where 401 means "wrong credentials" (not expired session)
 const AUTH_ENDPOINTS = ['/api/auth/login', '/api/auth/register', '/api/auth/temp-email', '/api/auth/google'];
 
@@ -10,19 +13,51 @@ let authExpiredTimer: ReturnType<typeof setTimeout> | null = null;
 function handleAuthExpired() {
   if (authExpiredFired) return; // Already handled recently
   authExpiredFired = true;
-  localStorage.removeItem('token');
-  localStorage.removeItem('user');
+  try { localStorage.removeItem('token'); } catch {}
+  try { localStorage.removeItem('user'); } catch {}
   window.dispatchEvent(new Event('auth-expired'));
   // Reset after 2 seconds to allow future auth-expired events
   if (authExpiredTimer) clearTimeout(authExpiredTimer);
   authExpiredTimer = setTimeout(() => { authExpiredFired = false; }, 2000);
 }
 
+// Create a fetch with timeout to prevent infinite loading
+function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs = DEFAULT_TIMEOUT): Promise<Response> {
+  const controller = new AbortController();
+  const { signal, ...restOptions } = options;
+
+  // If the caller already provided a signal, link it to our controller
+  const linkedSignal = signal
+    ? AbortSignal.any([signal, controller.signal])
+    : controller.signal;
+
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  return fetch(url, { ...restOptions, signal: linkedSignal })
+    .then((response) => {
+      clearTimeout(timeoutId);
+      return response;
+    })
+    .catch((err) => {
+      clearTimeout(timeoutId);
+      // Convert AbortError to a more descriptive message
+      if (err instanceof DOMException && err.name === 'AbortError') {
+        throw new Error('Request timed out — please check your connection and try again');
+      }
+      throw err;
+    });
+}
+
 export async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = localStorage.getItem('token');
+  let token: string | null;
+  try {
+    token = localStorage.getItem('token');
+  } catch {
+    token = null;
+  }
   
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -32,15 +67,19 @@ export async function apiFetch<T>(
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
+
+  // Use longer timeout for auth endpoints (server might be slow)
+  const isAuthEndpoint = AUTH_ENDPOINTS.some(ep => endpoint.startsWith(ep));
+  const timeout = isAuthEndpoint ? 20000 : DEFAULT_TIMEOUT;
   
-  const response = await fetch(`${API_BASE}${endpoint}`, {
+  const response = await fetchWithTimeout(`${API_BASE}${endpoint}`, {
     ...options,
     headers,
-  });
+  }, timeout);
   
   if (!response.ok) {
     // Handle token expiry: only for non-auth endpoints (where 401 means expired session)
-    if (response.status === 401 && !AUTH_ENDPOINTS.some(ep => endpoint.startsWith(ep))) {
+    if (response.status === 401 && !isAuthEndpoint) {
       handleAuthExpired();
     }
     const error = await response.json().catch(() => ({ error: 'Request failed' }));
@@ -73,15 +112,16 @@ export const authApi = {
     }),
 
   uploadProfilePhoto: (file: File, type: 'avatar' | 'cover') => {
-    const token = localStorage.getItem('token');
+    let token: string | null;
+    try { token = localStorage.getItem('token'); } catch { token = null; }
     const formData = new FormData();
     formData.append('file', file);
     formData.append('type', type);
-    return fetch('/api/auth/profile', {
+    return fetchWithTimeout('/api/auth/profile', {
       method: 'PUT',
       headers: token ? { Authorization: `Bearer ${token}` } : {},
       body: formData,
-    }).then(async (res) => {
+    }, 30000).then(async (res) => {
       if (!res.ok) {
         const error = await res.json().catch(() => ({ error: 'Upload failed' }));
         throw new Error(error.error || `HTTP ${res.status}`);
@@ -97,12 +137,12 @@ export const authApi = {
     }),
 
   tempEmailAuth: (name?: string) => {
-    // Use raw fetch for temp email to avoid auth-expired interference
-    return fetch('/api/auth/temp-email', {
+    // Use raw fetchWithTimeout for temp email to avoid auth-expired interference
+    return fetchWithTimeout('/api/auth/temp-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name }),
-    }).then(async (res) => {
+    }, 20000).then(async (res) => {
       if (!res.ok) {
         const error = await res.json().catch(() => ({ error: 'Temp login failed' }));
         throw new Error(error.error || `HTTP ${res.status}`);
