@@ -15,8 +15,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Separator } from '@/components/ui/separator';
 import { useAppStore } from '@/store/app';
 import { assignmentApi, submissionApi, subjectApi } from '@/lib/api';
-import { Search, BookOpen, Calendar, Plus, MoreHorizontal, Edit, Trash2, Eye, UsersRound, Copy, Clock, CheckCircle2, AlertCircle } from 'lucide-react';
-import { getTypeBadgeVariant, getStatusColor, safeFormat, safeIsPast } from '@/components/pu-helpers';
+import {
+  Search, BookOpen, Calendar, Plus, MoreHorizontal, Edit, Trash2, Eye,
+  UsersRound, Copy, Clock, CheckCircle2, AlertCircle, GraduationCap,
+  FileText, FlaskConical,
+} from 'lucide-react';
+import { getTypeBadgeVariant, getStatusColor, safeFormat, safeIsPast, getInitials } from '@/components/pu-helpers';
+
+// ══════════════════════════════════════════════════════════════
+// Animation Variants
+// ══════════════════════════════════════════════════════════════
+const fadeUp = { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 } };
 
 function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
   const { user, setPage, setAssignmentId } = useAppStore();
@@ -41,6 +50,7 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const canManage = user?.role === 'TEACHER' || user?.role === 'ADMIN' || user?.role === 'CR';
+  const isLabReport = type === 'LAB_REPORT';
 
   const loadAssignments = useCallback(async () => {
     try {
@@ -67,6 +77,14 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
     return () => { cancelled = true; };
   }, [loadAssignments]);
 
+  // Close menu on outside click
+  useEffect(() => {
+    if (!openMenuId) return;
+    const handler = () => setOpenMenuId(null);
+    setTimeout(() => document.addEventListener('click', handler), 0);
+    return () => document.removeEventListener('click', handler);
+  }, [openMenuId]);
+
   const filtered = assignments.filter((a: any) => {
     if (filterSubject !== 'all' && a.subjectId !== filterSubject) return false;
     if (search && !a.title.toLowerCase().includes(search.toLowerCase())) return false;
@@ -76,7 +94,8 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
   const getSubmissionStatus = (assignmentId: string) => submissions.find((s: any) => s.assignmentId === assignmentId);
 
   // ─── Edit Handler ─────────────────────────────────
-  const openEdit = (a: any) => {
+  const openEdit = (e: React.MouseEvent, a: any) => {
+    e.stopPropagation();
     setEditForm({
       id: a.id,
       title: a.title,
@@ -106,7 +125,8 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
   };
 
   // ─── Duplicate Handler ───────────────────────────
-  const handleDuplicate = async (a: any) => {
+  const handleDuplicate = async (e: React.MouseEvent, a: any) => {
+    e.stopPropagation();
     setOpenMenuId(null);
     try {
       await assignmentApi.create({
@@ -123,7 +143,12 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
   };
 
   // ─── Delete Handler ──────────────────────────────
-  const openDelete = (a: any) => { setDeleteTarget(a); setDeleteOpen(true); setOpenMenuId(null); };
+  const openDelete = (e: React.MouseEvent, a: any) => {
+    e.stopPropagation();
+    setDeleteTarget(a);
+    setDeleteOpen(true);
+    setOpenMenuId(null);
+  };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -139,59 +164,110 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
   };
 
   return (
-    <div className="space-y-6">
-      {/* ─── Header ─────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            {type === 'LAB_REPORT' ? '🔬 Lab Reports' : '📝 Assignments'}
-          </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">{filtered.length} items found</p>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <Input placeholder="Search..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9 w-48 dark:bg-gray-800 dark:border-gray-700" />
+    <div className="space-y-5">
+      {/* ─── Header ──────────────────────────────────── */}
+      <motion.div {...fadeUp}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-md ${
+              isLabReport
+                ? 'bg-gradient-to-br from-cyan-500 to-blue-600'
+                : 'bg-gradient-to-br from-emerald-500 to-teal-600'
+            }`}>
+              {isLabReport ? <FlaskConical className="w-5 h-5" /> : <FileText className="w-5 h-5" />}
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white tracking-tight">
+                {isLabReport ? 'Lab Reports' : 'Assignments'}
+              </h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                {loading ? 'Loading...' : `${filtered.length} item${filtered.length !== 1 ? 's' : ''} found`}
+              </p>
+            </div>
           </div>
-          <Select value={filterSubject} onValueChange={setFilterSubject}>
-            <SelectTrigger className="w-40 dark:bg-gray-800 dark:border-gray-700"><SelectValue placeholder="Filter subject" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Subjects</SelectItem>
-              {subjects.map((s: any) => <SelectItem key={s.id} value={s.id}>{s.code} — {s.name}</SelectItem>)}
-            </SelectContent>
-          </Select>
           {canManage && (
-            <Button onClick={() => setPage('create-assignment')} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
+            <Button
+              onClick={() => setPage('create-assignment')}
+              className={`h-10 px-4 text-white font-semibold shadow-sm gap-2 ${
+                isLabReport
+                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700'
+                  : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700'
+              }`}
+            >
               <Plus className="w-4 h-4" /> Create New
             </Button>
           )}
         </div>
-      </div>
+      </motion.div>
 
-      {/* ─── Stats Bar ──────────────────────────── */}
-      {!loading && assignments.length > 0 && canManage && (
-        <div className="flex flex-wrap gap-3">
-          {[
-            { label: 'Active', count: assignments.filter((a: any) => a.status === 'ACTIVE').length, color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 border-emerald-200 dark:border-emerald-800', icon: <CheckCircle2 className="w-3.5 h-3.5" /> },
-            { label: 'Closed', count: assignments.filter((a: any) => a.status === 'CLOSED').length, color: 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700', icon: <Clock className="w-3.5 h-3.5" /> },
-            { label: 'Total', count: assignments.length, color: 'text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800', icon: <BookOpen className="w-3.5 h-3.5" /> },
-          ].map((s) => (
-            <div key={s.label} className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-medium ${s.color}`}>
-              {s.icon}{s.label}: <span className="font-bold">{s.count}</span>
+      {/* ─── Filters ─────────────────────────────────── */}
+      {!loading && assignments.length > 0 && (
+        <motion.div {...fadeUp} transition={{ delay: 0.05 }}>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1 sm:flex-none sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <Input
+                placeholder="Search assignments..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9 h-10 text-sm bg-gray-50/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700"
+              />
             </div>
-          ))}
-        </div>
+            <Select value={filterSubject} onValueChange={setFilterSubject}>
+              <SelectTrigger className="h-10 w-full sm:w-48 text-sm bg-gray-50/50 dark:bg-gray-800/50 border-gray-200 dark:border-gray-700">
+                <BookOpen className="w-4 h-4 text-gray-400 mr-2" />
+                <SelectValue placeholder="All Subjects" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Subjects</SelectItem>
+                {subjects.map((s: any) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    <span className="font-mono text-xs text-gray-500 mr-1.5">{s.code}</span> {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {canManage && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {[
+                  { label: 'Active', count: assignments.filter((a: any) => a.status === 'ACTIVE').length, color: 'bg-emerald-100 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' },
+                  { label: 'Closed', count: assignments.filter((a: any) => a.status === 'CLOSED').length, color: 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700' },
+                ].map((s) => (
+                  <div key={s.label} className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium ${s.color}`}>
+                    {s.label}: <span className="font-bold">{s.count}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </motion.div>
       )}
 
-      {/* ─── Assignment List ────────────────────── */}
+      {/* ─── Assignment List ────────────────────────── */}
       {loading ? (
-        <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-32 rounded-xl dark:bg-gray-800" />)}</div>
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-28 rounded-xl dark:bg-gray-800" />)}
+        </div>
       ) : filtered.length === 0 ? (
-        <Card className="border dark:border-gray-800"><CardContent className="py-16 text-center">
-          <AlertCircle className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
-          <p className="text-gray-400 dark:text-gray-500">No assignments found</p>
-          {canManage && <Button onClick={() => setPage('create-assignment')} variant="outline" className="mt-4 dark:bg-gray-800 dark:border-gray-700">Create your first assignment</Button>}
-        </CardContent></Card>
+        <motion.div {...fadeUp} transition={{ delay: 0.1 }}>
+          <Card className="border dark:border-gray-800">
+            <CardContent className="py-16 text-center">
+              <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center mx-auto mb-4">
+                {isLabReport ? <FlaskConical className="w-8 h-8 text-gray-300 dark:text-gray-600" /> : <FileText className="w-8 h-8 text-gray-300 dark:text-gray-600" />}
+              </div>
+              <p className="text-gray-400 dark:text-gray-500 font-medium">No {isLabReport ? 'lab reports' : 'assignments'} found</p>
+              {canManage && (
+                <Button
+                  onClick={() => setPage('create-assignment')}
+                  variant="outline"
+                  className="mt-4 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300"
+                >
+                  <Plus className="w-4 h-4 mr-1.5" /> Create your first {isLabReport ? 'lab report' : 'assignment'}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
       ) : (
         <div className="grid gap-3">
           {filtered.map((a: any, i) => {
@@ -200,50 +276,125 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
             try { deadline = new Date(a.deadline); isOverdue = safeIsPast(deadline) && a.status === 'ACTIVE'; } catch { deadline = new Date(); }
 
             return (
-              <motion.div key={a.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}>
-                <Card className="border dark:border-gray-800 hover:shadow-md transition-shadow group">
+              <motion.div
+                key={a.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.03 }}
+              >
+                <Card
+                  className="border border-gray-200/80 dark:border-gray-700/50 hover:shadow-md transition-all group cursor-pointer overflow-hidden"
+                  onClick={() => setAssignmentId(a.id)}
+                >
                   <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0 flex-1 cursor-pointer" onClick={() => setAssignmentId(a.id)}>
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <h3 className="font-semibold text-gray-900 dark:text-gray-100">{a.title}</h3>
-                          <Badge variant={getTypeBadgeVariant(a.type)} className="text-xs">{a.type === 'LAB_REPORT' ? 'Lab Report' : 'Assignment'}</Badge>
-                          {a.batch && <Badge variant="outline" className="text-xs border-violet-300 text-violet-600 dark:text-violet-400 dark:border-violet-700"><UsersRound className="w-3 h-3 mr-1" />{a.batch}</Badge>}
-                          {isOverdue && <Badge variant="destructive" className="text-xs">Overdue</Badge>}
-                          <Badge className={getStatusColor(a.status)}>{a.status}</Badge>
+                    <div className="flex items-start gap-4">
+                      {/* Left accent stripe */}
+                      <div className={`w-1 self-stretch rounded-full shrink-0 ${
+                        isLabReport
+                          ? 'bg-gradient-to-b from-cyan-500 to-blue-500'
+                          : 'bg-gradient-to-b from-emerald-500 to-teal-500'
+                      }`} />
+
+                      {/* Content */}
+                      <div className="min-w-0 flex-1">
+                        {/* Title + Badges */}
+                        <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                          <h3 className="font-semibold text-gray-900 dark:text-gray-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{a.title}</h3>
+                          {isOverdue && (
+                            <Badge className="bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 text-[10px] border-0 font-semibold">
+                              <AlertCircle className="w-3 h-3 mr-0.5" /> Overdue
+                            </Badge>
+                          )}
                         </div>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1 mb-2">{a.description}</p>
-                        <div className="flex items-center gap-3 text-xs text-gray-400 dark:text-gray-500 flex-wrap">
-                          <span className="flex items-center gap-1"><BookOpen className="w-3 h-3" />{a.subject?.name}</span>
-                          <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />{safeFormat(deadline, 'MMM d, yyyy')}</span>
+
+                        {/* Description */}
+                        <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1 mb-2.5">{a.description}</p>
+
+                        {/* Meta info row */}
+                        <div className="flex items-center gap-3 flex-wrap text-xs text-gray-400 dark:text-gray-500">
+                          {/* Subject badge */}
+                          {a.subject && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 font-medium">
+                              <span className="font-mono text-[10px]">{a.subject.code}</span>
+                              <span>{a.subject.name}</span>
+                            </span>
+                          )}
+                          <span className="flex items-center gap-1">
+                            <Calendar className="w-3 h-3" />
+                            {safeFormat(deadline, 'MMM d, yyyy')}
+                          </span>
+                          {a.batch && (
+                            <span className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-800 font-medium text-gray-600 dark:text-gray-400">
+                              <GraduationCap className="w-3 h-3" /> {a.batch}
+                            </span>
+                          )}
                           {a._count && <span>{a._count.submissions} submissions</span>}
-                          {a.creator && <span>by {a.creator.name}</span>}
+                          {a.creator && <span className="hidden sm:inline">by {a.creator.name}</span>}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        {/* Submission status for students */}
+
+                      {/* Right side: status + actions */}
+                      <div className="flex items-center gap-2 shrink-0 ml-2">
+                        {/* Student submission status */}
                         {user?.role === 'STUDENT' && (
                           sub ? (
-                            <Badge className={getStatusColor(sub.status)}>{sub.status} {sub.marks ? `· ${sub.marks}/100` : ''}</Badge>
+                            <Badge className={`${getStatusColor(sub.status)} text-[11px] font-medium`}>
+                              {sub.status} {sub.marks ? `· ${sub.marks}%` : ''}
+                            </Badge>
                           ) : (
-                            <Badge variant="outline" className="text-amber-700 border-amber-200 bg-amber-50 dark:text-amber-300 dark:border-amber-800 dark:bg-amber-900/20">Pending</Badge>
+                            <Badge variant="outline" className="text-[11px] font-medium text-amber-700 border-amber-200 bg-amber-50 dark:text-amber-300 dark:border-amber-800 dark:bg-amber-900/20">
+                              <Clock className="w-3 h-3 mr-0.5" /> Pending
+                            </Badge>
                           )
                         )}
+
+                        {/* Status badge for manage view */}
+                        {canManage && (
+                          <Badge className={`${getStatusColor(a.status)} text-[10px] font-medium px-2`}>
+                            {a.status}
+                          </Badge>
+                        )}
+
                         {/* View button */}
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400" onClick={() => setAssignmentId(a.id)}><Eye className="w-4 h-4" /></Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400"
+                          onClick={(e) => { e.stopPropagation(); setAssignmentId(a.id); }}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
 
                         {/* Action menu for teacher/admin */}
                         {canManage && (
                           <div className="relative">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" onClick={() => setOpenMenuId(openMenuId === a.id ? null : a.id)}><MoreHorizontal className="w-4 h-4" /></Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                              onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === a.id ? null : a.id); }}
+                            >
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
                             <AnimatePresence>
                               {openMenuId === a.id && (
-                                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                                  className="absolute right-0 top-full mt-1 z-50 w-44 bg-white dark:bg-gray-900 border dark:border-gray-700 rounded-lg shadow-lg overflow-hidden">
-                                  <button onClick={() => openEdit(a)} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"><Edit className="w-4 h-4" />Edit Assignment</button>
-                                  <button onClick={() => handleDuplicate(a)} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"><Copy className="w-4 h-4" />Duplicate</button>
-                                  <Separator />
-                                  <button onClick={() => openDelete(a)} className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"><Trash2 className="w-4 h-4" />Delete (Archive)</button>
+                                <motion.div
+                                  initial={{ opacity: 0, scale: 0.95 }}
+                                  animate={{ opacity: 1, scale: 1 }}
+                                  exit={{ opacity: 0, scale: 0.95 }}
+                                  className="absolute right-0 top-full mt-1 z-50 w-44 bg-white dark:bg-gray-900 border dark:border-gray-700 rounded-xl shadow-xl overflow-hidden"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  <button onClick={(e) => openEdit(e, a)} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                                    <Edit className="w-4 h-4 text-gray-400" /> Edit Assignment
+                                  </button>
+                                  <button onClick={(e) => handleDuplicate(e, a)} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
+                                    <Copy className="w-4 h-4 text-gray-400" /> Duplicate
+                                  </button>
+                                  <Separator className="dark:bg-gray-800" />
+                                  <button onClick={(e) => openDelete(e, a)} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                                    <Trash2 className="w-4 h-4" /> Delete (Archive)
+                                  </button>
                                 </motion.div>
                               )}
                             </AnimatePresence>
@@ -259,21 +410,36 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
         </div>
       )}
 
-      {/* ─── Edit Dialog ─────────────────────────── */}
+      {/* ─── Edit Dialog ─────────────────────────────── */}
       <Dialog open={editOpen} onOpenChange={setEditOpen}>
         <DialogContent className="sm:max-w-lg dark:bg-gray-900 dark:border-gray-800">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Edit className="w-5 h-5 text-emerald-500" />Edit Assignment</DialogTitle>
-            <DialogDescription>Update assignment details. Changes will be reflected to all students.</DialogDescription>
+            <DialogTitle className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
+                <Edit className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              Edit Assignment
+            </DialogTitle>
+            <DialogDescription className="dark:text-gray-400">Update assignment details. Changes will be reflected to all students.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="space-y-2"><Label>Title</Label><Input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} className="dark:bg-gray-800 dark:border-gray-700" /></div>
-            <div className="space-y-2"><Label>Description</Label><Textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} rows={3} className="dark:bg-gray-800 dark:border-gray-700" /></div>
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider">Title</Label>
+              <Input value={editForm.title} onChange={(e) => setEditForm({ ...editForm, title: e.target.value })} className="h-10 dark:bg-gray-800 dark:border-gray-700" />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-semibold uppercase tracking-wider">Description</Label>
+              <Textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })} rows={3} className="dark:bg-gray-800 dark:border-gray-700" />
+            </div>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2"><Label>Deadline</Label><Input type="datetime-local" value={editForm.deadline} onChange={(e) => setEditForm({ ...editForm, deadline: e.target.value })} className="dark:bg-gray-800 dark:border-gray-700" /></div>
-              <div className="space-y-2"><Label>Status</Label>
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider">Deadline</Label>
+                <Input type="datetime-local" value={editForm.deadline} onChange={(e) => setEditForm({ ...editForm, deadline: e.target.value })} className="h-10 dark:bg-gray-800 dark:border-gray-700" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs font-semibold uppercase tracking-wider">Status</Label>
                 <Select value={editForm.status} onValueChange={(v) => setEditForm({ ...editForm, status: v })}>
-                  <SelectTrigger className="dark:bg-gray-800 dark:border-gray-700"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-10 dark:bg-gray-800 dark:border-gray-700"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ACTIVE">Active</SelectItem>
                     <SelectItem value="CLOSED">Closed</SelectItem>
@@ -285,18 +451,23 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setEditOpen(false)} className="dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300">Cancel</Button>
-            <Button onClick={handleEdit} disabled={editLoading} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-              {editLoading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />Saving...</> : 'Save Changes'}
+            <Button onClick={handleEdit} disabled={editLoading} className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white">
+              {editLoading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" /> Saving...</> : 'Save Changes'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* ─── Delete Confirm Dialog ───────────────── */}
+      {/* ─── Delete Confirm Dialog ──────────────────── */}
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="sm:max-w-md dark:bg-gray-900 dark:border-gray-800">
           <DialogHeader>
-            <DialogTitle className="text-red-600 flex items-center gap-2"><Trash2 className="w-5 h-5" />Archive Assignment</DialogTitle>
+            <DialogTitle className="text-red-600 flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <Trash2 className="w-4 h-4 text-red-600" />
+              </div>
+              Archive Assignment
+            </DialogTitle>
             <DialogDescription>
               Are you sure you want to archive <strong>&quot;{deleteTarget?.title}&quot;</strong>? This will soft-delete the assignment. You can restore it later.
             </DialogDescription>
@@ -304,7 +475,7 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => { setDeleteOpen(false); setDeleteTarget(null); }} className="dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300">Cancel</Button>
             <Button onClick={handleDelete} disabled={deleteLoading} variant="destructive">
-              {deleteLoading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />Archiving...</> : 'Archive'}
+              {deleteLoading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" /> Archiving...</> : 'Archive'}
             </Button>
           </DialogFooter>
         </DialogContent>

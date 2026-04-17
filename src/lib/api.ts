@@ -192,6 +192,11 @@ export const leaderboardApi = {
 export const subjectApi = {
   list: () =>
     apiFetch<any[]>('/api/subjects'),
+  create: (data: { name: string; code: string; batch?: string }) =>
+    apiFetch<any>('/api/subjects', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
 };
 
 export const announcementApi = {
