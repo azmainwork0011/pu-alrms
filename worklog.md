@@ -156,3 +156,31 @@ Stage Summary:
 - Book Detail Modal optimized for mobile with wider cover, better button layout
 - Category pills and filter bar properly truncated on small screens
 - Touch targets meet 44px minimum on mobile
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix Digital Library - books not showing + make responsive
+
+Work Log:
+- Investigated Digital Library (BooksPage.tsx) — books not appearing when searching
+- Tested `/api/books/search` API — Google Books returns 0 results (blocked/no API key in sandbox)
+- Open Library API works perfectly
+- Root cause: API only fell back to Open Library on network errors, not on empty Google results
+- Fixed `src/app/api/books/search/route.ts`:
+  - Added auto-fallback: when Google returns 0 books, automatically tries Open Library
+  - Extracted `searchOpenLibrary` helper function for reuse
+  - Don't cache empty results to prevent stale empty caches
+  - Increased Open Library timeout from 8s to 10s
+- Made BooksPage fully responsive via frontend-styling-expert:
+  - Book card text: `text-[11px]` → `text-xs` for better readability on mobile
+  - WelcomeState: Mobile shows 2×2 grid (4 categories), Tablet+ shows all 7 categories in responsive grid
+  - Search bar: `h-9` → `h-10 sm:h-9` for better touch target on mobile
+  - Category pills: `py-1.5` → `py-2 sm:py-1.5` for easier tapping
+  - Book grid gaps: `gap-2` → `gap-1.5 sm:gap-3` to prevent cramping on 320px screens
+  - Active filter info: Added `flex-wrap` for narrow screens
+  - Book detail modal cover: `max-w-[180px]` → `max-w-[160px]` on mobile
+
+Stage Summary:
+- Digital Library now shows books correctly (auto-fallback to Open Library when Google fails)
+- Fully responsive from 320px mobile to desktop
+- 0 ESLint errors

@@ -339,11 +339,11 @@ function BookCard({
 
         {/* Card Content - ultra compact */}
         <div className="p-1.5 sm:p-2 flex-1 flex flex-col min-h-0">
-          <h3 className="text-[11px] sm:text-xs font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 leading-tight">
+          <h3 className="text-xs font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 leading-tight">
             {book.title}
           </h3>
           {book.authors && (
-            <p className="text-[10px] sm:text-[11px] text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
+            <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-1">
               {book.authors}
             </p>
           )}
@@ -587,7 +587,7 @@ function BookDetailModal({
             <div className="flex flex-col sm:flex-row">
               {/* Cover — wider on mobile, centered */}
               <div className="sm:w-48 shrink-0 bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center p-4 pb-2 sm:p-4 sm:pb-4">
-                <div className="w-full max-w-[180px] sm:max-w-[140px] aspect-[2/3] rounded-lg overflow-hidden shadow-lg">
+                <div className="w-full max-w-[160px] sm:max-w-[140px] aspect-[2/3] rounded-lg overflow-hidden shadow-lg">
                   {book.coverUrl ? (
                     <img
                       src={book.coverUrl}
@@ -798,9 +798,10 @@ function BookDetailModal({
 // ─── Welcome State ──────────────────────────────────────────────────────
 
 function WelcomeState({ onCategoryClick }: { onCategoryClick: (cat: string) => void }) {
-  const featuredCategories = CATEGORIES.filter(
+  const allCategories = CATEGORIES.filter(
     (c) => c.value !== '' && c.value !== '__saved__'
-  ).slice(0, 4);
+  );
+  const mobileCategories = allCategories.slice(0, 4);
 
   return (
     <motion.div
@@ -821,17 +822,35 @@ function WelcomeState({ onCategoryClick }: { onCategoryClick: (cat: string) => v
       <h2 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 mb-1.5">
         Explore Our Digital Library
       </h2>
-      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 max-w-sm mb-4 px-4">
+      <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 max-w-md mb-4 px-4">
         Search for books, browse by category, or save your favorites.
       </p>
-      <div className="grid grid-cols-2 gap-2.5 px-4 max-w-sm w-full">
-        {featuredCategories.map((cat) => (
+
+      {/* Mobile: 2x2 grid with first 4 categories */}
+      <div className="grid grid-cols-2 gap-2.5 px-4 max-w-sm w-full sm:hidden">
+        {mobileCategories.map((cat) => (
           <motion.button
             key={cat.value}
             whileHover={{ scale: 1.03, y: -1 }}
             whileTap={{ scale: 0.97 }}
             onClick={() => onCategoryClick(cat.value)}
-            className="flex items-center gap-1.5 px-2.5 py-2.5 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all text-xs font-medium text-gray-700 dark:text-gray-300"
+            className="flex items-center gap-1.5 px-2.5 py-3 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all text-xs font-medium text-gray-700 dark:text-gray-300"
+          >
+            <cat.icon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span className="truncate text-left">{cat.label.split(' (')[0]}</span>
+          </motion.button>
+        ))}
+      </div>
+
+      {/* Tablet+: show all categories in responsive grid */}
+      <div className="hidden sm:grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5 px-4 max-w-2xl w-full">
+        {allCategories.map((cat) => (
+          <motion.button
+            key={cat.value}
+            whileHover={{ scale: 1.03, y: -1 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => onCategoryClick(cat.value)}
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all text-xs font-medium text-gray-700 dark:text-gray-300"
           >
             <cat.icon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="truncate text-left">{cat.label}</span>
@@ -1353,7 +1372,7 @@ export default function BooksPage() {
               }
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="h-9 pl-9 pr-14 text-xs sm:text-sm bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 rounded-lg shadow-sm focus-visible:shadow-md focus-visible:border-emerald-400 focus-visible:ring-emerald-400/20 transition-all"
+              className="h-10 sm:h-9 pl-9 pr-14 text-xs sm:text-sm bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-800 rounded-lg shadow-sm focus-visible:shadow-md focus-visible:border-emerald-400 focus-visible:ring-emerald-400/20 transition-all"
             />
             <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
               {query && (
@@ -1406,7 +1425,7 @@ export default function BooksPage() {
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.96 }}
                 onClick={() => handleCategoryClick(cat.value)}
-                className={`flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-full text-[10px] sm:text-xs font-medium whitespace-nowrap shrink-0 transition-all duration-200 border snap-start ${
+                className={`flex items-center gap-1 px-2.5 sm:px-3 py-2 sm:py-1.5 rounded-full text-[10px] sm:text-xs font-medium whitespace-nowrap shrink-0 transition-all duration-200 border snap-start ${
                   isActive
                     ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm shadow-emerald-500/25'
                     : 'bg-white dark:bg-gray-900 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-800 hover:border-emerald-300 dark:hover:border-emerald-700 hover:text-emerald-700 dark:hover:text-emerald-400'
@@ -1426,7 +1445,7 @@ export default function BooksPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400"
+          className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 flex-wrap"
         >
           <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
             {activeCategoryConfig && (
@@ -1472,7 +1491,7 @@ export default function BooksPage() {
             variants={staggerContainer}
             initial="hidden"
             animate="visible"
-            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3"
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1.5 sm:gap-3"
           >
             {Array.from({ length: 24 }).map((_, i) => (
               <motion.div key={i} variants={cardFadeIn}>
@@ -1503,7 +1522,7 @@ export default function BooksPage() {
               initial="hidden"
               animate="visible"
               key={`${activeCategory}-${debouncedQuery}-${language}-${page}`}
-              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3"
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-1.5 sm:gap-3"
             >
               {books.map((book, index) => (
                 <BookCard
