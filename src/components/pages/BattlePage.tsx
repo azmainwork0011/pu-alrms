@@ -509,30 +509,30 @@ function BattlePage() {
         {/* ─── LOBBY ────────────────────────────────────────────── */}
         {screen === 'lobby' && (
           <motion.div key="lobby" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            <div className="text-center mb-8">
-              <motion.div initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', damping: 12 }} className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-500 to-orange-600 flex items-center justify-center mx-auto mb-4 shadow-lg shadow-red-200 dark:shadow-red-900/30">
-                <Swords className="w-8 h-8 text-white" />
+            <div className="text-center mb-6 sm:mb-8">
+              <motion.div initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', damping: 12 }} className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-red-500 to-orange-600 flex items-center justify-center mx-auto mb-3 sm:mb-4 shadow-lg shadow-red-200 dark:shadow-red-900/30">
+                <Swords className="w-7 h-7 sm:w-8 sm:h-8 text-white" />
               </motion.div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Battle Mode</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Challenge others in real-time quiz battles</p>
+              <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Battle Mode</h1>
+              <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 mt-1">Challenge others in real-time quiz battles</p>
             </div>
 
             <div className="max-w-2xl mx-auto">
               {/* Solo vs PvP Buttons */}
-              <div className="grid grid-cols-2 gap-3 mb-6">
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-3 mb-6">
                 <Button
                   onClick={() => createBattle('solo')}
                   disabled={loading}
-                  className="h-16 text-base bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 rounded-2xl shadow-lg shadow-violet-200 dark:shadow-violet-900/30"
+                  className="h-14 sm:h-16 text-sm sm:text-base bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 rounded-2xl shadow-lg shadow-violet-200 dark:shadow-violet-900/30"
                 >
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Bot className="w-5 h-5 mr-2" />Solo vs Bot</>}
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Bot className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" /><span className="hidden xs:inline sm:inline">Solo vs Bot</span><span className="xs:hidden sm:hidden">Solo</span></>}
                 </Button>
                 <Button
                   onClick={() => createBattle('pvp')}
                   disabled={loading}
-                  className="h-16 text-base bg-gradient-to-r from-red-500 to-orange-600 hover:from-red-600 hover:to-orange-700 rounded-2xl shadow-lg shadow-red-200 dark:shadow-red-900/30"
+                  className="h-14 sm:h-16 text-sm sm:text-base bg-gradient-to-r from-red-500 to-orange-600 hover:from-red-600 hover:to-orange-700 rounded-2xl shadow-lg shadow-red-200 dark:shadow-red-900/30"
                 >
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Users className="w-5 h-5 mr-2" />Create PvP Room</>}
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Users className="w-4 h-4 sm:w-5 sm:h-5 mr-1.5 sm:mr-2" /><span className="hidden xs:inline sm:inline">Create PvP Room</span><span className="xs:hidden sm:hidden">PvP</span></>}
                 </Button>
               </div>
 
@@ -548,15 +548,15 @@ function BattlePage() {
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.05 }}
-                        className="flex items-center justify-between p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-red-300 dark:hover:border-red-700 transition-all"
+                        className="flex items-center justify-between p-3 sm:p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 hover:border-red-300 dark:hover:border-red-700 transition-all"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-400 to-orange-500 flex items-center justify-center text-white font-bold text-sm">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-red-400 to-orange-500 flex items-center justify-center text-white font-bold text-xs sm:text-sm shrink-0">
                             {room.player1.name.charAt(0)}
                           </div>
-                          <div>
-                            <p className="font-semibold text-gray-900 dark:text-white text-sm">{room.player1.name}</p>
-                            <p className="text-[11px] text-gray-400">{room.player1.department || 'Ready'} {room.category ? `· ${room.category.name}` : ''}</p>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-gray-900 dark:text-white text-xs sm:text-sm truncate">{room.player1.name}</p>
+                            <p className="text-[10px] sm:text-[11px] text-gray-400 truncate">{room.player1.department || 'Ready'} {room.category ? `· ${room.category.name}` : ''}</p>
                           </div>
                         </div>
                         <Button size="sm" onClick={() => joinBattle(room.id)} className="bg-red-500 hover:bg-red-600 rounded-lg">
@@ -707,8 +707,8 @@ function BattlePage() {
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold mx-auto mb-1">
                     {user?.name?.charAt(0)}
                   </div>
-                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{user?.name?.split(' ')[0]}</p>
-                  <p className="text-xl font-black text-violet-600 dark:text-violet-400">
+                  <p className="text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 truncate max-w-[80px] sm:max-w-none">{user?.name?.split(' ')[0]}</p>
+                  <p className="text-lg sm:text-xl font-black text-violet-600 dark:text-violet-400">
                     <AnimatedScore value={myScore} />
                   </p>
                   <p className="text-[10px] text-gray-400">{myCorrectCount} correct</p>
@@ -725,7 +725,7 @@ function BattlePage() {
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white text-sm font-bold mx-auto mb-1">
                     {battleMode === 'solo' ? <Bot className="w-4 h-4" /> : (opponentName?.charAt(0) || '?')}
                   </div>
-                  <p className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                  <p className="text-[10px] sm:text-xs font-medium text-gray-700 dark:text-gray-300 truncate max-w-[80px] sm:max-w-none">
                     {battleMode === 'solo' ? botName : (opponentName || 'Opponent')}
                     {botThinking && (
                       <motion.span animate={{ opacity: [0.3, 1, 0.3] }} className="text-[10px] text-amber-500 ml-1">
@@ -733,7 +733,7 @@ function BattlePage() {
                       </motion.span>
                     )}
                   </p>
-                  <p className="text-xl font-black text-red-600 dark:text-red-400">
+                  <p className="text-lg sm:text-xl font-black text-red-600 dark:text-red-400">
                     <AnimatedScore value={opponentScore} />
                   </p>
                   <p className="text-[10px] text-gray-400">{opponentCorrectCount} correct</p>
@@ -747,7 +747,7 @@ function BattlePage() {
                     <Trophy className="w-3.5 h-3.5 text-yellow-400" />
                     <span className="text-[10px] font-medium text-gray-400">Prize Pool</span>
                   </div>
-                  <div className="flex items-center gap-1.5 overflow-x-auto max-w-[280px] scrollbar-hide">
+                  <div className="flex items-center gap-1 overflow-x-auto max-w-[180px] sm:max-w-[280px] scrollbar-hide">
                     {PRIZE_LADDER.slice(0, questions.length + 1).map((prize, i) => {
                       const reached = i <= currentQ;
                       const reachedOpponent = i <= currentQ;
@@ -1001,7 +1001,7 @@ function BattlePage() {
         {screen === 'result' && (
           <motion.div key="result" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex items-center justify-center min-h-[60vh]">
             <Card className="border-0 shadow-xl dark:bg-gray-900 overflow-hidden max-w-md w-full">
-              <div className={`bg-gradient-to-r ${myScore >= opponentScore ? 'from-emerald-500 to-teal-600' : 'from-red-500 to-orange-600'} p-8 text-center text-white relative overflow-hidden`}>
+              <div className={`bg-gradient-to-r ${myScore >= opponentScore ? 'from-emerald-500 to-teal-600' : 'from-red-500 to-orange-600'} p-6 sm:p-8 text-center text-white relative overflow-hidden`}>
                 {/* Background decoration */}
                 <div className="absolute inset-0 overflow-hidden">
                   {myScore >= opponentScore && Array.from({ length: 8 }).map((_, i) => (
@@ -1017,24 +1017,24 @@ function BattlePage() {
 
                 <div className="relative z-10">
                   <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', delay: 0.2 }}>
-                    {myScore >= opponentScore ? <Crown className="w-14 h-14 mx-auto mb-2" /> : <Shield className="w-14 h-14 mx-auto mb-2" />}
+                    {myScore >= opponentScore ? <Crown className="w-12 h-12 sm:w-14 sm:h-14 mx-auto mb-2" /> : <Shield className="w-12 h-12 sm:w-14 sm:h-14 mx-auto mb-2" />}
                   </motion.div>
-                  <h2 className="text-2xl font-black">{myScore >= opponentScore ? 'Victory!' : 'Defeat'}</h2>
+                  <h2 className="text-xl sm:text-2xl font-black">{myScore >= opponentScore ? 'Victory!' : 'Defeat'}</h2>
                   <p className="text-white/70 text-sm mt-1">
                     {myScore >= opponentScore ? 'You dominated the battle!' : 'Better luck next time!'}
                   </p>
                 </div>
               </div>
-              <CardContent className="p-6">
+              <CardContent className="p-4 sm:p-6">
                 {/* Score Comparison */}
                 <div className="flex items-center justify-around py-4 mb-4">
                   <div className="text-center">
-                    <p className="text-3xl font-black text-violet-600">{myScore}</p>
+                    <p className="text-2xl sm:text-3xl font-black text-violet-600">{myScore}</p>
                     <p className="text-xs text-gray-500">You ({myCorrectCount}/{questions.length})</p>
                   </div>
                   <div className="text-gray-300 text-xl font-bold">vs</div>
                   <div className="text-center">
-                    <p className="text-3xl font-black text-red-600">{opponentScore}</p>
+                    <p className="text-2xl sm:text-3xl font-black text-red-600">{opponentScore}</p>
                     <p className="text-xs text-gray-500">{battleMode === 'solo' ? botName : 'Opponent'} ({opponentCorrectCount}/{questions.length})</p>
                   </div>
                 </div>
