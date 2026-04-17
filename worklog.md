@@ -678,3 +678,78 @@ Stage Summary:
 - No browser APIs (window, localStorage, Date.now) used during SSR
 - No conditional rendering differences between server and client
 - Stable rendering with no flicker (static shell shown instantly, real UI swaps in after mount)
+- LeaderboardPage.tsx (2 fixes):
+  17. Podium grid children: Added [&>*]:min-w-0 to prevent podium content overflow
+  18. Progress bar: Added overflow-hidden for proper bar containment
+
+  pu-helpers.tsx (1 fix):
+  19. Skeleton width: Changed w-64 to w-full max-w-full for responsive skeletons
+
+- ESLint: 0 errors
+- Dev server: running successfully
+
+Stage Summary:
+- 19 overflow issues fixed across 8 files
+- Dashboard: chart tooltips, highlight text containers bounded
+- All text elements use truncate/break-words/min-w-0 for safe containment
+- Battle particles constrained to absolute positioning within container
+- All grid children have min-w-0 for proper CSS grid shrinking
+- 0 ESLint errors
+
+---
+Task ID: 15
+Agent: Main Orchestrator
+Task: Fix hydration error - eliminate server/client HTML mismatch at root level
+
+Work Log:
+- Investigated hydration error: "Hydration failed because the server rendered HTML didn't match the client"
+- Error showed mismatch between server (id="donate-widget", className=null) and client (LoadingShell className)
+- FULL AUDIT of entire codebase for hydration-breaking patterns:
+  - Searched for: donate, widget, external scripts → NO matches in project code
+  - Root cause: browser extension injecting id="donate-widget" into DOM before React hydrates
+  - Confirmed: zero "donate-widget" references in project source code
+- Searched for all suppressHydrationWarning usage → found in layout.tsx (html + body)
+- Searched for all Date.now(), Math.random(), new Date(), typeof window in render paths
+  - All such calls are inside useEffect callbacks, event handlers, or API routes (NOT in render)
+  - store/app.ts uses typeof window checks in store actions (not render)
+  - sidebar.tsx Math.random() in useMemo only renders inside AppLayout (post-mount, client-only)
+- Implemented root-level fix (3 files):
+
+  1. src/app/page.tsx:
+     - Removed LoadingShell component entirely (was server-rendered, vulnerable to extension injection)
+     - Changed: `if (!mounted) return <LoadingShell />` → `if (!mounted) return null`
+     - Both server AND client now render identical empty content (null)
+     - Added `dynamic(() => import(...), { ssr: false })` for AuthPage and AppLayout
+     - AppLayout and AuthPage are now loaded client-side only (no SSR, no hydration)
+     - Added `document.documentElement.classList.add('hydrated')` on mount to dismiss CSS loading overlay
+
+  2. src/app/layout.tsx:
+     - Removed suppressHydrationWarning from <body> (user's explicit request)
+     - Kept suppressHydrationWarning on <html> (required by next-themes ThemeProvider)
+     - next-themes adds class attribute to <html> during hydration, which triggers a mismatch without this
+
+  3. src/app/globals.css:
+     - Added CSS-only loading overlay using <html> pseudo-elements:
+       - html:not(.hydrated)::before → gradient background overlay (z-index 99999)
+       - html:not(.hydrated)::after → spinning circle loader (z-index 100000)
+       - html.hydrated::before/after → display: none !important (hidden after mount)
+     - Pseudo-elements are NOT part of React's DOM tree → immune to browser extensions
+     - @keyframes pu-spin animation for the loading spinner
+     - Overlay uses pointer-events: none to not block interactions during transition
+
+- Verified: Server HTML output shows minimal body content (empty client component placeholder)
+- Verified: No LoadingShell markup in server response
+- Verified: No donate-widget in server response
+- ESLint: 0 errors
+- Dev server: compiled successfully, GET / 200
+
+Stage Summary:
+- Root cause identified: browser extension (NOT project code) injecting donate-widget
+- Server and client now render IDENTICAL empty content (null) before mount
+- All page components loaded with ssr: false → no server rendering, no hydration for pages
+- CSS-only loading overlay provides visual feedback (gradient + spinner) without DOM elements
+- Loading overlay immune to browser extension interference (CSS pseudo-elements)
+- suppressHydrationWarning removed from body (kept on html for next-themes)
+- LoadingShell removed (no longer needed - CSS overlay handles loading state)
+- All hydration-breaking patterns verified clean across codebase
+- 0 ESLint errors
