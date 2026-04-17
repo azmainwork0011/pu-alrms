@@ -133,17 +133,17 @@ const TAB_ICONS: Record<string, React.ReactNode> = {
 function CodeBlock({ code, highlightLine, onLineClick }: { code: string; highlightLine?: number; onLineClick?: (line: number) => void }) {
   const lines = code.split('\n');
   return (
-    <div className="bg-gray-950 text-gray-200 rounded-lg p-4 font-mono text-sm overflow-x-auto">
+    <div className="bg-gray-950 text-gray-200 rounded-lg p-2.5 sm:p-4 font-mono text-xs sm:text-sm overflow-x-auto -mx-1">
       {lines.map((line, i) => (
         <div
           key={i}
           onClick={() => onLineClick?.(i + 1)}
-          className={`flex ${onLineClick ? 'cursor-pointer hover:bg-gray-800/60' : ''} ${
+          className={`flex ${onLineClick ? 'cursor-pointer hover:bg-gray-800/60 active:bg-gray-800/80' : ''} ${
             i + 1 === highlightLine ? 'bg-emerald-500/20 border-l-2 border-emerald-400 -ml-1 pl-3' : 'pl-1'
           } ${i > 0 ? 'mt-0.5' : ''}`}
         >
-          <span className="w-8 text-right mr-4 text-gray-500 select-none text-xs leading-6">{i + 1}</span>
-          <span className="whitespace-pre">{line}</span>
+          <span className="w-6 sm:w-8 text-right mr-2 sm:mr-4 text-gray-500 select-none text-[10px] sm:text-xs leading-5 sm:leading-6 shrink-0">{i + 1}</span>
+          <span className="whitespace-pre break-all">{line}</span>
         </div>
       ))}
     </div>
@@ -738,18 +738,18 @@ export default function LearnWithGame() {
       <motion.div {...fadeIn} className="space-y-6">
         {/* XP Bar */}
         <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-600 dark:from-emerald-700 dark:via-teal-700 dark:to-cyan-800">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4 mb-4">
-              <Avatar className="w-14 h-14 border-2 border-white/30">
-                <AvatarFallback className="text-2xl bg-white/20">{profile.avatar}</AvatarFallback>
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center gap-3 sm:gap-4 mb-4">
+              <Avatar className="w-12 h-12 sm:w-14 sm:h-14 border-2 border-white/30 shrink-0">
+                <AvatarFallback className="text-xl sm:text-2xl bg-white/20">{profile.avatar}</AvatarFallback>
               </Avatar>
-              <div className="flex-1">
-                <h2 className="text-xl font-bold text-white">{profile.name}</h2>
-                <div className="text-emerald-100 text-sm">{getLevelForXP(profile.xp).badge} {getLevelForXP(profile.xp).title}</div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-lg sm:text-xl font-bold text-white truncate">{profile.name}</h2>
+                <div className="text-emerald-100 text-xs sm:text-sm">{getLevelForXP(profile.xp).badge} {getLevelForXP(profile.xp).title}</div>
               </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold text-white">{profile.xp}</div>
-                <div className="text-emerald-100 text-xs">Total XP</div>
+              <div className="text-right shrink-0">
+                <div className="text-2xl sm:text-3xl font-bold text-white">{profile.xp}</div>
+                <div className="text-emerald-100 text-[10px] sm:text-xs">Total XP</div>
               </div>
             </div>
             <div className="h-2 bg-white/20 rounded-full overflow-hidden">
@@ -781,18 +781,18 @@ export default function LearnWithGame() {
             <Sparkles className="w-4 h-4 text-amber-500" /> Daily Challenge
           </h3>
           <Card className="overflow-hidden border-0 shadow-lg">
-            <div className="bg-gradient-to-r from-violet-500 to-fuchsia-600 dark:from-violet-700 dark:to-fuchsia-800 p-5">
-              <div className="flex items-start justify-between">
-                <div>
+            <div className="bg-gradient-to-r from-violet-500 to-fuchsia-600 dark:from-violet-700 dark:to-fuchsia-800 p-4 sm:p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
                   <Badge className="bg-white/20 text-white border-0 mb-2">{dailyChallenge.difficulty}</Badge>
-                  <h3 className="text-lg font-bold text-white">{dailyChallenge.title}</h3>
-                  <p className="text-sm text-violet-100 mt-1">{dailyChallenge.description}</p>
-                  <div className="flex items-center gap-4 mt-3">
+                  <h3 className="text-base sm:text-lg font-bold text-white">{dailyChallenge.title}</h3>
+                  <p className="text-xs sm:text-sm text-violet-100 mt-1 line-clamp-2">{dailyChallenge.description}</p>
+                  <div className="flex items-center gap-3 sm:gap-4 mt-3">
                     <span className="text-white/80 text-xs flex items-center gap-1"><Zap className="w-3 h-3" />{dailyChallenge.points} XP</span>
                     <span className="text-white/80 text-xs flex items-center gap-1"><Target className="w-3 h-3" />{dailyChallenge.questions.length} Qs</span>
                   </div>
                 </div>
-                <div className="text-4xl">{getLanguageById(dailyChallenge.languageId)?.icon}</div>
+                <div className="text-3xl sm:text-4xl shrink-0">{getLanguageById(dailyChallenge.languageId)?.icon}</div>
               </div>
               {/* FIX #3: Use startDailyChallenge with direct questions */}
               <Button
@@ -839,16 +839,17 @@ export default function LearnWithGame() {
             <Clock className="w-4 h-4" /> Recent Activity
           </h3>
           <Card className="border-0 shadow-sm">
-            <CardContent className="p-4 space-y-3">
+            <CardContent className="p-3 sm:p-4 space-y-3">
               {recentActivity.map(a => (
-                <div key={a.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span className="text-sm">{a.text}</span>
+                <div key={a.id} className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                    <span className="text-xs sm:text-sm truncate">{a.text}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <div className="flex items-center gap-1.5 sm:gap-2 text-[10px] sm:text-xs text-gray-500 shrink-0">
                     <span className="text-emerald-500 font-medium">+{a.xp} XP</span>
-                    <span>{a.time}</span>
+                    <span className="hidden sm:inline">{a.time}</span>
+                    <span className="sm:hidden">{a.time.split(' ')[0]}</span>
                   </div>
                 </div>
               ))}
@@ -957,21 +958,21 @@ export default function LearnWithGame() {
     if (!q) return null;
     return (
       <motion.div {...fadeIn} className="space-y-4">
-        <div className="flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={() => setLearnStep('topics')}><ChevronLeft className="w-4 h-4" /> Quit</Button>
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <Button variant="ghost" size="sm" className="shrink-0" onClick={() => setLearnStep('topics')}><ChevronLeft className="w-4 h-4" /> Quit</Button>
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end">
             <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
               {learnQIndex + 1} / {learnQuestions.length}
             </Badge>
             <Badge className={`${diffColors[q.difficulty]} border ${diffBadge[q.difficulty]}`}>{q.difficulty}</Badge>
-            <Badge variant="outline">{q.type.replace('_', ' ')}</Badge>
+            <Badge variant="outline" className="hidden sm:inline-flex">{q.type.replace('_', ' ')}</Badge>
           </div>
         </div>
         <Progress value={((learnQIndex + 1) / learnQuestions.length) * 100} className="h-1.5" />
 
         <Card className="border-0 shadow-lg">
-          <CardContent className="p-6 space-y-4">
-            <h3 className="text-lg font-semibold">{q.question}</h3>
+          <CardContent className="p-4 sm:p-6 space-y-4">
+            <h3 className="text-base sm:text-lg font-semibold">{q.question}</h3>
             {q.codeSnippet && <CodeBlock code={q.codeSnippet} />}
             {q.type === 'MCQ' && q.options && (
               <div className="space-y-2">
@@ -1026,9 +1027,9 @@ export default function LearnWithGame() {
   function renderQuizResults() {
     const pct = Math.round((learnCorrectCount / learnQuestions.length) * 100);
     return (
-      <motion.div {...scaleIn} className="flex items-center justify-center min-h-[400px]">
-        <Card className="border-0 shadow-xl w-full max-w-md">
-          <CardContent className="p-8 text-center space-y-4">
+      <motion.div {...scaleIn} className="flex items-center justify-center min-h-[300px] sm:min-h-[400px]">
+        <Card className="border-0 shadow-xl w-full max-w-md mx-4">
+          <CardContent className="p-6 sm:p-8 text-center space-y-4">
             <motion.div
               animate={{ rotate: [0, -5, 5, 0], scale: [1, 1.1, 1] }}
               transition={{ duration: 0.5 }}
@@ -1112,13 +1113,13 @@ export default function LearnWithGame() {
     return (
       <motion.div {...fadeIn} className="space-y-4">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 font-semibold">
-            Round {battleRound} / {Math.min(battleQuestions.length, 10)}
+        <div className="flex items-center justify-between gap-2">
+          <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300 font-semibold text-xs shrink-0">
+            R{battleRound}/{Math.min(battleQuestions.length, 10)}
           </Badge>
-          <TimerCircle timeLeft={battleTimer} maxTime={12} />
-          <Button variant="ghost" size="sm" className="text-gray-400" onClick={() => setBattleStatus('select')}>
-            <X className="w-4 h-4 mr-1" /> Forfeit
+          <TimerCircle timeLeft={battleTimer} maxTime={12} size={48} />
+          <Button variant="ghost" size="sm" className="text-gray-400 shrink-0 text-xs" onClick={() => setBattleStatus('select')}>
+            <X className="w-4 h-4" /><span className="sm:inline hidden"> Forfeit</span>
           </Button>
         </div>
 
@@ -1136,12 +1137,12 @@ export default function LearnWithGame() {
 
         {/* Question */}
         <Card className="border-0 shadow-lg">
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center gap-2 text-sm text-gray-500">
+          <CardContent className="p-4 sm:p-6 space-y-4">
+            <div className="flex items-center gap-2 text-sm text-gray-500 flex-wrap">
               <Badge variant="outline" className="text-xs">{getLanguageById(battleLang)?.icon} {getLanguageById(battleLang)?.name}</Badge>
               <Badge className={`text-xs ${diffColors[battleCurrentQ.difficulty]} border ${diffBadge[battleCurrentQ.difficulty]}`}>{battleCurrentQ.difficulty}</Badge>
             </div>
-            <h3 className="text-lg font-semibold">{battleCurrentQ.question}</h3>
+            <h3 className="text-base sm:text-lg font-semibold">{battleCurrentQ.question}</h3>
             {battleCurrentQ.codeSnippet && <CodeBlock code={battleCurrentQ.codeSnippet} />}
             {/* FIX #2: Battle now handles all question types, not just MCQ */}
             {battleCurrentQ.type === 'MCQ' && battleCurrentQ.options && (
@@ -1177,8 +1178,8 @@ export default function LearnWithGame() {
             {battleRevealed && (
               <motion.div {...fadeIn} className="space-y-3">
                 {/* FIX #7: Show bot answer result */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className={`p-3 rounded-lg text-center text-sm ${
+                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  <div className={`p-2.5 sm:p-3 rounded-lg text-center text-xs sm:text-sm ${
                     battleAnswer === battleCurrentQ.correctAnswer ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300' :
                     battleAnswer === '' ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300' :
                     'bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300'
@@ -1192,7 +1193,7 @@ export default function LearnWithGame() {
                       )}
                     </div>
                   </div>
-                  <div className={`p-3 rounded-lg text-center text-sm ${
+                  <div className={`p-2.5 sm:p-3 rounded-lg text-center text-xs sm:text-sm ${
                     battleBotCorrect ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300' :
                     'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
                   }`}>
@@ -1221,9 +1222,9 @@ export default function LearnWithGame() {
   function renderBattleEnd() {
     const won = battleEndMsg === 'Victory!';
     return (
-      <motion.div {...scaleIn} className="flex items-center justify-center min-h-[400px]">
-        <Card className="border-0 shadow-xl w-full max-w-md overflow-hidden">
-          <div className={`p-8 text-center ${won ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : 'bg-gradient-to-br from-rose-500 to-orange-600'} text-white`}>
+      <motion.div {...scaleIn} className="flex items-center justify-center min-h-[300px] sm:min-h-[400px]">
+        <Card className="border-0 shadow-xl w-full max-w-md overflow-hidden mx-4">
+          <div className={`p-6 sm:p-8 text-center ${won ? 'bg-gradient-to-br from-emerald-500 to-teal-600' : 'bg-gradient-to-br from-rose-500 to-orange-600'} text-white`}>
             <motion.div animate={{ rotate: [0, -10, 10, 0], scale: [1, 1.2, 1] }} transition={{ duration: 0.6 }} className="text-7xl mb-2">
               {won ? '🏆' : '💀'}
             </motion.div>
@@ -1376,9 +1377,9 @@ export default function LearnWithGame() {
                   <span className="w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center text-xs font-bold text-gray-500 shrink-0">{idx + 1}</span>
                   <code className="flex-1 text-sm font-mono">{line}</code>
                   {!cpRevealed && !gameOver && (
-                    <div className="flex flex-col gap-0.5">
-                      <button onClick={() => moveCpLine(idx, 'up')} disabled={idx === 0} className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-30"><ArrowUp className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => moveCpLine(idx, 'down')} disabled={idx === cpOrder.length - 1} className="p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-30"><ArrowDown className="w-3.5 h-3.5" /></button>
+                    <div className="flex flex-col gap-0.5 shrink-0">
+                      <button onClick={() => moveCpLine(idx, 'up')} disabled={idx === 0} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 active:bg-gray-300 dark:active:bg-gray-500 disabled:opacity-30 min-w-[32px] min-h-[28px] flex items-center justify-center"><ArrowUp className="w-4 h-4" /></button>
+                      <button onClick={() => moveCpLine(idx, 'down')} disabled={idx === cpOrder.length - 1} className="p-2 rounded hover:bg-gray-200 dark:hover:bg-gray-600 active:bg-gray-300 dark:active:bg-gray-500 disabled:opacity-30 min-w-[32px] min-h-[28px] flex items-center justify-center"><ArrowDown className="w-4 h-4" /></button>
                     </div>
                   )}
                 </motion.div>
@@ -1507,22 +1508,22 @@ export default function LearnWithGame() {
         </div>
 
         {/* Top 3 Podium */}
-        <div className="flex items-end justify-center gap-3">
+        <div className="flex items-end justify-center gap-2 sm:gap-3">
           {[1, 0, 2].map((idx) => {
             const p = top3[idx];
             return (
-              <motion.div key={p.rank} {...fadeIn} transition={{ delay: idx * 0.15 }}>
+              <motion.div key={p.rank} {...fadeIn} transition={{ delay: idx * 0.15 }} className="flex-1 max-w-[140px] sm:max-w-[160px]">
                 <div className={`flex flex-col items-center ${idx === 0 ? 'order-2' : idx === 1 ? 'order-1' : 'order-3'}`}>
-                  <Avatar className={`w-16 h-16 mb-2 border-3 ${idx === 0 ? 'border-amber-400' : idx === 1 ? 'border-gray-400' : 'border-amber-600'}`}>
-                    <AvatarFallback className="text-2xl bg-white dark:bg-gray-800">{p.avatar}</AvatarFallback>
+                  <Avatar className={`w-12 h-12 sm:w-16 sm:h-16 mb-1 sm:mb-2 border-3 ${idx === 0 ? 'border-amber-400' : idx === 1 ? 'border-gray-400' : 'border-amber-600'}`}>
+                    <AvatarFallback className="text-lg sm:text-2xl bg-white dark:bg-gray-800">{p.avatar}</AvatarFallback>
                   </Avatar>
-                  <div className={`px-4 py-1 rounded-t-xl text-sm font-bold ${rankStyles[idx]}`}>{rankIcons[idx]}</div>
-                  <div className={`w-full ${idx === 0 ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' : idx === 1 ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700' : 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'} border-x border-t px-4 py-3 text-center`}>
-                    <div className="font-bold text-sm">{p.name}</div>
-                    <div className="text-xs text-gray-500 mt-0.5">Lv.{p.level} • {p.xp.toLocaleString()} XP</div>
-                    <div className="text-xs text-gray-400">{p.accuracy}% accuracy</div>
+                  <div className={`px-2 sm:px-4 py-0.5 sm:py-1 rounded-t-xl text-xs sm:text-sm font-bold ${rankStyles[idx]}`}>{rankIcons[idx]}</div>
+                  <div className={`w-full ${idx === 0 ? 'bg-amber-50 dark:bg-amber-900/20 border-amber-200 dark:border-amber-800' : idx === 1 ? 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700' : 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800'} border-x border-t px-2 sm:px-4 py-2 sm:py-3 text-center`}>
+                    <div className="font-bold text-xs sm:text-sm truncate">{p.name}</div>
+                    <div className="text-[10px] sm:text-xs text-gray-500 mt-0.5 truncate">Lv.{p.level} • {p.xp.toLocaleString()} XP</div>
+                    <div className="text-[10px] sm:text-xs text-gray-400">{p.accuracy}%</div>
                   </div>
-                  <div className={`w-full h-${idx === 0 ? '12' : idx === 1 ? '8' : '6'} ${idx === 0 ? 'bg-amber-100 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800' : idx === 1 ? 'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700' : 'bg-orange-100 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800'} border border-t-0 rounded-b-xl`} />
+                  <div className={`w-full ${idx === 0 ? 'h-12 bg-amber-100 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800' : idx === 1 ? 'h-8 bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700' : 'h-6 bg-orange-100 dark:bg-orange-900/30 border-orange-200 dark:border-orange-800'} border border-t-0 rounded-b-xl`} />
                 </div>
               </motion.div>
             );
@@ -1605,21 +1606,21 @@ export default function LearnWithGame() {
               {onlineFriends.map((f, idx) => (
                 <motion.div key={f.id} {...fadeIn} transition={{ delay: idx * 0.05 }}>
                   <Card className="border-0 shadow-sm">
-                    <CardContent className="p-3 flex items-center gap-3">
-                      <div className="relative">
+                    <CardContent className="p-3 flex items-center gap-2 sm:gap-3">
+                      <div className="relative shrink-0">
                         <Avatar className="w-10 h-10">
                           <AvatarFallback className="text-lg bg-gray-100 dark:bg-gray-700">{f.avatar}</AvatarFallback>
                         </Avatar>
                         <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-gray-800" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-sm">{f.name}</div>
-                        <div className="text-xs text-gray-500">Lv.{f.level} • {f.xp.toLocaleString()} XP</div>
+                        <div className="font-semibold text-sm truncate">{f.name}</div>
+                        <div className="text-[10px] sm:text-xs text-gray-500 truncate">Lv.{f.level} • {f.xp.toLocaleString()} XP</div>
                       </div>
-                      <Button size="sm" variant="outline" className="text-xs border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20" onClick={() => challengeFriendFn(f)}>
-                        <Swords className="w-3 h-3 mr-1" /> Challenge
+                      <Button size="sm" variant="outline" className="text-[10px] sm:text-xs border-rose-200 dark:border-rose-800 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-900/20 shrink-0" onClick={() => challengeFriendFn(f)}>
+                        <Swords className="w-3 h-3 sm:mr-1" /><span className="hidden sm:inline"> Challenge</span>
                       </Button>
-                      <Button size="sm" variant="ghost" className="text-gray-400 hover:text-rose-500" onClick={() => removeFriend(f.id)}>
+                      <Button size="sm" variant="ghost" className="text-gray-400 hover:text-rose-500 shrink-0" onClick={() => removeFriend(f.id)}>
                         <X className="w-3.5 h-3.5" />
                       </Button>
                     </CardContent>
@@ -1780,18 +1781,18 @@ export default function LearnWithGame() {
 
         {/* Title & Badge */}
         <Card className="border-0 shadow-sm">
-          <CardContent className="p-6">
-            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+          <CardContent className="p-4 sm:p-6">
+            <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 sm:mb-4 flex items-center gap-2">
               <Crown className="w-4 h-4 text-amber-500" /> Current Title
             </h3>
-            <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-3xl shadow-lg">
+            <div className="flex items-center gap-3 sm:gap-4">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-2xl sm:text-3xl shadow-lg shrink-0">
                 {level.badge}
               </div>
-              <div>
-                <h3 className="text-lg font-bold">{level.title}</h3>
-                <p className="text-sm text-gray-500">Level {level.level} • {profile.xp.toLocaleString()} XP</p>
-                <p className="text-xs text-gray-400 mt-1">Next: {getNextLevel(profile.xp).xpNeeded} XP to {getNextLevel(profile.xp).xpNeeded === 0 ? 'Max Level' : `Level ${getNextLevel(profile.xp).level}`}</p>
+              <div className="min-w-0">
+                <h3 className="text-base sm:text-lg font-bold truncate">{level.title}</h3>
+                <p className="text-xs sm:text-sm text-gray-500">Level {level.level} • {profile.xp.toLocaleString()} XP</p>
+                <p className="text-[10px] sm:text-xs text-gray-400 mt-1 truncate">Next: {getNextLevel(profile.xp).xpNeeded} XP to {getNextLevel(profile.xp).xpNeeded === 0 ? 'Max Level' : `Level ${getNextLevel(profile.xp).level}`}</p>
               </div>
             </div>
           </CardContent>

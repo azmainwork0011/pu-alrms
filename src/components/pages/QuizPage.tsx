@@ -1004,7 +1004,7 @@ function QuizPage() {
               {/* Main Quiz Area */}
               <div className="flex-1 max-w-2xl w-full">
                 {/* ─── Top Stats Bar ──────────────────────────────── */}
-                <div className="flex items-center justify-between mb-3 sm:mb-4 gap-2">
+                <div className="flex items-center justify-between mb-3 sm:mb-4 flex-wrap gap-1.5 sm:gap-2">
                   <button onClick={() => setSoundEnabled(!soundEnabled)} className="w-11 h-11 sm:w-10 sm:h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors shrink-0 shadow-sm">
                     {soundEnabled ? <Volume2 className="w-3.5 h-3.5" /> : <VolumeX className="w-3.5 h-3.5" />}
                   </button>
@@ -1027,16 +1027,16 @@ function QuizPage() {
                   )}
 
                   {/* Hearts */}
-                  <div className="flex items-center gap-0.5 sm:gap-1">
+                  <div className="flex items-center gap-0 sm:gap-0.5 sm:gap-1">
                     <AnimatePresence>
                       {Array.from({ length: maxHearts }).map((_, i) => (
                         <motion.div key={i} initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ delay: i * 0.05 }}>
                           {i < hearts ? (
                             <motion.div animate={showHeartsLost && i === hearts ? { scale: [1, 1.4, 0], opacity: [1, 1, 0] } : {}}>
-                              <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-red-500 fill-red-500" />
+                              <Heart className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-red-500 fill-red-500" />
                             </motion.div>
                           ) : (
-                            <Heart className="w-4 h-4 sm:w-5 sm:h-5 text-gray-300" />
+                            <Heart className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-gray-300" />
                           )}
                         </motion.div>
                       ))}
@@ -1086,11 +1086,11 @@ function QuizPage() {
                         }`}>
                           {DIFF_STYLES[questions[currentQ].difficulty]?.label || questions[currentQ].difficulty}
                         </Badge>
-                        <Badge className="bg-gray-100 text-gray-600 text-[10px] sm:text-[11px] border-0 font-semibold">
+                        <Badge className="bg-gray-100 text-gray-600 text-[10px] sm:text-[11px] border-0 font-semibold truncate max-w-[110px] sm:max-w-none">
                           {PRIZES[currentQ] || `${questions[currentQ].points} pts`}
                         </Badge>
                       </div>
-                      <h3 className="text-sm sm:text-base md:text-lg font-bold text-gray-900 leading-relaxed">
+                      <h3 className="text-sm sm:text-base md:text-lg font-bold text-gray-900 leading-relaxed break-words">
                         {questions[currentQ].question}
                       </h3>
                     </div>
@@ -1143,7 +1143,7 @@ function QuizPage() {
                             <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 font-black text-sm sm:text-base transition-all ${letterClasses}`}>
                               {letter}
                             </div>
-                            <span className="flex-1 font-medium text-sm sm:text-base">
+                            <span className="flex-1 font-medium text-sm sm:text-base min-w-0 break-words">
                               {isHidden ? '???' : questions[currentQ][opt]}
                             </span>
                             {icon}
@@ -1239,7 +1239,7 @@ function QuizPage() {
                   </span>
                 </motion.div>
 
-                <p className="text-base sm:text-lg font-bold text-gray-800 mb-1">{feedbackMsg}</p>
+                <p className="text-base sm:text-lg font-bold text-gray-800 mb-1 break-words">{feedbackMsg}</p>
 
                 {isCorrect && (
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="flex items-center justify-center gap-2 sm:gap-3 mb-3 sm:mb-4 flex-wrap">

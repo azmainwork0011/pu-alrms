@@ -196,7 +196,7 @@ function DeadlineRow({ a, index }: { a: any; index: number }) {
       initial="hidden"
       animate="visible"
       transition={{ delay: 0.4 + index * 0.06 }}
-      className="relative flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-all group overflow-hidden"
+      className="relative flex items-center gap-2 sm:gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-all group overflow-hidden"
       onClick={(e) => {
         createRipple(e);
         useAppStore.getState().setAssignmentId(a.id);
@@ -327,7 +327,7 @@ function DashboardPage() {
   // RENDER
   // ═══════════════════════════════════════════════════════
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-[env(safe-area-inset-bottom)]">
       {/* ─── Welcome Banner ──────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
@@ -451,7 +451,7 @@ function DashboardPage() {
                 {/* Content */}
                 <div className="relative flex items-start justify-between">
                   <div className="space-y-1.5">
-                    <p className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-medium">{stat.label}</p>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-medium truncate">{stat.label}</p>
                     <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
                       {stat.isText ? stat.value : stat.isPercent ? (
                         <span className="flex items-center gap-1.5">
@@ -512,7 +512,7 @@ function DashboardPage() {
               whileHover={{ scale: 1.03, y: -1 }}
               whileTap={{ scale: 0.97 }}
               onClick={() => useAppStore.getState().setPage(action.page)}
-              className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 rounded-xl bg-gradient-to-r ${action.gradient} text-white shadow-sm hover:shadow-md transition-all shrink-0 text-xs sm:text-sm font-medium`}
+              className={`flex items-center gap-2 px-3 sm:px-4 py-3 rounded-xl bg-gradient-to-r ${action.gradient} text-white shadow-sm hover:shadow-md transition-all shrink-0 text-xs sm:text-sm font-medium`}
             >
               {action.icon}
               <span className="whitespace-nowrap">{action.label}</span>
@@ -629,7 +629,7 @@ function DashboardPage() {
                         initial="hidden"
                         animate="visible"
                         transition={{ delay: 0.5 + i * 0.05 }}
-                        className="relative flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-all group overflow-hidden"
+                        className="relative flex items-center gap-2 sm:gap-3 p-3 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer transition-all group overflow-hidden"
                         onClick={() => useAppStore.getState().setAssignmentId(s.assignmentId)}
                       >
                         <motion.div
@@ -887,7 +887,7 @@ function DashboardPage() {
                     Top Students
                   </CardTitle>
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                    <Button variant="ghost" size="sm" className="text-xs text-gray-400 hover:text-amber-600 h-7" onClick={() => useAppStore.getState().setPage('leaderboard')}>
+                    <Button variant="ghost" size="sm" className="text-xs text-gray-400 hover:text-amber-600 h-8" onClick={() => useAppStore.getState().setPage('leaderboard')}>
                       All <ArrowRight className="w-3 h-3 ml-1" />
                     </Button>
                   </motion.div>
@@ -1016,7 +1016,7 @@ function DashboardPage() {
                     Announcements
                   </CardTitle>
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                    <Button variant="ghost" size="sm" className="text-xs text-gray-400 hover:text-rose-600 h-7" onClick={() => useAppStore.getState().setPage('announcements')}>
+                    <Button variant="ghost" size="sm" className="text-xs text-gray-400 hover:text-rose-600 h-8" onClick={() => useAppStore.getState().setPage('announcements')}>
                       All <ArrowRight className="w-3 h-3 ml-1" />
                     </Button>
                   </motion.div>
@@ -1059,7 +1059,7 @@ function DashboardPage() {
                     </motion.div>
                   </CardTitle>
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                    <Button variant="ghost" size="sm" className="text-xs text-gray-400 hover:text-amber-600 h-7" onClick={() => useAppStore.getState().setPage('notifications')}>
+                    <Button variant="ghost" size="sm" className="text-xs text-gray-400 hover:text-amber-600 h-8" onClick={() => useAppStore.getState().setPage('notifications')}>
                       All <ArrowRight className="w-3 h-3 ml-1" />
                     </Button>
                   </motion.div>
@@ -1277,7 +1277,7 @@ function SimpleChart({ data, maxValue, label, subLabel, color }: {
               initial={{ opacity: 0 }}
               animate={isInView ? { opacity: 1 } : {}}
               transition={{ delay: i * 0.1 + 0.3 }}
-              className="text-[10px] text-gray-400 font-medium"
+              className="text-[10px] text-gray-400 font-medium truncate max-w-full text-center"
             >
               {d.label}
             </motion.span>
@@ -1285,7 +1285,7 @@ function SimpleChart({ data, maxValue, label, subLabel, color }: {
               initial={{ opacity: 0, y: 5 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
               transition={{ delay: i * 0.1 + 0.5, type: 'spring', stiffness: 200 }}
-              className="text-[11px] text-gray-600 dark:text-gray-400 font-bold"
+              className="text-[11px] text-gray-600 dark:text-gray-400 font-bold truncate max-w-full"
             >
               {d.value > 0 ? (maxValue ? `${d.value}` : d.value) : '-'}
             </motion.span>

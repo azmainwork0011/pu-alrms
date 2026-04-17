@@ -454,7 +454,7 @@ function ChatMessages({ messages, curModel, copiedId, onCopy, onRegen, loading }
                 <div className="max-w-[85%] sm:max-w-[70%] flex flex-col items-end">
                   <span className="text-[10px] text-gray-400 dark:text-gray-500 mb-1 mr-1">{ft(msg.timestamp)}</span>
                   <div className="bg-emerald-600 text-white rounded-2xl rounded-tr-md px-3.5 py-2.5 text-sm shadow-sm">
-                    {msg.image && <img src={msg.image} alt="" className="max-w-[200px] max-h-[150px] rounded-lg mb-2 object-cover" />}
+                    {msg.image && <img src={msg.image} alt="" className="max-w-[160px] sm:max-w-[200px] max-h-[150px] rounded-lg mb-2 object-cover" />}
                     {msg.content}
                   </div>
                 </div>

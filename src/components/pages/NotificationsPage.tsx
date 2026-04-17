@@ -57,14 +57,14 @@ function NotificationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Notifications</h1>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Notifications</h1>
         <p className="text-gray-500 dark:text-gray-400 mt-1">{notifications.filter(n => !n.isRead).length} unread</p>
       </div>
 
       {loading ? (
         <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20 rounded-xl dark:bg-gray-800" />)}</div>
       ) : notifications.length === 0 ? (
-        <Card className="border dark:border-gray-800"><CardContent className="py-12 text-center text-gray-400 dark:text-gray-500"><Bell className="w-12 h-12 mx-auto mb-3 opacity-30" /><p>No notifications yet</p></CardContent></Card>
+        <Card className="border dark:border-gray-800"><CardContent className="py-8 sm:py-12 text-center text-gray-400 dark:text-gray-500"><Bell className="w-12 h-12 mx-auto mb-3 opacity-30" /><p>No notifications yet</p></CardContent></Card>
       ) : (
         <div className="space-y-2">
           {notifications.map((n: any) => (
@@ -75,10 +75,10 @@ function NotificationsPage() {
                     <div className="mt-0.5 p-2 rounded-lg bg-gray-100 dark:bg-gray-800">{getNotifIcon(n.type)}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <p className="text-sm font-semibold dark:text-gray-100">{n.title}</p>
+                        <p className="text-sm font-semibold dark:text-gray-100 truncate">{n.title}</p>
                         <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">{timeAgo(n.createdAt)}</span>
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5">{n.message}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 line-clamp-2">{n.message}</p>
                     </div>
                     {!n.isRead && <div className="w-2 h-2 rounded-full bg-emerald-500 mt-2 shrink-0" />}
                   </div>

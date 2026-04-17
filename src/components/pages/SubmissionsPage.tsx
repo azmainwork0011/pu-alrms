@@ -57,7 +57,7 @@ function SubmissionsPage() {
         </div>
         {user?.role === 'TEACHER' && (
           <Select value={filterAssignment} onValueChange={setFilterAssignment}>
-            <SelectTrigger className="w-56 dark:bg-gray-800 dark:border-gray-700"><SelectValue placeholder="Filter by assignment" /></SelectTrigger>
+            <SelectTrigger className="w-full sm:w-56 dark:bg-gray-800 dark:border-gray-700"><SelectValue placeholder="Filter by assignment" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Assignments</SelectItem>
               {assignments.map((a: any) => <SelectItem key={a.id} value={a.id}>{a.title}</SelectItem>)}
@@ -71,7 +71,7 @@ function SubmissionsPage() {
       ) : filtered.length === 0 ? (
         <Card className="border dark:border-gray-800"><CardContent className="py-12 text-center text-gray-400 dark:text-gray-500">No submissions found</CardContent></Card>
       ) : (
-        <Card className="border dark:border-gray-800 overflow-hidden">
+        <Card className="border dark:border-gray-800 overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="dark:border-gray-800">
@@ -79,7 +79,7 @@ function SubmissionsPage() {
                 <TableHead>Details</TableHead>
                 {user?.role === 'TEACHER' && <TableHead className="hidden sm:table-cell">Student</TableHead>}
                 <TableHead>Status</TableHead>
-                <TableHead>Marks</TableHead>
+                <TableHead className="hidden sm:table-cell">Marks</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
@@ -93,7 +93,10 @@ function SubmissionsPage() {
                     <TableCell>
                       <p className="font-medium sm:hidden text-sm dark:text-gray-200">{s.assignment?.title}</p>
                       <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{s.fileName}</p>
-                      <p className="text-xs text-gray-400 dark:text-gray-500">{submittedDate}</p>
+                      <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
+                        <span>{submittedDate}</span>
+                        {s.marks != null && <span className="sm:hidden">· {s.marks}/100</span>}
+                      </div>
                     </TableCell>
                     {user?.role === 'TEACHER' && (
                       <TableCell className="hidden sm:table-cell">
@@ -104,9 +107,9 @@ function SubmissionsPage() {
                       </TableCell>
                     )}
                     <TableCell><Badge className={`text-xs ${getStatusColor(s.status)}`}>{s.status}</Badge></TableCell>
-                    <TableCell>{s.marks != null ? <span className="font-medium dark:text-gray-200">{s.marks}/100</span> : <span className="text-gray-400 dark:text-gray-500">-</span>}</TableCell>
+                    <TableCell className="hidden sm:table-cell">{s.marks != null ? <span className="font-medium dark:text-gray-200">{s.marks}/100</span> : <span className="text-gray-400 dark:text-gray-500">-</span>}</TableCell>
                     <TableCell>
-                      <Button size="sm" variant="ghost" onClick={() => useAppStore.getState().setAssignmentId(s.assignmentId)}>
+                      <Button size="icon" variant="ghost" className="h-9 w-9 sm:h-8 sm:w-8" onClick={() => useAppStore.getState().setAssignmentId(s.assignmentId)}>
                         <Eye className="w-4 h-4" />
                       </Button>
                     </TableCell>

@@ -286,15 +286,16 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
                   className="border border-gray-200/80 dark:border-gray-700/50 hover:shadow-md transition-all group cursor-pointer overflow-hidden"
                   onClick={() => setAssignmentId(a.id)}
                 >
-                  <CardContent className="p-4">
-                    <div className="flex items-start gap-4">
+                  <CardContent className="p-3.5 sm:p-4">
+                    <div className="flex items-start gap-3 sm:gap-4">
                       {/* Left accent stripe */}
                       <div className={`w-1 self-stretch rounded-full shrink-0 ${
                         isLabReport
                           ? 'bg-gradient-to-b from-cyan-500 to-blue-500'
                           : 'bg-gradient-to-b from-emerald-500 to-teal-500'
                       }`} />
-
+                      {/* Content + Actions wrapper */}
+                      <div className="min-w-0 flex-1 flex flex-col gap-2.5 sm:gap-0 sm:flex-row sm:items-start">
                       {/* Content */}
                       <div className="min-w-0 flex-1">
                         {/* Title + Badges */}
@@ -316,7 +317,7 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
                           {a.subject && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 font-medium">
                               <span className="font-mono text-[10px]">{a.subject.code}</span>
-                              <span>{a.subject.name}</span>
+                              <span className="truncate max-w-[140px] sm:max-w-none">{a.subject.name}</span>
                             </span>
                           )}
                           <span className="flex items-center gap-1">
@@ -334,7 +335,7 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
                       </div>
 
                       {/* Right side: status + actions */}
-                      <div className="flex items-center gap-2 shrink-0 ml-2">
+                      <div className="flex items-center justify-end gap-1.5 sm:gap-2 shrink-0 sm:ml-2 border-t sm:border-0 pt-2.5 sm:pt-0 border-gray-100 dark:border-gray-800">
                         {/* Student submission status */}
                         {user?.role === 'STUDENT' && (
                           sub ? (
@@ -359,7 +360,7 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400"
+                          className="h-10 w-10 sm:h-8 sm:w-8 text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400"
                           onClick={(e) => { e.stopPropagation(); setAssignmentId(a.id); }}
                         >
                           <Eye className="w-4 h-4" />
@@ -371,7 +372,7 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                              className="h-10 w-10 sm:h-8 sm:w-8 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                               onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === a.id ? null : a.id); }}
                             >
                               <MoreHorizontal className="w-4 h-4" />
@@ -382,7 +383,7 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
                                   initial={{ opacity: 0, scale: 0.95 }}
                                   animate={{ opacity: 1, scale: 1 }}
                                   exit={{ opacity: 0, scale: 0.95 }}
-                                  className="absolute right-0 top-full mt-1 z-50 w-44 bg-white dark:bg-gray-900 border dark:border-gray-700 rounded-xl shadow-xl overflow-hidden"
+                                  className="absolute right-0 top-full mt-1 z-50 w-40 sm:w-44 bg-white dark:bg-gray-900 border dark:border-gray-700 rounded-xl shadow-xl overflow-hidden"
                                   onClick={(e) => e.stopPropagation()}
                                 >
                                   <button onClick={(e) => openEdit(e, a)} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
@@ -400,6 +401,7 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
                             </AnimatePresence>
                           </div>
                         )}
+                      </div>
                       </div>
                     </div>
                   </CardContent>
