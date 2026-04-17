@@ -274,7 +274,7 @@ function BookCard({
       variants={cardFadeIn}
       className="group"
     >
-      <div className="rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer h-full flex flex-col">
+      <div className="rounded-lg border dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer h-full flex flex-col" onClick={onClick}>
         {/* Cover Image */}
         <div className="relative w-full aspect-[3/4] overflow-hidden bg-gray-100 dark:bg-gray-800">
           {book.coverUrl ? (
@@ -293,11 +293,11 @@ function BookCard({
             <BookCoverFallback />
           </div>
 
-          {/* Save Button */}
+          {/* Save Button — 44px minimum touch target */}
           <motion.button
             whileTap={{ scale: 0.75 }}
             onClick={(e) => onToggleSave(e, book)}
-            className="absolute top-1 right-1 z-10 w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white dark:hover:bg-gray-800 transition-colors"
+            className="absolute top-1.5 right-1.5 z-10 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm flex items-center justify-center shadow-sm hover:bg-white dark:hover:bg-gray-800 active:bg-gray-100 dark:active:bg-gray-700 transition-colors"
           >
             <AnimatePresence mode="wait">
               <motion.div
@@ -338,7 +338,7 @@ function BookCard({
         </div>
 
         {/* Card Content - ultra compact */}
-        <div className="p-1.5 sm:p-2 flex-1 flex flex-col min-h-0" onClick={onClick}>
+        <div className="p-1.5 sm:p-2 flex-1 flex flex-col min-h-0">
           <h3 className="text-[11px] sm:text-xs font-semibold text-gray-900 dark:text-gray-100 line-clamp-2 leading-tight">
             {book.title}
           </h3>
@@ -567,26 +567,27 @@ function BookDetailModal({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl w-[calc(100%-1rem)] sm:w-full max-h-[92vh] overflow-hidden p-0 gap-0 [&>button]:hidden">
+      <DialogContent className="max-w-2xl w-[calc(100%-0.75rem)] sm:w-full max-h-[92vh] overflow-hidden p-0 gap-0 [&>button]:hidden">
         <motion.div
           variants={modalSlideUp}
           initial="hidden"
           animate="visible"
           exit="exit"
+          className="relative"
         >
-          {/* Close Button */}
+          {/* Close Button — larger touch target on mobile */}
           <button
             onClick={onClose}
-            className="absolute top-3 right-3 z-20 w-9 h-9 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-white dark:hover:bg-gray-700 transition-colors"
+            className="absolute top-2.5 right-2.5 sm:top-3 sm:right-3 z-20 w-9 h-9 sm:w-9 sm:h-9 rounded-full bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm flex items-center justify-center shadow-md hover:bg-white dark:hover:bg-gray-700 active:scale-95 transition-all"
           >
             <X className="w-5 h-5 text-gray-600 dark:text-gray-300" />
           </button>
 
           <ScrollArea className="max-h-[92vh]">
             <div className="flex flex-col sm:flex-row">
-              {/* Cover */}
-              <div className="sm:w-48 shrink-0 bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center p-4 sm:p-4">
-                <div className="w-full max-w-[140px] aspect-[2/3] rounded-lg overflow-hidden shadow-lg">
+              {/* Cover — wider on mobile, centered */}
+              <div className="sm:w-48 shrink-0 bg-gray-50 dark:bg-gray-800/50 flex items-center justify-center p-4 pb-2 sm:p-4 sm:pb-4">
+                <div className="w-full max-w-[180px] sm:max-w-[140px] aspect-[2/3] rounded-lg overflow-hidden shadow-lg">
                   {book.coverUrl ? (
                     <img
                       src={book.coverUrl}
@@ -607,9 +608,9 @@ function BookDetailModal({
               </div>
 
               {/* Details */}
-              <div className="flex-1 p-5 sm:p-6 space-y-4">
-                <DialogHeader className="space-y-1.5 text-left pr-8">
-                  <DialogTitle className="text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
+              <div className="flex-1 p-4 pb-5 sm:p-6 space-y-3 sm:space-y-4">
+                <DialogHeader className="space-y-1 sm:space-y-1.5 text-left pr-8">
+                  <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
                     {book.title}
                   </DialogTitle>
                   {book.subtitle && (
@@ -690,8 +691,8 @@ function BookDetailModal({
 
                 <Separator />
 
-                {/* Action Buttons */}
-                <div className="flex flex-wrap gap-2">
+                {/* Action Buttons — scrollable on small mobile */}
+                <div className="flex flex-wrap gap-2 max-w-full overflow-x-auto pb-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                   {/* Save / Unsave */}
                   <Button
                     variant={isSaved ? 'default' : 'outline'}
@@ -745,17 +746,18 @@ function BookDetailModal({
                   {/* Download PDF */}
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <span className="inline-block">
+                      <span className="inline-block shrink-0">
                         <Button
                           variant="outline"
                           size="sm"
                           disabled={!book.pdfAvailable || !book.pdfLink}
                           asChild={book.pdfAvailable && book.pdfLink ? true : false}
+                          className="text-xs sm:text-sm"
                         >
                           {book.pdfAvailable && book.pdfLink ? (
                             <a href={book.pdfLink} target="_blank" rel="noopener noreferrer">
                               <Download className="w-4 h-4" />
-                              Download PDF
+                              <span className="hidden xs:inline">Download</span> PDF
                             </a>
                           ) : (
                             <>
@@ -775,7 +777,7 @@ function BookDetailModal({
 
                   {/* View on Source */}
                   {book.infoLink && (
-                    <Button variant="ghost" size="sm" asChild>
+                    <Button variant="ghost" size="sm" asChild className="text-xs sm:text-sm shrink-0">
                       <a href={book.infoLink} target="_blank" rel="noopener noreferrer">
                         <ExternalLink className="w-4 h-4" />
                         <span className="hidden sm:inline">View on </span>
@@ -822,17 +824,17 @@ function WelcomeState({ onCategoryClick }: { onCategoryClick: (cat: string) => v
       <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400 max-w-sm mb-4 px-4">
         Search for books, browse by category, or save your favorites.
       </p>
-      <div className="grid grid-cols-2 gap-2 px-4 max-w-sm w-full">
+      <div className="grid grid-cols-2 gap-2.5 px-4 max-w-sm w-full">
         {featuredCategories.map((cat) => (
           <motion.button
             key={cat.value}
             whileHover={{ scale: 1.03, y: -1 }}
             whileTap={{ scale: 0.97 }}
             onClick={() => onCategoryClick(cat.value)}
-            className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all text-xs font-medium text-gray-700 dark:text-gray-300"
+            className="flex items-center gap-1.5 px-2.5 py-2.5 rounded-lg bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-emerald-300 dark:hover:border-emerald-700 transition-all text-xs font-medium text-gray-700 dark:text-gray-300"
           >
             <cat.icon className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-            <span className="truncate">{cat.label}</span>
+            <span className="truncate text-left">{cat.label}</span>
           </motion.button>
         ))}
       </div>
@@ -1387,9 +1389,9 @@ export default function BooksPage() {
         className="relative"
       >
         {/* Left gradient fade */}
-        <div className="absolute left-0 top-0 bottom-0 w-3 sm:w-6 bg-gradient-to-r from-white dark:from-gray-950 to-transparent z-10 pointer-events-none rounded-l-lg" />
+        <div className="absolute left-0 top-0 bottom-0 w-3 sm:w-6 bg-gradient-to-r from-gray-50 dark:from-gray-950 to-transparent z-10 pointer-events-none rounded-l-lg" />
         {/* Right gradient fade */}
-        <div className="absolute right-0 top-0 bottom-0 w-3 sm:w-6 bg-gradient-to-l from-white dark:from-gray-950 to-transparent z-10 pointer-events-none rounded-r-lg" />
+        <div className="absolute right-0 top-0 bottom-0 w-3 sm:w-6 bg-gradient-to-l from-gray-50 dark:from-gray-950 to-transparent z-10 pointer-events-none rounded-r-lg" />
 
         <div
           ref={categoryScrollRef}
@@ -1424,22 +1426,23 @@ export default function BooksPage() {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 flex-wrap"
+          className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400"
         >
-          {activeCategoryConfig && (
-            <>
-              <Badge variant="outline" className="text-[10px] px-2 py-0 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 gap-1">
+          <div className="flex items-center gap-2 min-w-0 flex-1 flex-wrap">
+            {activeCategoryConfig && (
+              <Badge variant="outline" className="text-[10px] px-2 py-0 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 gap-1 shrink-0">
                 <activeCategoryConfig.icon className="w-3 h-3" />
-                {activeCategoryConfig.label}
+                <span className="hidden xs:inline">{activeCategoryConfig.label}</span>
+                <span className="xs:hidden">{activeCategoryConfig.label.split(' (')[0]}</span>
               </Badge>
-              {query && <span>·</span>}
-            </>
-          )}
-          {query && <span>Search: &ldquo;{query}&rdquo;</span>}
-          {!isSavedTab && totalItems > 0 && (
-            <span className="ml-auto">· {totalItems.toLocaleString()} results</span>
-          )}
-          {!isSavedTab && (
+            )}
+            {query && activeCategoryConfig && <span className="shrink-0">·</span>}
+            {query && <span className="truncate">&ldquo;{query}&rdquo;</span>}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {!isSavedTab && totalItems > 0 && (
+              <span className="hidden sm:inline">· {totalItems.toLocaleString()} results</span>
+            )}
             <button
               onClick={() => {
                 setActiveCategory('');
@@ -1451,12 +1454,13 @@ export default function BooksPage() {
                 setHasMore(false);
                 setError(null);
               }}
-              className="ml-auto sm:ml-0 flex items-center gap-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              className="flex items-center gap-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors shrink-0"
             >
               <ChevronLeft className="w-3 h-3" />
-              Clear filters
+              <span className="hidden sm:inline">Clear filters</span>
+              <span className="sm:hidden">Clear</span>
             </button>
-          )}
+          </div>
         </motion.div>
       )}
 
@@ -1468,7 +1472,7 @@ export default function BooksPage() {
             variants={staggerContainer}
             initial="hidden"
             animate="visible"
-            className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2 sm:gap-3"
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3"
           >
             {Array.from({ length: 24 }).map((_, i) => (
               <motion.div key={i} variants={cardFadeIn}>
@@ -1499,7 +1503,7 @@ export default function BooksPage() {
               initial="hidden"
               animate="visible"
               key={`${activeCategory}-${debouncedQuery}-${language}-${page}`}
-              className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-2 sm:gap-3"
+              className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 sm:gap-3"
             >
               {books.map((book, index) => (
                 <BookCard
@@ -1521,7 +1525,7 @@ export default function BooksPage() {
                     variant="outline"
                     onClick={handleLoadMore}
                     disabled={loadingMore}
-                    className="w-full sm:w-auto sm:min-w-[140px] h-8 border-gray-300 dark:border-gray-700 rounded-lg gap-1.5 text-xs"
+                    className="w-full sm:w-auto sm:min-w-[140px] h-9 sm:h-8 border-gray-300 dark:border-gray-700 rounded-lg gap-1.5 text-xs"
                   >
                     {loadingMore ? (
                       <>
@@ -1531,7 +1535,7 @@ export default function BooksPage() {
                     ) : (
                       <>
                         Load More
-                        <span className="text-xs text-gray-400">
+                        <span className="hidden sm:inline text-xs text-gray-400">
                           ({Math.min((page + 1) * MAX_RESULTS, totalItems).toLocaleString()} of {totalItems.toLocaleString()})
                         </span>
                       </>

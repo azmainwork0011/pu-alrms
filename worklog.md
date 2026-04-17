@@ -105,3 +105,54 @@ Stage Summary:
 - All 3 assignment pages redesigned with consistent professional design
 - Backend POST /api/subjects added with duplicate code protection
 - subjectApi.create() added to frontend API layer
+
+---
+Task ID: 5
+Agent: Main Orchestrator
+Task: Fix login page reliability issues
+
+Work Log:
+- Analyzed login page architecture: AuthPage.tsx, page.tsx, store/app.ts, lib/api.ts, /api/auth/login
+- Found 5 issues causing intermittent login failures:
+  1. requestAnimationFrame stalls in background tabs → loading screen stuck forever
+  2. setAuth() localStorage writes not wrapped in try/catch → login stuck if localStorage full
+  3. No hydration safety timeout → if hydrate() never completes, loading screen stays
+  4. No error boundary → rendering errors crash entire app with no recovery
+  5. Network errors not distinguished from auth errors → generic "Authentication failed"
+- Fixed page.tsx: Added rAF fallback timeout (150ms), error boundary with retry, global error handlers
+- Fixed store/app.ts: Wrapped all localStorage operations in try/catch, moved Zustand set() before localStorage writes in setAuth()
+- Fixed AuthPage.tsx: Added isNetworkError() detection, network-specific error messages, double-submission guards, autoComplete attributes
+- Fixed lib/api.ts: Added fetchWithTimeout() (15s default, 20s for auth), AbortController support, linked signal handling, better timeout messages
+- 0 ESLint errors confirmed
+
+Stage Summary:
+- Login page now resilient to: background tabs, localStorage failures, network timeouts, rendering errors
+- All localStorage operations silently degrade — user stays logged in for session
+- Network errors show clear "check connection" message instead of generic error
+- Error fallback with retry button for unrecoverable rendering errors
+- Request timeout prevents infinite loading spinners
+
+---
+Task ID: 6
+Agent: Main Orchestrator
+Task: Make Digital Library (BooksPage) responsive for PC and mobile
+
+Work Log:
+- Analyzed BooksPage.tsx (1577 lines) for responsive issues
+- Found and fixed 7 responsive issues:
+  1. Category gradient fades used from-white but page bg is gray-50 → fixed to from-gray-50
+  2. Book Detail Modal cover too narrow on mobile (max-w-140px) → increased to max-w-[180px] on mobile
+  3. Book Detail Modal action buttons wrapped messily on small screens → added shrink-0, text-xs sm:text-sm, hidden text for mobile
+  4. Filter info bar had ml-auto on both results count and Clear filters → restructured with flex-1/flex layout, truncated label on mobile
+  5. Book grid 3 cols on 320px too cramped → changed to grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6
+  6. Save button touch target too small (24px) → increased to w-7 h-7 on mobile with active:bg feedback
+  7. Load More button count text overflowed on small screens → hidden on mobile
+- Also improved: welcome state category button padding (py-2.5), modal close button touch target (active:scale-95), modal description spacing
+- 0 ESLint errors confirmed
+
+Stage Summary:
+- Digital Library now fully responsive from 320px mobile to large desktop
+- Book grid scales: 2 cols mobile → 3 cols sm → 4 cols md → 5 cols lg → 6 cols xl
+- Book Detail Modal optimized for mobile with wider cover, better button layout
+- Category pills and filter bar properly truncated on small screens
+- Touch targets meet 44px minimum on mobile
