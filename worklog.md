@@ -71,3 +71,37 @@ Stage Summary:
 - All pages verified responsive: AppLayout, AuthPage, DashboardPage, ProfilePage, AIChatPage, LearnWithGame (7 tabs), Leaderboard, Assignments, Submissions, Announcements, Notifications, Community, Books, Quiz
 - 3 responsive issues fixed
 - App works properly on mobile (320px+), tablet, and desktop
+
+---
+Task ID: 4
+Agent: Main Orchestrator
+Task: Redesign assignment system - Create/Detail/List pages with inline subject creation
+
+Work Log:
+- Added POST endpoint to /api/subjects for creating new subjects (with code uniqueness check)
+- Added subjectApi.create() to lib/api.ts
+- Completely redesigned CreateAssignmentPage with 4-section professional layout:
+  1. Assignment Details (title, description, type selector with visual cards)
+  2. Subject (searchable dropdown with inline "Create New Subject" form)
+  3. Schedule & Audience (deadline with formatted preview, batch selection)
+  4. Summary & Submit (overview grid + action buttons)
+- Redesigned AssignmentDetailPage with:
+  - Colored accent bar based on type (emerald for assignment, cyan for lab report)
+  - Subject badge with monospaced code display
+  - Enhanced student submission status with grade badges (Excellent/Good/Needs Work)
+  - Professional grading dialog with centered marks input
+  - Improved discussion section with styled comments
+- Redesigned AssignmentsPage list with:
+  - Gradient icon headers per type
+  - Subject badges with monospaced codes
+  - Left accent stripe on each card
+  - Overdue badges with icon
+  - Better filter bar with subject code display
+  - Click-outside to close menu
+- 0 ESLint errors confirmed
+
+Stage Summary:
+- Admin/Teacher can now create subjects inline when creating assignments
+- All 3 assignment pages redesigned with consistent professional design
+- Backend POST /api/subjects added with duplicate code protection
+- subjectApi.create() added to frontend API layer
