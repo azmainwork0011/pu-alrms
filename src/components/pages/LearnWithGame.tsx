@@ -154,12 +154,12 @@ function HPBar({ hp, maxHp, label, color, side }: { hp: number; maxHp: number; l
   const pct = Math.max(0, (hp / maxHp) * 100);
   const isLow = pct <= 25;
   return (
-    <div className={`flex items-center gap-3 ${side === 'right' ? 'flex-row-reverse' : ''}`}>
-      <div className="text-sm font-bold min-w-[60px] text-center">
+    <div className={`flex items-center gap-2 sm:gap-3 ${side === 'right' ? 'flex-row-reverse' : ''}`}>
+      <div className="text-sm font-bold min-w-[50px] sm:min-w-[60px] text-center shrink-0">
         <span className={isLow ? 'text-rose-500' : color}>{hp}</span>
         <span className="text-gray-400">/{maxHp}</span>
       </div>
-      <div className="flex-1 h-6 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden relative">
+      <div className="flex-1 h-5 sm:h-6 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden relative min-w-0">
         <motion.div
           className={`h-full rounded-full ${isLow ? 'bg-gradient-to-r from-rose-500 to-red-500' : `bg-gradient-to-r ${color}`}`}
           initial={{ width: pct + '%' }}
@@ -174,7 +174,7 @@ function HPBar({ hp, maxHp, label, color, side }: { hp: number; maxHp: number; l
           />
         )}
       </div>
-      <div className="text-sm font-semibold min-w-[80px] text-center">{label}</div>
+      <div className="text-xs sm:text-sm font-semibold min-w-0 max-w-[100px] sm:max-w-[140px] text-center truncate">{label}</div>
     </div>
   );
 }
@@ -1428,7 +1428,7 @@ export default function LearnWithGame() {
                 <div className="p-2 rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 text-center text-sm font-medium">No match! Try again.</div>
               </motion.div>
             )}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Concepts */}
               <div className="space-y-2">
                 <h4 className="text-xs font-semibold text-gray-500 uppercase">Concepts</h4>
