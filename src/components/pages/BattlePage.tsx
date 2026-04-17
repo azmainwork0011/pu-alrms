@@ -494,7 +494,7 @@ function BattlePage() {
             animate={{ x: `${p.x + p.vx * 8}%`, y: `${p.y + p.vy * 8}%`, opacity: 0, scale: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 1.2, ease: 'easeOut' }}
-            className="fixed pointer-events-none rounded-full"
+            className="absolute pointer-events-none rounded-full"
             style={{
               width: p.size,
               height: p.size,
@@ -614,7 +614,7 @@ function BattlePage() {
                 initial={{ x: -100, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ type: 'spring', damping: 12 }}
-                className="text-center min-w-0 flex-shrink"
+                className="text-center min-w-0 shrink-0"
               >
                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold mx-auto mb-3 shadow-xl shadow-violet-500/30 ring-4 ring-violet-400/30">
                   {user?.name?.charAt(0)}
@@ -659,7 +659,7 @@ function BattlePage() {
                 initial={{ x: 100, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ type: 'spring', damping: 12 }}
-                className="text-center min-w-0 flex-shrink"
+                className="text-center min-w-0 shrink-0"
               >
                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold mx-auto mb-3 shadow-xl shadow-red-500/30 ring-4 ring-red-400/30">
                   {battleMode === 'solo' ? <Bot className="w-10 h-10" /> : (opponentName?.charAt(0) || '?')}

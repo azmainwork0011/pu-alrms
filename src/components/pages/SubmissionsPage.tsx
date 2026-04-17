@@ -100,9 +100,9 @@ function SubmissionsPage() {
                     </TableCell>
                     {user?.role === 'TEACHER' && (
                       <TableCell className="hidden sm:table-cell">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="w-6 h-6"><AvatarImage src={s.student?.avatar} /><AvatarFallback className="text-xs">{getInitials(s.student?.name || '?')}</AvatarFallback></Avatar>
-                          <span className="text-sm dark:text-gray-300">{s.student?.name}</span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Avatar className="w-6 h-6 shrink-0"><AvatarImage src={s.student?.avatar} /><AvatarFallback className="text-xs">{getInitials(s.student?.name || '?')}</AvatarFallback></Avatar>
+                          <span className="text-sm dark:text-gray-300 truncate">{s.student?.name}</span>
                         </div>
                       </TableCell>
                     )}

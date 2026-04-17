@@ -608,9 +608,9 @@ function BookDetailModal({
               </div>
 
               {/* Details */}
-              <div className="flex-1 p-4 pb-5 sm:p-6 space-y-3 sm:space-y-4">
+              <div className="flex-1 min-w-0 p-4 pb-5 sm:p-6 space-y-3 sm:space-y-4">
                 <DialogHeader className="space-y-1 sm:space-y-1.5 text-left pr-8">
-                  <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight">
+                  <DialogTitle className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100 leading-tight line-clamp-2">
                     {book.title}
                   </DialogTitle>
                   {book.subtitle && (

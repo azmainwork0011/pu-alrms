@@ -1144,7 +1144,7 @@ export default function LearnWithGame() {
               <Badge variant="outline" className="text-xs">{getLanguageById(battleLang)?.icon} {getLanguageById(battleLang)?.name}</Badge>
               <Badge className={`text-xs ${diffColors[battleCurrentQ.difficulty]} border ${diffBadge[battleCurrentQ.difficulty]}`}>{battleCurrentQ.difficulty}</Badge>
             </div>
-            <h3 className="text-base sm:text-lg font-semibold">{battleCurrentQ.question}</h3>
+            <h3 className="text-base sm:text-lg font-semibold break-words">{battleCurrentQ.question}</h3>
             {battleCurrentQ.codeSnippet && <CodeBlock code={battleCurrentQ.codeSnippet} />}
             {/* FIX #2: Battle now handles all question types, not just MCQ */}
             {battleCurrentQ.type === 'MCQ' && battleCurrentQ.options && (
@@ -1648,7 +1648,7 @@ export default function LearnWithGame() {
                         <AvatarFallback className="text-lg bg-gray-100 dark:bg-gray-700 grayscale">{f.avatar}</AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-sm">{f.name}</div>
+                        <div className="font-semibold text-sm truncate">{f.name}</div>
                         <div className="text-xs text-gray-500">Lv.{f.level} • Last seen recently</div>
                       </div>
                       <Button size="sm" variant="ghost" className="text-gray-400 hover:text-rose-500" onClick={() => removeFriend(f.id)}>
