@@ -1110,9 +1110,9 @@ function DashboardPage() {
                     >
                       <Flame className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     </motion.div>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-xs font-medium text-gray-800 dark:text-gray-200">Completion Rate</p>
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400">{stats?.completionRate || 0}% of all assignments submitted</p>
+                      <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{stats?.completionRate || 0}% of all assignments submitted</p>
                     </div>
                   </motion.div>
                   {stats?.maxMarks > 0 && (
@@ -1126,9 +1126,9 @@ function DashboardPage() {
                       >
                         <Star className="w-4 h-4 text-violet-600 dark:text-violet-400 shrink-0" />
                       </motion.div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-xs font-medium text-gray-800 dark:text-gray-200">Best Grade</p>
-                        <p className="text-[10px] text-gray-500 dark:text-gray-400">{stats.maxMarks.toFixed(1)}% — Keep it up!</p>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">{stats.maxMarks.toFixed(1)}% — Keep it up!</p>
                       </div>
                     </motion.div>
                   )}
@@ -1143,9 +1143,9 @@ function DashboardPage() {
                       >
                         <Trophy className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
                       </motion.div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-xs font-medium text-gray-800 dark:text-gray-200">Top Performer</p>
-                        <p className="text-[10px] text-gray-500 dark:text-gray-400">Average above 70% — Great work!</p>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate">Average above 70% — Great work!</p>
                       </div>
                     </motion.div>
                   )}
@@ -1240,7 +1240,7 @@ function SimpleChart({ data, maxValue, label, subLabel, color }: {
       <div className="flex items-end gap-2 h-36">
         {data.map((d, i) => (
           <div key={d.label} className="flex-1 flex flex-col items-center gap-1">
-            <div className="flex items-end gap-0.5 w-full h-28 relative group">
+            <div className="flex items-end gap-0.5 w-full h-28 relative group overflow-hidden">
               {/* Hover tooltip */}
               <motion.div
                 className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-[10px] font-bold rounded-md opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-10"

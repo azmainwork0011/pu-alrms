@@ -64,6 +64,7 @@ function LeaderboardPage() {
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: dataIdx * 0.1 }}
+                    className="min-w-0"
                   >
                     <Card className={`border dark:border-gray-800 text-center ${style.ring}`}>
                       <CardContent className="p-3 sm:p-4">
@@ -116,9 +117,9 @@ function LeaderboardPage() {
                       <TableCell className="hidden sm:table-cell dark:text-gray-300 text-sm">{e.totalSubmissions}</TableCell>
                       <TableCell className="font-bold text-emerald-700 dark:text-emerald-400 text-sm">{e.averageMarks?.toFixed(1)}%</TableCell>
                       <TableCell className="hidden sm:table-cell">
-                        <div className="flex items-center gap-2">
-                          <Progress value={e.averageMarks} className="h-2 flex-1" />
-                          <span className="text-[10px] text-gray-400 w-8 text-right">{e.averageMarks?.toFixed(0)}%</span>
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Progress value={e.averageMarks} className="h-2 flex-1 min-w-0" />
+                          <span className="text-[10px] text-gray-400 w-8 text-right shrink-0">{e.averageMarks?.toFixed(0)}%</span>
                         </div>
                       </TableCell>
                     </TableRow>

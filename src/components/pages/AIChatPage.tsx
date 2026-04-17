@@ -572,7 +572,7 @@ function BattleMessages({ messages, copiedId, onCopy, onVote, loading }: any) {
                   <span className="text-sm font-semibold text-gray-800 dark:text-gray-200">Battle Results</span>
                   <Badge variant="outline" className="text-[10px]">{msg.battleResponses.length} responses</Badge>
                 </div>
-                <div className={`grid ${msg.battleResponses.length >= 3 ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'} gap-3`}>
+                <div className={`grid ${msg.battleResponses.length >= 3 ? 'grid-cols-1 lg:grid-cols-3' : 'grid-cols-1 md:grid-cols-2'} gap-3 [&>*]:min-w-0`}>
                   {msg.battleResponses.map((resp: { label: string; content: string }) => {
                     const reveal = msg.battleReveals?.[resp.label];
                     const revModel = reveal ? AI_MODELS.find(m => m.id === reveal.id) : null;

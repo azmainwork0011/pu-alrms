@@ -358,13 +358,13 @@ function ProfilePage() {
             {/* Name + Role + Edit */}
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 -mt-1">
               <div className="min-w-0">
-                <div className="flex items-center gap-2.5">
-                  <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight">{user?.name || 'User'}</h2>
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight truncate">{user?.name || 'User'}</h2>
                   <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${roleGradient}`} />
                 </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5" />
-                  {user?.email}
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1.5 min-w-0">
+                  <Mail className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{user?.email}</span>
                 </p>
                 <div className="flex items-center gap-2 mt-2.5 flex-wrap">
                   <Badge className={`${getRoleBadgeColor(role)} text-xs font-semibold px-2.5 py-0.5`}>{roleLabel}</Badge>
@@ -505,7 +505,7 @@ function ProfilePage() {
                       { icon: <Mail className="w-4 h-4" />, label: 'Email', value: user?.email },
                       { icon: <Phone className="w-4 h-4" />, label: 'Phone', value: user?.phone },
                     ].map((item) => (
-                      <div key={item.label} className="flex items-center gap-3 py-3.5 px-1 hover:bg-gray-50 dark:hover:bg-gray-800/30 rounded-lg transition-colors -mx-1 px-2">
+                      <div key={item.label} className="flex items-center gap-3 py-3.5 -mx-1 px-1 hover:bg-gray-50 dark:hover:bg-gray-800/30 rounded-lg transition-colors min-w-0">
                         <div className="w-9 h-9 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-gray-400 dark:text-gray-500 shrink-0">
                           {item.icon}
                         </div>
