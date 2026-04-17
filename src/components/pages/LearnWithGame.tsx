@@ -427,15 +427,10 @@ export default function LearnWithGame() {
           setBattleBotCorrect(botIsCorrect);
           if (botIsCorrect) {
             const botDmg = Math.floor(Math.random() * 11) + 10;
-            setBattleP2HP(h => Math.max(0, h - botDmg));
-            setBattleDamage(prev => ({ ...prev, opponent: botDmg }));
+            setBattleP1HP(h => Math.max(0, h - botDmg));
+            setBattleDamage(prev => ({ ...prev, player: prev.player + botDmg }));
           }
         }
-        // FIX #8: Auto-advance to next round after 2 seconds
-        battleTimeoutRef.current = setTimeout(() => {
-          // nextBattleRound will be called by the component
-          setBattleRevealed(false); // trigger re-evaluation
-        }, 2500);
       }, 0);
       return () => clearTimeout(t);
     }
@@ -1204,7 +1199,7 @@ export default function LearnWithGame() {
                     <div className="text-xs font-semibold mb-1">🤖 Bot</div>
                     <div className="font-bold">
                       {battleBotCorrect ? (
-                        <>Correct! -{Math.max(0, battleDamage.player - (battleAnswer === '' || battleAnswer !== battleCurrentQ.correctAnswer ? 0 : 0))} HP to you</>
+                        <>Correct! -{battleDamage.player} HP to you</>
                       ) : (
                         <>Wrong! No damage</>
                       )}
@@ -1796,7 +1791,7 @@ export default function LearnWithGame() {
               <div>
                 <h3 className="text-lg font-bold">{level.title}</h3>
                 <p className="text-sm text-gray-500">Level {level.level} • {profile.xp.toLocaleString()} XP</p>
-                <p className="text-xs text-gray-400 mt-1">Next: {getNextLevel(profile.xp).xpRequired - profile.xp} XP to {getNextLevel(profile.xp).level > 20 ? 'Max Level' : `Level ${getNextLevel(profile.xp).level}`}</p>
+                <p className="text-xs text-gray-400 mt-1">Next: {getNextLevel(profile.xp).xpNeeded} XP to {getNextLevel(profile.xp).xpNeeded === 0 ? 'Max Level' : `Level ${getNextLevel(profile.xp).level}`}</p>
               </div>
             </div>
           </CardContent>
@@ -1862,25 +1857,25 @@ export default function LearnWithGame() {
 
           <div className="mt-4">
             <AnimatePresence mode="wait">
-              <TabsContent value="home" forceMount={activeTab === 'home'}>
+              <TabsContent value="home" forceMount={(activeTab === 'home') as unknown as true}>
                 <AnimatePresence>{activeTab === 'home' && <motion.div {...fadeIn}>{renderHome()}</motion.div>}</AnimatePresence>
               </TabsContent>
-              <TabsContent value="learn" forceMount={activeTab === 'learn'}>
+              <TabsContent value="learn" forceMount={(activeTab === 'learn') as unknown as true}>
                 <AnimatePresence>{activeTab === 'learn' && <motion.div {...fadeIn}>{renderLearn()}</motion.div>}</AnimatePresence>
               </TabsContent>
-              <TabsContent value="battle" forceMount={activeTab === 'battle'}>
+              <TabsContent value="battle" forceMount={(activeTab === 'battle') as unknown as true}>
                 <AnimatePresence>{activeTab === 'battle' && <motion.div {...fadeIn}>{renderBattle()}</motion.div>}</AnimatePresence>
               </TabsContent>
-              <TabsContent value="minigames" forceMount={activeTab === 'minigames'}>
+              <TabsContent value="minigames" forceMount={(activeTab === 'minigames') as unknown as true}>
                 <AnimatePresence>{activeTab === 'minigames' && <motion.div {...fadeIn}>{renderMiniGames()}</motion.div>}</AnimatePresence>
               </TabsContent>
-              <TabsContent value="leaderboard" forceMount={activeTab === 'leaderboard'}>
+              <TabsContent value="leaderboard" forceMount={(activeTab === 'leaderboard') as unknown as true}>
                 <AnimatePresence>{activeTab === 'leaderboard' && <motion.div {...fadeIn}>{renderLeaderboard()}</motion.div>}</AnimatePresence>
               </TabsContent>
-              <TabsContent value="friends" forceMount={activeTab === 'friends'}>
+              <TabsContent value="friends" forceMount={(activeTab === 'friends') as unknown as true}>
                 <AnimatePresence>{activeTab === 'friends' && <motion.div {...fadeIn}>{renderFriends()}</motion.div>}</AnimatePresence>
               </TabsContent>
-              <TabsContent value="profile" forceMount={activeTab === 'profile'}>
+              <TabsContent value="profile" forceMount={(activeTab === 'profile') as unknown as true}>
                 <AnimatePresence>{activeTab === 'profile' && <motion.div {...fadeIn}>{renderProfile()}</motion.div>}</AnimatePresence>
               </TabsContent>
             </AnimatePresence>

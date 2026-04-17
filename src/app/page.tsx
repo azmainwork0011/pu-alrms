@@ -22,25 +22,25 @@ export default function Home() {
     }
   }, [mounted]);
 
-  if (!ready) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-gray-950 dark:via-gray-900 dark:to-emerald-950/20">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center animate-spin" style={{ animationDuration: '2s' }}>
-            <GraduationCap className="w-8 h-8 text-white" />
-          </div>
-          <div className="text-center">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">PU-ALRMS</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">Loading...</p>
-          </div>
+  // suppressHydrationWarning on wrapper prevents browser extension
+  // injected DOM (e.g. donate-widget) from causing hydration mismatch
+  const content = !ready ? (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50 dark:from-gray-950 dark:via-gray-900 dark:to-emerald-950/20">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-600 flex items-center justify-center animate-spin" style={{ animationDuration: '2s' }}>
+          <GraduationCap className="w-8 h-8 text-white" />
+        </div>
+        <div className="text-center">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">PU-ALRMS</h2>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Loading...</p>
         </div>
       </div>
-    );
-  }
+    </div>
+  ) : !isAuthenticated ? (
+    <AuthPage />
+  ) : (
+    <AppLayout />
+  );
 
-  if (!isAuthenticated) {
-    return <AuthPage />;
-  }
-
-  return <AppLayout />;
+  return <div suppressHydrationWarning>{content}</div>;
 }
