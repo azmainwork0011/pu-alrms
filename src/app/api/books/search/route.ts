@@ -171,42 +171,59 @@ export async function GET(req: NextRequest) {
 
     let books: unknown[] = [];
     let totalItems = 0;
+    let usedSource = source;
 
-    if (source === 'openlibrary' || (!query && lang === 'bn')) {
-      // Open Library Search
-      const olPage = page;
+    // ── Helper: Search Open Library ───────────────────────────────
+    const searchOpenLibrary = async (term: string, pageNum: number, langCode: string) => {
       const olLimit = maxResults;
-      const olLang = lang === 'bn' ? 'bn' : 'eng';
-      const olUrl = `https://openlibrary.org/search.json?q=${encodeURIComponent(searchTerm)}&language=${olLang}&limit=${olLimit}&page=${olPage}&fields=key,title,author_name,subject,cover_i,first_publish_year,edition_count,description,language`;
+      const olLang = langCode === 'bn' ? 'bn' : 'eng';
+      const olUrl = `https://openlibrary.org/search.json?q=${encodeURIComponent(term)}&language=${olLang}&limit=${olLimit}&page=${pageNum}&fields=key,title,author_name,subject,cover_i,first_publish_year,edition_count,description,language`;
 
       const olRes = await fetch(olUrl, {
         headers: { 'User-Agent': 'PU-ALRMS-DigitalLibrary/1.0' },
-        signal: AbortSignal.timeout(8000),
+        signal: AbortSignal.timeout(10000),
       });
 
       if (olRes.ok) {
         const olData = await olRes.json();
-        books = (olData.docs || []).map(normalizeOLBook);
-        totalItems = olData.numFound || books.length;
+        const olBooks = (olData.docs || []).map(normalizeOLBook).filter((b: any) => b && b.title);
+        return { books: olBooks, totalItems: olData.numFound || olBooks.length };
       }
+      return { books: [], totalItems: 0 };
+    };
+
+    if (source === 'openlibrary' || (!query && lang === 'bn')) {
+      // ── Open Library (direct or Bangla) ───────────────────────
+      const olResult = await searchOpenLibrary(searchTerm, page, lang);
+      books = olResult.books;
+      totalItems = olResult.totalItems;
+      usedSource = 'openlibrary';
     } else {
-      // Google Books API
+      // ── Google Books API first ────────────────────────────────
       const startIndex = (page - 1) * maxResults;
       const gbUrl = `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(searchTerm)}&startIndex=${startIndex}&maxResults=${maxResults}&langRestrict=${lang === 'bn' ? 'bn' : 'en'}`;
-      
+
       const gbRes = await fetch(gbUrl, {
         signal: AbortSignal.timeout(8000),
       });
 
       if (gbRes.ok) {
         const gbData = await gbRes.json();
-        books = (gbData.items || []).map(normalizeBook);
+        books = (gbData.items || []).map(normalizeBook).filter((b: any) => b && b.title);
         totalItems = gbData.totalItems || 0;
       }
-    }
 
-    // Filter out books without titles
-    books = books.filter((b: any) => b && b.title);
+      // ── Auto-fallback: if Google returns 0, try Open Library ─
+      if (books.length === 0) {
+        console.log('[Books API] Google Books returned 0 results, falling back to Open Library...');
+        const olResult = await searchOpenLibrary(searchTerm, page, lang);
+        books = olResult.books;
+        totalItems = olResult.totalItems;
+        usedSource = 'openlibrary';
+      } else {
+        usedSource = 'google';
+      }
+    }
 
     const result = {
       books,
@@ -216,10 +233,13 @@ export async function GET(req: NextRequest) {
       query: searchTerm,
       category,
       language: lang,
-      source,
+      source: usedSource,
     };
 
-    setCache(cacheKey, result);
+    // Only cache if we got results — avoid caching empty Google fallback
+    if (books.length > 0) {
+      setCache(cacheKey, result);
+    }
     return NextResponse.json({ success: true, ...result, categories: CATEGORIES });
 
   } catch (error: unknown) {
