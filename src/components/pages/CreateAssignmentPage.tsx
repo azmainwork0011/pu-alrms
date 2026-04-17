@@ -135,7 +135,7 @@ function CreateAssignmentPage() {
   const currentType = typeOptions.find(t => t.value === form.type) || typeOptions[0];
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5">
+    <div className="max-w-2xl mx-auto space-y-5 min-w-0 overflow-x-hidden">
       {/* ─── Header ────────────────────────────────────────── */}
       <motion.div {...fadeUp}>
         <Button variant="ghost" size="sm" onClick={() => setPage('assignments')} className="text-gray-500 dark:text-gray-400 -ml-2 mb-3 hover:text-emerald-600 dark:hover:text-emerald-400">

@@ -116,7 +116,7 @@ function AssignmentDetailPage() {
 
   if (loading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 min-w-0 overflow-x-hidden">
         <Skeleton className="h-6 w-40 dark:bg-gray-800" />
         <Skeleton className="h-56 rounded-xl dark:bg-gray-800" />
         <div className="grid md:grid-cols-2 gap-4">
@@ -129,7 +129,7 @@ function AssignmentDetailPage() {
 
   if (!assignment) {
     return (
-      <div className="text-center py-16">
+      <div className="text-center py-16 min-w-0 overflow-x-hidden">
         <FileText className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
         <p className="text-gray-400 dark:text-gray-500">Assignment not found</p>
         <Button variant="outline" onClick={() => useAppStore.getState().setPage('assignments')} className="mt-4 dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300">
@@ -155,7 +155,7 @@ function AssignmentDetailPage() {
   const isTeacherOrAdmin = user?.role === 'TEACHER' || user?.role === 'ADMIN';
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 min-w-0 overflow-x-hidden">
       {/* ─── Back Button ───────────────────────────────────── */}
       <motion.div {...fadeUp}>
         <Button

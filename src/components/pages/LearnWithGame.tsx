@@ -133,7 +133,8 @@ const TAB_ICONS: Record<string, React.ReactNode> = {
 function CodeBlock({ code, highlightLine, onLineClick }: { code: string; highlightLine?: number; onLineClick?: (line: number) => void }) {
   const lines = code.split('\n');
   return (
-    <div className="bg-gray-950 text-gray-200 rounded-lg p-2.5 sm:p-4 font-mono text-xs sm:text-sm overflow-x-auto -mx-1">
+    <div className="max-w-full overflow-hidden rounded-lg">
+      <div className="bg-gray-950 text-gray-200 rounded-lg p-2.5 sm:p-4 font-mono text-xs sm:text-sm overflow-x-auto">
       {lines.map((line, i) => (
         <div
           key={i}
@@ -143,9 +144,10 @@ function CodeBlock({ code, highlightLine, onLineClick }: { code: string; highlig
           } ${i > 0 ? 'mt-0.5' : ''}`}
         >
           <span className="w-6 sm:w-8 text-right mr-2 sm:mr-4 text-gray-500 select-none text-[10px] sm:text-xs leading-5 sm:leading-6 shrink-0">{i + 1}</span>
-          <span className="whitespace-pre break-all">{line}</span>
+          <span className="whitespace-pre break-all min-w-0">{line}</span>
         </div>
       ))}
+      </div>
     </div>
   );
 }
@@ -154,7 +156,7 @@ function HPBar({ hp, maxHp, label, color, side }: { hp: number; maxHp: number; l
   const pct = Math.max(0, (hp / maxHp) * 100);
   const isLow = pct <= 25;
   return (
-    <div className={`flex items-center gap-2 sm:gap-3 ${side === 'right' ? 'flex-row-reverse' : ''}`}>
+    <div className={`flex items-center gap-2 sm:gap-3 min-w-0 ${side === 'right' ? 'flex-row-reverse' : ''}`}>
       <div className="text-sm font-bold min-w-[50px] sm:min-w-[60px] text-center shrink-0">
         <span className={isLow ? 'text-rose-500' : color}>{hp}</span>
         <span className="text-gray-400">/{maxHp}</span>
@@ -240,7 +242,7 @@ function XPBar({ xp, showLabel = true }: { xp: number; showLabel?: boolean }) {
 
 function StatCard({ icon, label, value, color, suffix = '' }: { icon: React.ReactNode; label: string; value: number; color: string; suffix?: string }) {
   return (
-    <motion.div {...fadeIn} className="bg-white dark:bg-gray-800/50 rounded-xl p-4 border border-gray-100 dark:border-gray-700/50">
+    <motion.div {...fadeIn} className="bg-white dark:bg-gray-800/50 rounded-xl p-4 border border-gray-100 dark:border-gray-700/50 min-w-0 overflow-hidden">
       <div className="flex items-center gap-2 mb-2">
         <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${color}`}>{icon}</div>
         <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">{label}</span>
@@ -768,7 +770,7 @@ export default function LearnWithGame() {
         </Card>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 [&>*]:min-w-0">
           <StatCard icon={<Zap className="w-4 h-4 text-amber-500" />} label="Total XP" value={profile.xp} color="bg-amber-100 dark:bg-amber-900/30" />
           <StatCard icon={<Star className="w-4 h-4 text-emerald-500" />} label="Level" value={getLevelForXP(profile.xp).level} color="bg-emerald-100 dark:bg-emerald-900/30" />
           <StatCard icon={<Flame className="w-4 h-4 text-orange-500" />} label="Streak" value={profile.streak} color="bg-orange-100 dark:bg-orange-900/30" suffix="days" />
@@ -811,7 +813,7 @@ export default function LearnWithGame() {
         {/* Quick Actions */}
         <motion.div {...fadeIn} transition={{ delay: 0.2 }}>
           <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3">Quick Actions</h3>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 [&>*]:min-w-0">
             {[
               { icon: <BookOpen className="w-5 h-5" />, label: 'Learn', desc: 'Start a quiz', color: 'from-emerald-500 to-teal-500', tab: 'learn' },
               { icon: <Swords className="w-5 h-5" />, label: 'Battle', desc: 'Challenge bot', color: 'from-rose-500 to-orange-500', tab: 'battle' },
@@ -879,7 +881,7 @@ export default function LearnWithGame() {
           <h2 className="text-xl font-bold">Choose a Language</h2>
           <span className="text-sm text-gray-500 dark:text-gray-400">{LANGUAGES.length} languages available</span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 [&>*]:min-w-0">
           {LANGUAGES.map((lang, idx) => (
             <motion.div key={lang.id} {...fadeIn} transition={{ delay: idx * 0.05 }}>
               <Card
@@ -924,7 +926,7 @@ export default function LearnWithGame() {
             <p className="text-sm text-gray-500 dark:text-gray-400">{learnLang.topics.length} topics available</p>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 [&>*]:min-w-0">
           {learnLang.topics.map((topic, idx) => (
             <motion.div key={topic.id} {...fadeIn} transition={{ delay: idx * 0.04 }}>
               <Card
@@ -1083,7 +1085,7 @@ export default function LearnWithGame() {
             <span>⏱️ 12s per question</span>
           </div>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 [&>*]:min-w-0">
           {LANGUAGES.map(lang => (
             <motion.div key={lang.id} whileHover={{ scale: 1.02, y: -2 }} whileTap={{ scale: 0.98 }}>
               <Card
@@ -1178,14 +1180,14 @@ export default function LearnWithGame() {
             {battleRevealed && (
               <motion.div {...fadeIn} className="space-y-3">
                 {/* FIX #7: Show bot answer result */}
-                <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                <div className="grid grid-cols-2 gap-2 sm:gap-3 [&>*]:min-w-0">
                   <div className={`p-2.5 sm:p-3 rounded-lg text-center text-xs sm:text-sm ${
                     battleAnswer === battleCurrentQ.correctAnswer ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300' :
                     battleAnswer === '' ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300' :
                     'bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300'
                   }`}>
                     <div className="text-xs font-semibold mb-1">👤 You</div>
-                    <div className="font-bold">
+                    <div className="font-bold break-words">
                       {battleAnswer === battleCurrentQ.correctAnswer ? (
                         <><Sparkles className="w-4 h-4 inline mr-1" /> Correct! -{battleDamage.opponent > 0 ? battleDamage.opponent : 0} HP</>
                       ) : (
@@ -1232,7 +1234,7 @@ export default function LearnWithGame() {
             <p className="opacity-80 mt-1">{won ? 'You defeated the bot!' : 'Better luck next time!'}</p>
           </div>
           <CardContent className="p-6 space-y-4">
-            <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="grid grid-cols-3 gap-3 text-center [&>*]:min-w-0">
               <div><div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">{battleRound - 1}</div><div className="text-xs text-gray-500">Rounds</div></div>
               <div><div className="text-lg font-bold text-rose-500">{100 - Math.max(battleP1HP, 0)}</div><div className="text-xs text-gray-500">Damage Taken</div></div>
               <div><div className="text-lg font-bold text-amber-500">+{battleXP}</div><div className="text-xs text-gray-500">XP Earned</div></div>
@@ -1274,7 +1276,7 @@ export default function LearnWithGame() {
           <h2 className="text-2xl font-bold">Mini Games</h2>
           <p className="text-gray-500 dark:text-gray-400">Fun coding challenges to sharpen your skills!</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 [&>*]:min-w-0">
           {games.map((g, idx) => (
             <motion.div key={g.id} {...fadeIn} transition={{ delay: idx * 0.1 }}>
               <Card className="overflow-hidden border-0 shadow-lg cursor-pointer group" onClick={() => {
@@ -1741,7 +1743,7 @@ export default function LearnWithGame() {
           <h3 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
             <TrendingUp className="w-4 h-4" /> Statistics
           </h3>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 [&>*]:min-w-0">
             <StatCard icon={<Swords className="w-4 h-4 text-rose-500" />} label="Battles Won" value={profile.battlesWon} color="bg-rose-100 dark:bg-rose-900/30" />
             <StatCard icon={<Skull className="w-4 h-4 text-gray-500" />} label="Battles Lost" value={profile.battlesLost} color="bg-gray-100 dark:bg-gray-800" />
             <StatCard icon={<Target className="w-4 h-4 text-emerald-500" />} label="Accuracy" value={accuracy} color="bg-emerald-100 dark:bg-emerald-900/30" suffix="%" />
@@ -1758,7 +1760,7 @@ export default function LearnWithGame() {
           </h3>
           <Card className="border-0 shadow-sm">
             <CardContent className="p-4">
-              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-10 gap-3">
+              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-10 gap-3 [&>*]:min-w-0">
                 {LEVEL_THRESHOLDS.map(l => {
                   const unlocked = profile.xp >= l.xpRequired;
                   return (
@@ -1806,7 +1808,7 @@ export default function LearnWithGame() {
   // ══════════════════════════════════════════════════════════════
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 min-w-0 overflow-x-hidden">
       <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
         {/* Header */}
         <motion.div {...fadeIn} className="flex items-center justify-between">
@@ -1834,7 +1836,7 @@ export default function LearnWithGame() {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="overflow-x-auto -mx-4 px-4">
-            <TabsList className="w-full min-w-max bg-white dark:bg-gray-800/80 p-1 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 h-auto">
+            <TabsList className="w-full min-w-0 bg-white dark:bg-gray-800/80 p-1 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700/50 h-auto">
               {[
                 { value: 'home', label: 'Home' },
                 { value: 'learn', label: 'Learn' },

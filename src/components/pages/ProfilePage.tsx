@@ -271,7 +271,7 @@ function ProfilePage() {
   const roleGlow = role === 'ADMIN' ? 'shadow-red-300/40 dark:shadow-red-900/20' : role === 'TEACHER' ? 'shadow-emerald-300/40 dark:shadow-emerald-900/20' : role === 'CR' ? 'shadow-violet-300/40 dark:shadow-violet-900/20' : 'shadow-amber-300/40 dark:shadow-amber-900/20';
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5 pb-safe">
+    <div className="max-w-3xl mx-auto space-y-5 pb-safe min-w-0 overflow-x-hidden">
       {/* ══════════════════════════════════════════════════════════ */}
       {/* HERO: Cover + Avatar + Name                               */}
       {/* ══════════════════════════════════════════════════════════ */}

@@ -828,7 +828,7 @@ function QuizPage() {
 
   // ─── Render ─────────────────────────────────────────────────────────
   return (
-    <div className="min-h-0 sm:min-h-[calc(100vh-8rem)] relative overflow-hidden">
+    <div className="min-h-0 sm:min-h-[calc(100vh-8rem)] relative overflow-hidden min-w-0 overflow-x-hidden">
       {/* Background: dark for dept/cat select, light for playing/feedback */}
       {(screen === 'playing' || screen === 'feedback') ? null : (
         <>
@@ -987,7 +987,7 @@ function QuizPage() {
         {/* QUIZ PLAYING (Duolingo light theme)                         */}
         {/* ═══════════════════════════════════════════════════════════ */}
         {screen === 'playing' && questions.length > 0 && (
-          <motion.div key="playing" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="relative z-10 bg-gray-50 min-h-0 sm:min-h-[calc(100vh-8rem)]">
+          <motion.div key="playing" initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.98 }} className="relative z-10 bg-gray-50 min-h-0 sm:min-h-[calc(100vh-8rem)] min-w-0 overflow-x-hidden">
             {/* ─── Top progress bar (full width, emerald) ─── */}
             <div className="w-full h-3 bg-gray-200">
               <motion.div
@@ -998,11 +998,11 @@ function QuizPage() {
               />
             </div>
 
-            <div className="flex gap-4 lg:gap-6 max-w-6xl mx-auto px-3 sm:px-4 pt-3 sm:pt-4 pb-6 sm:pb-8">
+            <div className="flex gap-4 lg:gap-6 max-w-6xl mx-auto px-3 sm:px-4 pt-3 sm:pt-4 pb-6 sm:pb-8 min-w-0 overflow-hidden">
               <PrizeLadder currentQ={currentQ} totalQ={questions.length} />
 
               {/* Main Quiz Area */}
-              <div className="flex-1 max-w-2xl w-full">
+              <div className="flex-1 max-w-2xl w-full min-w-0">
                 {/* ─── Top Stats Bar ──────────────────────────────── */}
                 <div className="flex items-center justify-between mb-3 sm:mb-4 flex-wrap gap-1.5 sm:gap-2">
                   <button onClick={() => setSoundEnabled(!soundEnabled)} className="w-11 h-11 sm:w-10 sm:h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:border-gray-300 transition-colors shrink-0 shadow-sm">
@@ -1135,7 +1135,7 @@ function QuizPage() {
                             whileTap={!isAnswered && !isHidden ? { scale: 0.98 } : {}}
                             onClick={() => { if (!isHidden && !isAnswered) submitAnswer(letter); }}
                             disabled={isAnswered || isHidden}
-                            className={`w-full flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-2xl border-2 text-left transition-all min-h-[56px] sm:min-h-[60px] ${btnClasses} ${
+                            className={`w-full flex items-center gap-3 sm:gap-4 p-3.5 sm:p-4 rounded-2xl border-2 text-left transition-all min-h-[56px] sm:min-h-[60px] min-w-0 overflow-hidden ${btnClasses} ${
                               isHidden ? 'pointer-events-none' : ''
                             } ${!isAnswered && !isHidden ? 'cursor-pointer active:scale-[0.98]' : 'cursor-default'}`}
                           >

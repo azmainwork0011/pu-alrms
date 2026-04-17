@@ -484,7 +484,7 @@ function BattlePage() {
 
   // ─── Render ────────────────────────────────────────────────────────
   return (
-    <div className="min-h-[calc(100vh-8rem)] relative overflow-hidden">
+    <div className="min-h-[calc(100vh-8rem)] relative overflow-hidden min-w-0 overflow-x-hidden">
       {/* Floating Particles */}
       <AnimatePresence>
         {particles.map(p => (
@@ -608,18 +608,18 @@ function BattlePage() {
               ))}
             </div>
 
-            <div className="relative z-10 flex items-center gap-8 sm:gap-16">
+            <div className="relative z-10 flex items-center gap-6 sm:gap-16 min-w-0 px-4 overflow-hidden">
               {/* Player */}
               <motion.div
                 initial={{ x: -100, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ type: 'spring', damping: 12 }}
-                className="text-center"
+                className="text-center min-w-0 flex-shrink"
               >
                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold mx-auto mb-3 shadow-xl shadow-violet-500/30 ring-4 ring-violet-400/30">
                   {user?.name?.charAt(0)}
                 </div>
-                <p className="text-white font-bold text-sm sm:text-base">{user?.name}</p>
+                <p className="text-white font-bold text-sm sm:text-base truncate max-w-[100px] sm:max-w-none">{user?.name}</p>
                 <Badge className="bg-violet-500/30 text-violet-300 border-0 mt-1 text-xs">YOU</Badge>
               </motion.div>
 
@@ -659,12 +659,12 @@ function BattlePage() {
                 initial={{ x: 100, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
                 transition={{ type: 'spring', damping: 12 }}
-                className="text-center"
+                className="text-center min-w-0 flex-shrink"
               >
                 <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white text-2xl sm:text-3xl font-bold mx-auto mb-3 shadow-xl shadow-red-500/30 ring-4 ring-red-400/30">
                   {battleMode === 'solo' ? <Bot className="w-10 h-10" /> : (opponentName?.charAt(0) || '?')}
                 </div>
-                <p className="text-white font-bold text-sm sm:text-base">{battleMode === 'solo' ? botName : (opponentName || 'Opponent')}</p>
+                <p className="text-white font-bold text-sm sm:text-base truncate max-w-[100px] sm:max-w-none">{battleMode === 'solo' ? botName : (opponentName || 'Opponent')}</p>
                 <Badge className="bg-red-500/30 text-red-300 border-0 mt-1 text-xs">
                   {battleMode === 'solo' ? 'BOT' : 'OPPONENT'}
                 </Badge>
@@ -702,8 +702,8 @@ function BattlePage() {
           <motion.div key="fighting" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             <div className="max-w-3xl mx-auto">
               {/* Score Bar */}
-              <div className="flex items-center justify-between mb-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800">
-                <div className="text-center flex-1">
+              <div className="flex items-center justify-between mb-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-800 overflow-hidden min-w-0">
+                <div className="text-center flex-1 min-w-0">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-sm font-bold mx-auto mb-1">
                     {user?.name?.charAt(0)}
                   </div>
@@ -714,14 +714,14 @@ function BattlePage() {
                   <p className="text-[10px] text-gray-400">{myCorrectCount} correct</p>
                 </div>
 
-                <div className="flex flex-col items-center px-4">
+                <div className="flex flex-col items-center px-2 sm:px-4 shrink-0">
                   <Badge className="bg-gradient-to-r from-red-500 to-orange-500 text-white border-0 mb-1">
                     <Swords className="w-3 h-3 mr-1" />VS
                   </Badge>
                   <span className="text-[10px] text-gray-400">Q{currentQ + 1}/{questions.length}</span>
                 </div>
 
-                <div className="text-center flex-1">
+                <div className="text-center flex-1 min-w-0">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-500 to-orange-500 flex items-center justify-center text-white text-sm font-bold mx-auto mb-1">
                     {battleMode === 'solo' ? <Bot className="w-4 h-4" /> : (opponentName?.charAt(0) || '?')}
                   </div>
@@ -747,7 +747,7 @@ function BattlePage() {
                     <Trophy className="w-3.5 h-3.5 text-yellow-400" />
                     <span className="text-[10px] font-medium text-gray-400">Prize Pool</span>
                   </div>
-                  <div className="flex items-center gap-1 overflow-x-auto max-w-[180px] sm:max-w-[280px] scrollbar-hide">
+                  <div className="flex items-center gap-1 overflow-x-auto max-w-[120px] sm:max-w-[200px] md:max-w-[280px] scrollbar-hide">
                     {PRIZE_LADDER.slice(0, questions.length + 1).map((prize, i) => {
                       const reached = i <= currentQ;
                       const reachedOpponent = i <= currentQ;
@@ -805,7 +805,7 @@ function BattlePage() {
               <Card className="border-0 shadow-lg dark:bg-gray-900 mb-3">
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-2 mb-1">
-                    <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white">{currentQuestion.question}</h3>
+                    <h3 className="text-sm sm:text-base font-semibold text-gray-900 dark:text-white break-words min-w-0">{currentQuestion.question}</h3>
                     {currentQuestion.difficulty && getDifficultyBadge(currentQuestion.difficulty)}
                   </div>
                   {currentQuestion.points && (

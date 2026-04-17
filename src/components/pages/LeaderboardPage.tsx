@@ -30,7 +30,7 @@ function LeaderboardPage() {
   ];
 
   return (
-    <div className="space-y-5 sm:space-y-6">
+    <div className="space-y-5 sm:space-y-6 min-w-0 overflow-x-hidden">
       {/* Title */}
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
