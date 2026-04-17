@@ -321,7 +321,7 @@ function ProfilePage() {
             {/* Avatar */}
             <div className="relative -mt-16 mb-4">
               <motion.div
-                className="relative w-[120px] h-[120px] rounded-2xl overflow-hidden shadow-xl border-4 border-white dark:border-gray-900"
+                className="relative w-[100px] h-[100px] sm:w-[120px] sm:h-[120px] rounded-2xl overflow-hidden shadow-xl border-4 border-white dark:border-gray-900"
                 whileHover={{ scale: 1.03 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20 }}
               >
