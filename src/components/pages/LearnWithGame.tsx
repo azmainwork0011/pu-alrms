@@ -1,15 +1,13 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Home, BookOpen, Swords, Gamepad2, Trophy, Users, User,
   Star, Flame, Zap, Target, Clock, ChevronRight, ChevronLeft,
-  Shield, Heart, X, Check, RotateCcw, ArrowUp, ArrowDown,
-  Plus, Minus, Send, Timer, TrendingUp, Award, Crown,
-  Medbot, Skull, Sparkles, Bug, Puzzle, Code2, Braces,
-  MonitorPlay, Copy, Play, Lock, Unlock, Eye, EyeOff,
-  SwordsIcon, Crosshair, CircleDot, Menu, ZapIcon
+  X, Check, RotateCcw, ArrowUp, ArrowDown,
+  Plus, Send, TrendingUp, Award, Crown,
+  Skull, Sparkles, Bug, Puzzle, Code2, Braces, Play,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,10 +17,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { AnimatedCounter, getInitials } from '@/components/pu-helpers';
+import { AnimatedCounter } from '@/components/pu-helpers';
+import { useAppStore } from '@/store/app';
 import {
   LANGUAGES, LEVEL_THRESHOLDS, AVATARS,
   BUG_FINDER_CHALLENGES, CODE_PUZZLES, SYNTAX_MATCH_PAIRS,
@@ -31,7 +27,7 @@ import {
   shuffleArray, getLanguageById,
   type Question, type ProgrammingLanguage, type Topic, type Difficulty,
   type BugFinderData, type CodePuzzleData, type SyntaxMatchPair,
-  type QuestionType, type DailyChallenge,
+  type DailyChallenge,
 } from '@/lib/cq-data';
 
 // ══════════════════════════════════════════════════════════════
@@ -292,11 +288,16 @@ function QuestionOption({ option, index, selected, correct, revealed, onClick }:
 // MAIN COMPONENT
 // ══════════════════════════════════════════════════════════════
 
-export default function CodeQuestArena() {
+export default function LearnWithGame() {
+  const appUser = useAppStore(s => s.user);
+
   const [activeTab, setActiveTab] = useState('home');
 
   // ── User State ──
-  const [profile, setProfile] = useState<UserProfile>(defaultProfile);
+  const [profile, setProfile] = useState<UserProfile>(() => ({
+    ...defaultProfile,
+    name: appUser?.name || defaultProfile.name,
+  }));
   const addXP = useCallback((amount: number) => {
     setProfile(p => ({ ...p, xp: p.xp + amount }));
   }, []);
@@ -323,6 +324,21 @@ export default function CodeQuestArena() {
     setLearnCorrectCount(0);
     setLearnTotalXP(0);
     setLearnTextAnswer('');
+    setLearnStep('quiz');
+  }, []);
+
+  // FIX #3: Daily challenge – use questions directly from the challenge object
+  const startDailyChallenge = useCallback((challenge: DailyChallenge, lang: ProgrammingLanguage) => {
+    if (challenge.questions.length === 0) return;
+    setLearnQuestions(challenge.questions);
+    setLearnQIndex(0);
+    setLearnAnswer('');
+    setLearnRevealed(false);
+    setLearnCorrectCount(0);
+    setLearnTotalXP(0);
+    setLearnTextAnswer('');
+    setLearnLang(lang);
+    setLearnTopic(null);
     setLearnStep('quiz');
   }, []);
 
@@ -361,12 +377,17 @@ export default function CodeQuestArena() {
   const [battleQuestions, setBattleQuestions] = useState<Question[]>([]);
   const [battleCurrentQ, setBattleCurrentQ] = useState<Question | null>(null);
   const [battleAnswer, setBattleAnswer] = useState('');
+  const [battleTextAnswer, setBattleTextAnswer] = useState('');
   const [battleRevealed, setBattleRevealed] = useState(false);
   const [battleDamage, setBattleDamage] = useState({ player: 0, opponent: 0 });
   const [battleShake, setBattleShake] = useState<'player' | 'opponent' | null>(null);
   const [battleGlow, setBattleGlow] = useState<'player' | 'opponent' | null>(null);
   const [battleEndMsg, setBattleEndMsg] = useState('');
   const [battleXP, setBattleXP] = useState(0);
+  // FIX #7: Bot answer tracking
+  const [battleBotAnswer, setBattleBotAnswer] = useState<string>('');
+  const [battleBotCorrect, setBattleBotCorrect] = useState(false);
+  const battleTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const startBattle = useCallback((langId: string) => {
     const qs = getRandomQuestions(langId, undefined, 10);
@@ -378,16 +399,20 @@ export default function CodeQuestArena() {
     setBattleRound(1);
     setBattleTimer(12);
     setBattleAnswer('');
+    setBattleTextAnswer('');
     setBattleRevealed(false);
     setBattleDamage({ player: 0, opponent: 0 });
+    setBattleBotAnswer('');
+    setBattleBotCorrect(false);
     setBattleStatus('battle');
     setBattleCurrentQ(qs[0]);
+    if (battleTimeoutRef.current) clearTimeout(battleTimeoutRef.current);
   }, []);
 
   useEffect(() => {
     if (battleStatus !== 'battle' || battleRevealed) return;
     if (battleTimer <= 0) {
-      // Use timeout to avoid calling setState synchronously within effect
+      // FIX #7 & #8: On timeout, bot also answers, then auto-advance after 2s
       const t = setTimeout(() => {
         setBattleRevealed(true);
         const dmg = 15;
@@ -395,19 +420,52 @@ export default function CodeQuestArena() {
         setBattleShake('player');
         setTimeout(() => setBattleShake(null), 500);
         setBattleP1HP(h => Math.max(0, h - dmg));
+        // Bot answers correctly ~70% of the time
+        if (battleCurrentQ) {
+          const botIsCorrect = Math.random() < 0.7;
+          setBattleBotAnswer(botIsCorrect ? battleCurrentQ.correctAnswer : (battleCurrentQ.options ? battleCurrentQ.options[Math.floor(Math.random() * battleCurrentQ.options.length)] : '???'));
+          setBattleBotCorrect(botIsCorrect);
+          if (botIsCorrect) {
+            const botDmg = Math.floor(Math.random() * 11) + 10;
+            setBattleP2HP(h => Math.max(0, h - botDmg));
+            setBattleDamage(prev => ({ ...prev, opponent: botDmg }));
+          }
+        }
+        // FIX #8: Auto-advance to next round after 2 seconds
+        battleTimeoutRef.current = setTimeout(() => {
+          // nextBattleRound will be called by the component
+          setBattleRevealed(false); // trigger re-evaluation
+        }, 2500);
       }, 0);
       return () => clearTimeout(t);
     }
     const t = setTimeout(() => setBattleTimer(t => t - 1), 1000);
     return () => clearTimeout(t);
-  }, [battleStatus, battleTimer, battleRevealed]);
+  }, [battleStatus, battleTimer, battleRevealed, battleCurrentQ]);
 
   const handleBattleAnswer = useCallback((ans: string) => {
     if (battleRevealed || !battleCurrentQ) return;
+    if (battleTimeoutRef.current) clearTimeout(battleTimeoutRef.current);
     setBattleAnswer(ans);
     setBattleRevealed(true);
-    const isCorrect = ans === battleCurrentQ.correctAnswer;
-    if (isCorrect) {
+
+    const isPlayerCorrect = ans === battleCurrentQ.correctAnswer;
+
+    // FIX #7: Bot also answers with ~70% accuracy
+    const botIsCorrect = Math.random() < 0.7;
+    let botAns = '';
+    if (botIsCorrect) {
+      botAns = battleCurrentQ.correctAnswer;
+    } else {
+      botAns = battleCurrentQ.options
+        ? battleCurrentQ.options[Math.floor(Math.random() * battleCurrentQ.options.length)]
+        : '???';
+    }
+    setBattleBotAnswer(botAns);
+    setBattleBotCorrect(botIsCorrect);
+
+    // Player damage
+    if (isPlayerCorrect) {
       const dmg = Math.floor(Math.random() * 11) + 10;
       setBattleDamage({ player: 0, opponent: dmg });
       setBattleShake('opponent');
@@ -419,6 +477,14 @@ export default function CodeQuestArena() {
       setBattleShake('player');
       setBattleP1HP(h => Math.max(0, h - dmg));
     }
+
+    // Bot damage
+    if (botIsCorrect) {
+      const botDmg = Math.floor(Math.random() * 6) + 5;
+      setBattleP1HP(h => Math.max(0, h - botDmg));
+      setBattleDamage(prev => ({ ...prev, player: prev.player + botDmg }));
+    }
+
     setTimeout(() => { setBattleShake(null); setBattleGlow(null); }, 500);
   }, [battleRevealed, battleCurrentQ]);
 
@@ -438,9 +504,24 @@ export default function CodeQuestArena() {
     setBattleCurrentQ(nextQ);
     setBattleTimer(12);
     setBattleAnswer('');
+    setBattleTextAnswer('');
     setBattleRevealed(false);
     setBattleDamage({ player: 0, opponent: 0 });
+    setBattleBotAnswer('');
+    setBattleBotCorrect(false);
   }, [battleP1HP, battleP2HP, battleRound, battleQuestions, addXP]);
+
+  // FIX #8: Auto-advance after bot reveals on timeout
+  useEffect(() => {
+    if (battleStatus !== 'battle' || !battleRevealed) return;
+    // Only auto-advance if this was a timeout (no player answer selected but revealed)
+    if (battleAnswer === '' && battleBotAnswer !== '') {
+      const t = setTimeout(() => {
+        nextBattleRound();
+      }, 2500);
+      return () => clearTimeout(t);
+    }
+  }, [battleStatus, battleRevealed, battleAnswer, battleBotAnswer, nextBattleRound]);
 
   // ── Mini Games State ──
   const [activeGame, setActiveGame] = useState<MiniGameType>('none');
@@ -500,10 +581,16 @@ export default function CodeQuestArena() {
     setTimeout(() => setGameOver(true), 2000);
   }, [bfRevealed, bfChallenge, addXP]);
 
+  // FIX #6: Always shuffle code puzzle lines, ensuring they differ from correct order
   const startCodePuzzle = useCallback(() => {
     const c = CODE_PUZZLES[Math.floor(Math.random() * CODE_PUZZLES.length)];
     setCpChallenge(c);
-    setCpOrder(shuffleArray([...c.shuffledLines]));
+    let order = shuffleArray([...c.correctOrder]);
+    // Ensure it's actually shuffled (different from correct)
+    while (order.every((l, i) => l === c.correctOrder[i]) && c.correctOrder.length > 1) {
+      order = shuffleArray([...c.correctOrder]);
+    }
+    setCpOrder(order);
     setCpRevealed(false);
     setCpCorrect(false);
     setGameScore(0);
@@ -554,6 +641,7 @@ export default function CodeQuestArena() {
     setActiveGame('syntaxmatch');
   }, []);
 
+  // FIX #1: Syntax Match – correct matching logic using concept and syntax values
   const handleSmSelect = useCallback((type: 'concept' | 'syntax', id: string) => {
     if (gameOver || gameTimer <= 0) return;
     if (smWrong) return;
@@ -571,9 +659,16 @@ export default function CodeQuestArena() {
       return;
     }
 
+    // Determine which id belongs to concept and which to syntax
     const conceptId = type === 'concept' ? id : smSelected.id;
     const syntaxId = type === 'syntax' ? id : smSelected.id;
-    const pair = smPairs.find(p => p.id === conceptId && p.id === syntaxId);
+
+    // Look up the actual concept/syntax strings from the items
+    const conceptItem = smConcepts.find(c => c.id === conceptId);
+    const syntaxItem = smSyntaxes.find(s => s.id === syntaxId);
+
+    // Match by comparing concept and syntax values against the pair data
+    const pair = smPairs.find(p => p.concept === conceptItem?.concept && p.syntax === syntaxItem?.syntax);
 
     if (pair) {
       setSmConcepts(prev => prev.map(i => i.id === conceptId ? { ...i, matched: true } : i));
@@ -704,8 +799,12 @@ export default function CodeQuestArena() {
                 </div>
                 <div className="text-4xl">{getLanguageById(dailyChallenge.languageId)?.icon}</div>
               </div>
+              {/* FIX #3: Use startDailyChallenge with direct questions */}
               <Button
-                onClick={() => { startQuiz(getLanguageById(dailyChallenge.languageId)!, { id: 'daily', name: 'Daily Challenge', icon: '🔥', description: '', difficulty: 'MEDIUM', questionCount: dailyChallenge.questions.length }); setLearnLang(getLanguageById(dailyChallenge.languageId)!); }}
+                onClick={() => {
+                  const lang = getLanguageById(dailyChallenge.languageId);
+                  if (lang) startDailyChallenge(dailyChallenge, lang);
+                }}
                 className="mt-4 bg-white text-violet-600 hover:bg-white/90 font-semibold"
               >
                 Start Challenge <ChevronRight className="w-4 h-4 ml-1" />
@@ -1049,6 +1148,7 @@ export default function CodeQuestArena() {
             </div>
             <h3 className="text-lg font-semibold">{battleCurrentQ.question}</h3>
             {battleCurrentQ.codeSnippet && <CodeBlock code={battleCurrentQ.codeSnippet} />}
+            {/* FIX #2: Battle now handles all question types, not just MCQ */}
             {battleCurrentQ.type === 'MCQ' && battleCurrentQ.options && (
               <div className="space-y-2">
                 {battleCurrentQ.options.map((opt, i) => (
@@ -1062,18 +1162,54 @@ export default function CodeQuestArena() {
                 ))}
               </div>
             )}
+            {(battleCurrentQ.type === 'OUTPUT_PREDICTION' || battleCurrentQ.type === 'CODE_FIXING') && (
+              <div className="space-y-3">
+                <Input
+                  placeholder={battleCurrentQ.type === 'OUTPUT_PREDICTION' ? 'Enter the output...' : 'Enter your fix...'}
+                  value={battleTextAnswer}
+                  onChange={e => setBattleTextAnswer(e.target.value)}
+                  disabled={battleRevealed}
+                  onKeyDown={e => { if (e.key === 'Enter' && battleTextAnswer.trim()) handleBattleAnswer(battleTextAnswer.trim()); }}
+                  className="font-mono"
+                />
+                {!battleRevealed && (
+                  <Button onClick={() => { if (battleTextAnswer.trim()) handleBattleAnswer(battleTextAnswer.trim()); }} className="w-full bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white font-semibold">
+                    <Send className="w-4 h-4 mr-2" /> Submit Answer
+                  </Button>
+                )}
+              </div>
+            )}
             {battleRevealed && (
               <motion.div {...fadeIn} className="space-y-3">
-                <div className="text-center">
-                  {battleAnswer === battleCurrentQ.correctAnswer ? (
-                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="inline-flex items-center gap-2 text-emerald-600 dark:text-emerald-400 font-bold text-lg">
-                      <Sparkles className="w-5 h-5" /> Correct! -{battleDamage.opponent} HP to opponent
-                    </motion.div>
-                  ) : (
-                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="inline-flex items-center gap-2 text-rose-600 dark:text-rose-400 font-bold text-lg">
-                      <Skull className="w-5 h-5" /> {battleAnswer ? 'Wrong!' : 'Time up!'} -{battleDamage.player} HP to you
-                    </motion.div>
-                  )}
+                {/* FIX #7: Show bot answer result */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className={`p-3 rounded-lg text-center text-sm ${
+                    battleAnswer === battleCurrentQ.correctAnswer ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300' :
+                    battleAnswer === '' ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300' :
+                    'bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300'
+                  }`}>
+                    <div className="text-xs font-semibold mb-1">👤 You</div>
+                    <div className="font-bold">
+                      {battleAnswer === battleCurrentQ.correctAnswer ? (
+                        <><Sparkles className="w-4 h-4 inline mr-1" /> Correct! -{battleDamage.opponent > 0 ? battleDamage.opponent : 0} HP</>
+                      ) : (
+                        <>{battleAnswer ? <><Skull className="w-4 h-4 inline mr-1" /> Wrong!</> : <><Clock className="w-4 h-4 inline mr-1" /> Time up!</>} -{battleDamage.player} HP</>
+                      )}
+                    </div>
+                  </div>
+                  <div className={`p-3 rounded-lg text-center text-sm ${
+                    battleBotCorrect ? 'bg-rose-50 dark:bg-rose-900/20 text-rose-700 dark:text-rose-300' :
+                    'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
+                  }`}>
+                    <div className="text-xs font-semibold mb-1">🤖 Bot</div>
+                    <div className="font-bold">
+                      {battleBotCorrect ? (
+                        <>Correct! -{Math.max(0, battleDamage.player - (battleAnswer === '' || battleAnswer !== battleCurrentQ.correctAnswer ? 0 : 0))} HP to you</>
+                      ) : (
+                        <>Wrong! No damage</>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 text-center">💡 {battleCurrentQ.explanation}</p>
                 <Button onClick={nextBattleRound} className="w-full bg-gradient-to-r from-rose-500 to-orange-500 hover:from-rose-600 hover:to-orange-600 text-white font-semibold">
@@ -1584,7 +1720,8 @@ export default function CodeQuestArena() {
                 <AvatarFallback className="text-3xl bg-gray-100 dark:bg-gray-700">{profile.avatar}</AvatarFallback>
               </Avatar>
               <div className="text-center sm:text-left flex-1">
-                <h2 className="text-xl font-bold">{profile.name}</h2>
+                {/* FIX #5: Use logged-in user's name from app store */}
+                <h2 className="text-xl font-bold">{appUser?.name || profile.name}</h2>
                 <div className="flex items-center gap-2 justify-center sm:justify-start mt-1">
                   <span className="text-lg">{level.badge}</span>
                   <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Level {level.level} — {level.title}</span>
@@ -1659,7 +1796,7 @@ export default function CodeQuestArena() {
               <div>
                 <h3 className="text-lg font-bold">{level.title}</h3>
                 <p className="text-sm text-gray-500">Level {level.level} • {profile.xp.toLocaleString()} XP</p>
-                <p className="text-xs text-gray-400 mt-1">Next: {getNextLevel(profile.xp).xpNeeded} XP to {getNextLevel(profile.xp).level > 20 ? 'Max Level' : `Level ${getNextLevel(profile.xp).level}`}</p>
+                <p className="text-xs text-gray-400 mt-1">Next: {getNextLevel(profile.xp).xpRequired - profile.xp} XP to {getNextLevel(profile.xp).level > 20 ? 'Max Level' : `Level ${getNextLevel(profile.xp).level}`}</p>
               </div>
             </div>
           </CardContent>
@@ -1683,7 +1820,7 @@ export default function CodeQuestArena() {
             </div>
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 dark:from-emerald-400 dark:to-teal-400 bg-clip-text text-transparent">
-                CodeQuest Arena
+                Learn With Game
               </h1>
               <p className="text-xs text-gray-500 dark:text-gray-400 hidden sm:block">Level up your coding skills</p>
             </div>
