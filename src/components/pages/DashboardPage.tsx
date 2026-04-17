@@ -327,34 +327,36 @@ function DashboardPage() {
   // RENDER
   // ═══════════════════════════════════════════════════════
   return (
-    <div className="space-y-5 pb-[env(safe-area-inset-bottom)]">
+    <div className="space-y-5 pb-[env(safe-area-inset-bottom)] min-w-0 overflow-x-hidden">
       {/* ─── Welcome Banner ──────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-        className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 dark:from-emerald-800 dark:via-teal-800 dark:to-cyan-800 p-5 sm:p-6 text-white shadow-lg shadow-emerald-500/10"
+        className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 dark:from-emerald-800 dark:via-teal-800 dark:to-cyan-800 p-4 sm:p-5 md:p-6 text-white shadow-lg shadow-emerald-500/10"
       >
-        {/* Animated background circles */}
-        <motion.div
-          className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full"
-          animate={{ x: [0, 15, 0], y: [0, -10, 0] }}
-          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-          style={{ transform: 'translateY(-50%) translateX(25%)' }}
-        />
-        <motion.div
-          className="absolute bottom-0 left-1/3 w-48 h-48 bg-white/5 rounded-full"
-          animate={{ x: [0, -10, 0], y: [0, 15, 0] }}
-          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-          style={{ transform: 'translateY(50%)' }}
-        />
-        <motion.div
-          className="absolute top-1/2 right-1/4 w-32 h-32 bg-white/[0.03] rounded-full"
-          animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
-          transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-4">
+        {/* Animated background circles — constrained with max-w */}
+        <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none">
+          <motion.div
+            className="absolute top-0 right-0 w-32 h-32 sm:w-48 sm:h-48 md:w-64 md:h-64 bg-white/5 rounded-full"
+            animate={{ x: [0, 15, 0], y: [0, -10, 0] }}
+            transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ transform: 'translateY(-50%) translateX(25%)' }}
+          />
+          <motion.div
+            className="absolute bottom-0 left-1/3 w-24 h-24 sm:w-36 sm:h-36 md:w-48 md:h-48 bg-white/5 rounded-full"
+            animate={{ x: [0, -10, 0], y: [0, 15, 0] }}
+            transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+            style={{ transform: 'translateY(50%)' }}
+          />
+          <motion.div
+            className="absolute top-1/2 right-1/4 w-20 h-20 sm:w-28 sm:h-28 md:w-32 md:h-32 bg-white/[0.03] rounded-full"
+            animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.6, 0.3] }}
+            transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        </div>
+        <div className="relative flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 min-w-0">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
             <motion.div
               whileHover={{ scale: 1.1, rotate: 5 }}
               whileTap={{ scale: 0.95 }}
@@ -365,9 +367,9 @@ function DashboardPage() {
                 <AvatarFallback className="bg-white/20 text-white text-lg font-bold backdrop-blur-sm">{getInitials(user?.name || 'U')}</AvatarFallback>
               </Avatar>
             </motion.div>
-            <div>
+            <div className="min-w-0">
               <motion.h1
-                className="text-xl sm:text-2xl font-bold"
+                className="text-lg sm:text-xl md:text-2xl font-bold truncate"
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.15, type: 'spring', stiffness: 200 }}
@@ -375,7 +377,7 @@ function DashboardPage() {
                 {greeting}, {firstName}!
               </motion.h1>
               <motion.p
-                className="text-emerald-100 text-sm mt-0.5"
+                className="text-emerald-100 text-xs sm:text-sm mt-0.5 truncate"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.3 }}
@@ -388,7 +390,7 @@ function DashboardPage() {
             </div>
           </div>
           <motion.div
-            className="flex items-center gap-2"
+            className="flex items-center gap-1.5 sm:gap-2 shrink-0 flex-wrap"
             initial={{ opacity: 0, x: 10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
@@ -452,7 +454,7 @@ function DashboardPage() {
                 <div className="relative flex items-start justify-between">
                   <div className="space-y-1.5">
                     <p className="text-[11px] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-medium truncate">{stat.label}</p>
-                    <p className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">
+                    <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
                       {stat.isText ? stat.value : stat.isPercent ? (
                         <span className="flex items-center gap-1.5">
                           <AnimatedCounter target={typeof stat.value === 'number' ? stat.value : 0} />
@@ -484,7 +486,7 @@ function DashboardPage() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
       >
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
           {(role === 'STUDENT' || role === 'CR' ? [
             { icon: <GraduationCap className="w-4 h-4" />, label: 'Quick Quiz', page: 'quiz' as const, gradient: 'from-violet-500 to-purple-600' },
             { icon: <Swords className="w-4 h-4" />, label: 'Learn With Game', page: 'code-quest' as const, gradient: 'from-rose-500 to-pink-600' },
@@ -522,10 +524,10 @@ function DashboardPage() {
       </motion.div>
 
       {/* ─── Main Content Grid ───────────────────────────── */}
-      <div className="grid lg:grid-cols-3 gap-5">
+      <div className="grid lg:grid-cols-3 gap-4 md:gap-5 min-w-0">
 
         {/* ─── Left Column (2/3) ──────────────────────────── */}
-        <div className="lg:col-span-2 space-y-5">
+        <div className="lg:col-span-2 space-y-4 md:space-y-5 min-w-0">
           {/* Performance Chart / Weekly Trend */}
           <ScrollRevealSection>
             <GlowCard glowColor="emerald">
@@ -674,7 +676,7 @@ function DashboardPage() {
         </div>
 
         {/* ─── Right Column (1/3) ──────────────────────────── */}
-        <div className="space-y-5">
+        <div className="space-y-4 md:space-y-5 min-w-0">
 
           {/* ─── Quick Actions ─────────────────────────────── */}
           <ScrollRevealSection>
@@ -685,7 +687,7 @@ function DashboardPage() {
                   Quick Actions
                 </CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-3 gap-2 sm:gap-2.5">
+              <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5">
                 {role === 'STUDENT' && [
                   { icon: <ClipboardList className="w-4 h-4" />, label: 'Assignments', page: 'assignments', color: 'text-emerald-600 dark:text-emerald-400', bg: 'hover:bg-emerald-50 dark:hover:bg-emerald-900/10' },
                   { icon: <GraduationCap className="w-4 h-4" />, label: 'Quick Quiz', page: 'quiz', color: 'text-violet-600 dark:text-violet-400', bg: 'hover:bg-violet-50 dark:hover:bg-violet-900/10' },

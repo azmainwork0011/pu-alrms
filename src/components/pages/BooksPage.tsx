@@ -1308,7 +1308,7 @@ export default function BooksPage() {
   // ═══════════════════════════════════════════════════════════════════
 
   return (
-    <div className="space-y-3 overflow-x-hidden px-1 sm:px-0 pb-safe" style={{ WebkitOverflowScrolling: 'touch' }}>
+    <div className="space-y-3 min-w-0 overflow-x-hidden px-1 sm:px-0 pb-safe" style={{ WebkitOverflowScrolling: 'touch' }}>
       {/* ─── Header ──────────────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}

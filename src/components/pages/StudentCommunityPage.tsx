@@ -274,7 +274,7 @@ function StudentCommunityPage() {
   const currentRoomInfo = rooms.find(r => r.id === activeRoom);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8.5rem)] sm:h-[calc(100vh-8rem)] gap-3 sm:gap-4">
+    <div className="flex flex-col h-[calc(100vh-8.5rem)] sm:h-[calc(100vh-8rem)] gap-3 sm:gap-4 min-w-0 overflow-x-hidden">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3">
           <div>

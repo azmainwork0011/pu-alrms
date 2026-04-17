@@ -157,9 +157,9 @@ export default function AppLayout() {
   };
 
   return (
-    <div suppressHydrationWarning className="min-h-screen flex bg-gray-50 dark:bg-gray-950">
+    <div suppressHydrationWarning className="min-h-screen flex bg-gray-50 dark:bg-gray-950 overflow-hidden max-w-[100vw]">
       {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-64 flex-col border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 fixed top-0 left-0 h-full z-40">
+      <aside className="hidden md:flex w-64 flex-col border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 fixed top-0 left-0 h-full z-40 overflow-y-auto overflow-x-hidden">
         <div className="p-4 border-b dark:border-gray-800">
           <div className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-xl overflow-hidden shrink-0 shadow-sm">
@@ -171,17 +171,19 @@ export default function AppLayout() {
             </div>
           </div>
         </div>
-        <SidebarNav onNavigate={(page) => setPage(page)} />
-        <div className="p-3 border-t dark:border-gray-800 mt-auto">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden">
+          <SidebarNav onNavigate={(page) => setPage(page)} />
+        </div>
+        <div className="p-3 border-t dark:border-gray-800">
           <DevCredit />
         </div>
       </aside>
 
       {/* Main Content */}
-      <div className="flex-1 md:ml-64 flex flex-col min-h-screen">
+      <div className="flex-1 md:ml-64 flex flex-col min-h-screen min-w-0 overflow-x-hidden">
         {/* Header */}
-        <header className="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800">
-          <div className="flex items-center justify-between h-14 px-4">
+        <header className="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 min-w-0 overflow-x-hidden">
+          <div className="flex items-center justify-between h-14 px-4 gap-2">
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="icon" className="md:hidden h-11 w-11" onClick={toggleSidebar}>
                 <Menu className="w-5 h-5" />
@@ -240,7 +242,7 @@ export default function AppLayout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 pb-[env(safe-area-inset-bottom)] md:p-6">
+        <main className="flex-1 p-4 pb-[env(safe-area-inset-bottom)] md:p-6 min-w-0 overflow-x-hidden">
           <PageTransition keyProp={currentPage}>
             {renderPage()}
           </PageTransition>

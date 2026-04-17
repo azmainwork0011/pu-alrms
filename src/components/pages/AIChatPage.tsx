@@ -219,7 +219,7 @@ function AIChatPage() {
 
   // ─── RENDER ───────────────────────────────────────────
   return (
-    <div className="flex flex-col h-[calc(100vh-8.5rem)] max-h-[calc(100vh-8.5rem)] sm:h-[calc(100vh-8rem)] sm:max-h-[calc(100vh-8rem)]">
+    <div className="flex flex-col h-[calc(100vh-8.5rem)] max-h-[calc(100vh-8.5rem)] sm:h-[calc(100vh-8rem)] sm:max-h-[calc(100vh-8rem)] min-w-0 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between mb-3 shrink-0">
         <div className="flex items-center gap-2.5 min-w-0">
