@@ -379,7 +379,7 @@ function BookReaderDialog({
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
-        className="w-screen h-screen max-w-none max-h-none translate-x-0 translate-y-0 top-0 left-0 rounded-none border-0 p-0 gap-0 [&>button]:hidden sm:rounded-none"
+        className="w-full h-full max-w-none max-h-none translate-x-0 translate-y-0 top-0 left-0 rounded-none border-0 p-0 gap-0 [&>button]:hidden sm:rounded-none fixed inset-0"
         showCloseButton={false}
       >
         <AnimatePresence mode="wait">
