@@ -1,48 +1,41 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppStore } from '@/store/app';
-import { notificationApi } from '@/lib/api';
+import { useNotifications, useMarkNotificationRead } from '@/lib/hooks/use-queries';
 import { Bell, Clock, MessageSquare, ClipboardList } from 'lucide-react';
 import { timeAgo, playNotificationSound } from '@/components/pu-helpers';
 
 function NotificationsPage() {
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: notifications, isLoading: loading } = useNotifications();
+  const markRead = useMarkNotificationRead();
   const { setNotificationCount } = useAppStore();
+
+  const notificationList = Array.isArray(notifications) ? notifications : [];
 
   const initialLoad = useRef(true);
 
   useEffect(() => {
-    notificationApi.list().then((data) => {
-      setNotifications(Array.isArray(data) ? data : []);
-    }).catch(console.error).finally(() => setLoading(false));
-  }, []);
-
-  useEffect(() => {
     // Only play sound on subsequent loads (new notifications), not on initial mount
-    if (!initialLoad.current && notifications.length > 0) {
-      const unread = notifications.filter(n => !n.isRead);
+    if (!initialLoad.current && notificationList.length > 0) {
+      const unread = notificationList.filter(n => !n.isRead);
       if (unread.length > 0) {
         playNotificationSound();
       }
     }
     initialLoad.current = false;
-  }, [notifications.length]);
+  }, [notificationList.length]);
 
-  const markAsRead = async (id: string) => {
-    try {
-      await notificationApi.markRead(id);
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
-      setNotificationCount(notifications.filter(n => !n.isRead && n.id !== id).length);
-    } catch (err) {
-      console.error(err);
-    }
+  // Sync unread count to store whenever notification data changes
+  useEffect(() => {
+    setNotificationCount(notificationList.filter(n => !n.isRead).length);
+  }, [notificationList, setNotificationCount]);
+
+  const markAsRead = (id: string) => {
+    markRead.mutate(id);
   };
 
   const getNotifIcon = (type: string) => {
@@ -58,16 +51,16 @@ function NotificationsPage() {
     <div className="space-y-6 min-w-0 overflow-x-hidden">
       <div>
         <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Notifications</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">{notifications.filter(n => !n.isRead).length} unread</p>
+        <p className="text-gray-500 dark:text-gray-400 mt-1">{notificationList.filter(n => !n.isRead).length} unread</p>
       </div>
 
       {loading ? (
         <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} className="h-20 rounded-xl dark:bg-gray-800" />)}</div>
-      ) : notifications.length === 0 ? (
+      ) : notificationList.length === 0 ? (
         <Card className="border dark:border-gray-800"><CardContent className="py-8 sm:py-12 text-center text-gray-400 dark:text-gray-500"><Bell className="w-12 h-12 mx-auto mb-3 opacity-30" /><p>No notifications yet</p></CardContent></Card>
       ) : (
         <div className="space-y-2">
-          {notifications.map((n: any) => (
+          {notificationList.map((n: any) => (
             <motion.div key={n.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.2 }}>
               <Card className={`border dark:border-gray-800 cursor-pointer transition-all hover:shadow-md ${!n.isRead ? 'bg-emerald-50/50 border-l-4 border-l-emerald-500 dark:bg-emerald-950/10 dark:border-l-emerald-400' : ''}`} onClick={() => !n.isRead && markAsRead(n.id)}>
                 <CardContent className="p-4">

@@ -417,7 +417,15 @@ function ModelSelectGrid({ models, onSelect }: { models: typeof AI_MODELS; onSel
 
 // ─── Chat Welcome (after selecting model) ──────────────────
 function ChatWelcome({ model, onPrompt }: { model: typeof AI_MODELS[0]; onPrompt: (t: string) => void }) {
-  const prompts = ['Help me with my assignment', 'Explain binary search trees', 'Write a lab report structure', 'Review my code for bugs'];
+  const prompts = [
+    { icon: '\uD83D\uDCDD', label: 'Writing', text: 'Help me write an assignment introduction' },
+    { icon: '\uD83E\uDDEE', label: 'Math', text: 'Explain binary search with examples' },
+    { icon: '\uD83D\uDCC4', label: 'Science', text: 'Write a lab report structure for physics' },
+    { icon: '\uD83D\uDC1B', label: 'Debug', text: 'Find bugs in my code: [paste code]' },
+    { icon: '\uD83D\uDCA1', label: 'Ideas', text: 'Give me 5 project ideas for my semester' },
+    { icon: '\uD83D\uDCDA', label: 'Study', text: 'Summarize this topic for my exam' },
+  ];
+  const capabilities = ['\u270D\uFE0F Writing', '\uD83D\uDD27 Code Help', '\uD83D\uDCDA Research', '\uD83D\uDCDD Summaries'];
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-4 py-6">
       <motion.div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${model.gradient} flex items-center justify-center shadow-xl mb-4`} initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ type: 'spring' }}>
@@ -426,12 +434,21 @@ function ChatWelcome({ model, onPrompt }: { model: typeof AI_MODELS[0]; onPrompt
       <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-0.5">{model.name}</h3>
       <p className="text-[10px] text-gray-400 mb-1">{model.provider}</p>
       <p className="text-xs text-gray-500 dark:text-gray-400 mb-5 max-w-sm">{model.desc}</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
         {prompts.map((p, i) => (
-          <motion.button key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 + i * 0.08 }}
-            onClick={() => onPrompt(p)} className="flex items-center gap-2 text-xs text-left p-2.5 rounded-lg border dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-gray-600 dark:text-gray-400">
-            <Sparkles className="w-3 h-3 text-purple-400 shrink-0" />{p}
+          <motion.button key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 + i * 0.06 }}
+            onClick={() => onPrompt(p.text)} className="flex items-center gap-2.5 text-xs text-left p-2.5 rounded-lg border dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-gray-600 dark:text-gray-400">
+            <span className="text-base shrink-0">{p.icon}</span>
+            <span className="min-w-0"><span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{p.label}</span><br />{p.text}</span>
           </motion.button>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-1.5 mt-5 justify-center">
+        {capabilities.map((c, i) => (
+          <motion.span key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.6 + i * 0.06 }}
+            className="px-2.5 py-1 rounded-full text-[10px] font-medium bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+            {c}
+          </motion.span>
         ))}
       </div>
     </div>
@@ -530,7 +547,13 @@ function BattleModelSelect({ models, selected, onToggle, onStart }: { models: ty
 
 // ─── Battle Welcome ────────────────────────────────────────
 function BattleWelcome({ selectedModels, onPrompt }: { selectedModels: typeof AI_MODELS; onPrompt: (t: string) => void }) {
-  const prompts = ['Explain quantum computing', 'Write a sorting algorithm', 'What is machine learning?', 'Solve: integral of x^2'];
+  const prompts = [
+    { icon: '\uD83E\uDDEA', label: 'Science', text: 'Explain quantum computing in simple terms' },
+    { icon: '\uD83D\uDCBB', label: 'Code', text: 'Write a Python sorting algorithm' },
+    { icon: '\uD83E\uDD16', label: 'AI', text: 'What is machine learning and how does it work?' },
+    { icon: '\uD83D\uDCD0', label: 'Math', text: 'Solve: What is the integral of x\u00B2?' },
+  ];
+  const capabilities = ['\u2694\uFE0F Compare', '\uD83D\uDCCA Analyze', '\uD83D\uDCA1 Explain', '\uD83D\uDD0D Research'];
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-4 py-6">
       <motion.div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-xl mb-4">
@@ -543,12 +566,21 @@ function BattleWelcome({ selectedModels, onPrompt }: { selectedModels: typeof AI
         ))}
       </div>
       <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Send a prompt — all models will answer. You decide who wins!</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-sm">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
         {prompts.map((p, i) => (
           <motion.button key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15 + i * 0.07 }}
-            onClick={() => onPrompt(p)} className="flex items-center gap-2 text-xs text-left p-2.5 rounded-lg border dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-gray-600 dark:text-gray-400">
-            <Sparkles className="w-3 h-3 text-violet-400 shrink-0" />{p}
+            onClick={() => onPrompt(p.text)} className="flex items-center gap-2.5 text-xs text-left p-2.5 rounded-lg border dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-gray-600 dark:text-gray-400">
+            <span className="text-base shrink-0">{p.icon}</span>
+            <span className="min-w-0"><span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{p.label}</span><br />{p.text}</span>
           </motion.button>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-1.5 mt-5 justify-center">
+        {capabilities.map((c, i) => (
+          <motion.span key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 + i * 0.06 }}
+            className="px-2.5 py-1 rounded-full text-[10px] font-medium bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 border border-violet-200 dark:border-violet-800">
+            {c}
+          </motion.span>
         ))}
       </div>
     </div>
@@ -626,7 +658,13 @@ function BattleMessages({ messages, copiedId, onCopy, onVote, loading }: any) {
 
 // ─── Image Welcome ─────────────────────────────────────────
 function ImageWelcome({ onPrompt }: { onPrompt: (t: string) => void }) {
-  const prompts = ['A futuristic university campus at sunset', 'A robotic arm assembling a circuit board', 'An abstract visualization of neural networks', 'A cozy study desk with books and coffee'];
+  const prompts = [
+    { icon: '\uD83C\uDF05', label: 'Scene', text: 'A futuristic university campus at sunset' },
+    { icon: '\uD83C\uDFA8', label: 'Art', text: 'Abstract art representing computer science' },
+    { icon: '\uD83D\uDCCA', label: 'Data', text: 'An infographic about renewable energy' },
+    { icon: '\uD83C\uDFDB\uFE0F', label: 'Concept', text: 'A classical library with modern technology' },
+  ];
+  const capabilities = ['\uD83C\uDFA8 Create', '\uD83D\uDCCB Diagrams', '\uD83D\uDDBC\uFE0F Art', '\uD83D\uDCCA Infographics'];
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-4 py-6">
       <motion.div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 flex items-center justify-center shadow-xl mb-4" animate={{ rotate: [0, 3, -3, 0] }} transition={{ duration: 4, repeat: Infinity }}>
@@ -637,9 +675,18 @@ function ImageWelcome({ onPrompt }: { onPrompt: (t: string) => void }) {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-md">
         {prompts.map((p, i) => (
           <motion.button key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 + i * 0.07 }}
-            onClick={() => onPrompt(p)} className="flex items-center gap-2 text-xs text-left p-2.5 rounded-lg border dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-gray-600 dark:text-gray-400">
-            <Sparkles className="w-3 h-3 text-pink-400 shrink-0" />{p}
+            onClick={() => onPrompt(p.text)} className="flex items-center gap-2.5 text-xs text-left p-2.5 rounded-lg border dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors text-gray-600 dark:text-gray-400">
+            <span className="text-base shrink-0">{p.icon}</span>
+            <span className="min-w-0"><span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide">{p.label}</span><br />{p.text}</span>
           </motion.button>
+        ))}
+      </div>
+      <div className="flex flex-wrap gap-1.5 mt-5 justify-center">
+        {capabilities.map((c, i) => (
+          <motion.span key={i} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5 + i * 0.06 }}
+            className="px-2.5 py-1 rounded-full text-[10px] font-medium bg-pink-50 dark:bg-pink-900/20 text-pink-600 dark:text-pink-400 border border-pink-200 dark:border-pink-800">
+            {c}
+          </motion.span>
         ))}
       </div>
     </div>

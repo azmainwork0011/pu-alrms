@@ -4,20 +4,22 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppStore } from '@/store/app';
-import { dashboardApi, authApi } from '@/lib/api';
+import { authApi } from '@/lib/api';
+import { useDashboard } from '@/lib/hooks/use-queries';
 import { getInitials, getRoleBadgeColor, AnimatedCounter } from '@/components/pu-helpers';
 import {
   Camera, Pencil, X, LogOut, Shield, BookOpen,
   Hash, Phone, Building2, User, Mail, Calendar,
   Save, Volume2, VolumeX, Speaker, Sparkles, Clock,
   Award, Star, Target, TrendingUp, ChevronRight,
-  ImagePlus, ShieldCheck, LogIn, Settings, Bell,
+  ImagePlus, ShieldCheck, LogIn, Settings, Bell, Crop, BadgeCheck,
 } from 'lucide-react';
+import ImageCropDialog from '@/components/ui/image-crop-dialog';
 import {
   getSoundSettings, saveSoundSettings, previewSound,
   SOUND_OPTIONS, type SoundType, type SoundOption,
@@ -161,8 +163,7 @@ function NotificationSoundSettings() {
 
 function ProfilePage() {
   const { user, logout, updateUser } = useAppStore();
-  const [stats, setStats] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: stats, isLoading: loading } = useDashboard();
   const [editMode, setEditMode] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<'avatar' | 'cover' | null>(null);
@@ -181,9 +182,9 @@ function ProfilePage() {
   const coverRef = useRef<HTMLInputElement>(null);
   const [uploadType, setUploadType] = useState<'avatar' | 'cover'>('avatar');
 
-  useEffect(() => {
-    dashboardApi.getStats().then(setStats).catch(console.error).finally(() => setLoading(false));
-  }, []);
+  // Image crop dialog state
+  const [cropOpen, setCropOpen] = useState(false);
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -233,42 +234,59 @@ function ProfilePage() {
     finally { setSaving(false); }
   }, [formName, formRoll, formBatch, formDept, formPhone, formBio, updateUser]);
 
+  const [cropKey, setCropKey] = useState(0);
+
   const pickFile = useCallback((type: 'avatar' | 'cover') => {
     setUploadType(type);
     if (type === 'avatar') avatarRef.current?.click();
     else coverRef.current?.click();
   }, []);
 
-  const onFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+
+  const onFile = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith('image/')) { toast.error('Only images allowed'); return; }
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast.error('Only JPG, PNG, and WebP images are allowed');
+      return;
+    }
     if (file.size > 5 * 1024 * 1024) { toast.error('Max 5MB'); return; }
     const reader = new FileReader();
     reader.onload = (ev) => {
-      if (uploadType === 'cover') setCoverPreview(ev.target?.result as string);
-      else setAvatarPreview(ev.target?.result as string);
+      const src = ev.target?.result as string;
+      setCropImageSrc(src);
+      setCropKey((k) => k + 1);
+      setCropOpen(true);
     };
     reader.readAsDataURL(file);
+    e.target.value = '';
+  }, []);
+
+  const handleCropApply = useCallback(async (blob: Blob, dataUrl: string) => {
+    setCropOpen(false);
+    setCropImageSrc(null);
+    if (uploadType === 'avatar') setAvatarPreview(dataUrl);
+    else setCoverPreview(dataUrl);
     setUploading(uploadType);
     try {
+      const file = new File([blob], `profile-${uploadType}-${Date.now()}.png`, { type: 'image/png' });
       const r = await authApi.uploadProfilePhoto(file, uploadType);
       if (uploadType === 'avatar') { updateUser({ avatar: r.url }); setAvatarPreview(null); }
       else { updateUser({ coverPhoto: r.url }); setCoverPreview(null); }
       toast.success(`${uploadType === 'avatar' ? 'Profile' : 'Cover'} photo updated!`);
     } catch (e: any) { toast.error(e.message || 'Upload failed'); }
     finally { setUploading(null); }
-    e.target.value = '';
   }, [uploadType, updateUser]);
 
   const role = user?.role || 'STUDENT';
-  const roleLabel = role === 'ADMIN' ? 'Administrator' : role === 'TEACHER' ? 'Teacher' : role === 'CR' ? 'Class Representative' : 'Student';
+  const roleLabel = role === 'SUPER_ADMIN' ? 'Super Administrator' : role === 'ADMIN' ? 'Administrator' : role === 'DEVELOPER' ? 'Developer' : role === 'TEACHER' ? 'Teacher' : role === 'CR' ? 'Class Representative' : 'Student';
   const joinDate = user?.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
   const avatarSrc = avatarPreview || user?.avatar || '';
   const coverSrc = coverPreview || user?.coverPhoto || '';
 
-  const roleGradient = role === 'ADMIN' ? 'from-red-500 to-orange-500' : role === 'TEACHER' ? 'from-emerald-500 to-teal-500' : role === 'CR' ? 'from-violet-500 to-purple-500' : 'from-amber-500 to-orange-500';
-  const roleGlow = role === 'ADMIN' ? 'shadow-red-300/40 dark:shadow-red-900/20' : role === 'TEACHER' ? 'shadow-emerald-300/40 dark:shadow-emerald-900/20' : role === 'CR' ? 'shadow-violet-300/40 dark:shadow-violet-900/20' : 'shadow-amber-300/40 dark:shadow-amber-900/20';
+  const roleGradient = role === 'SUPER_ADMIN' ? 'from-emerald-500 via-cyan-500 to-teal-500' : role === 'ADMIN' ? 'from-red-500 to-orange-500' : role === 'DEVELOPER' ? 'from-amber-500 to-yellow-500' : role === 'TEACHER' ? 'from-emerald-500 to-teal-500' : role === 'CR' ? 'from-violet-500 to-purple-500' : 'from-amber-500 to-orange-500';
+  const roleGlow = role === 'SUPER_ADMIN' ? 'shadow-emerald-300/40 dark:shadow-emerald-900/20' : role === 'ADMIN' ? 'shadow-red-300/40 dark:shadow-red-900/20' : role === 'DEVELOPER' ? 'shadow-amber-300/40 dark:shadow-amber-900/20' : role === 'TEACHER' ? 'shadow-emerald-300/40 dark:shadow-emerald-900/20' : role === 'CR' ? 'shadow-violet-300/40 dark:shadow-violet-900/20' : 'shadow-amber-300/40 dark:shadow-amber-900/20';
 
   return (
     <div className="max-w-3xl mx-auto space-y-5 pb-safe min-w-0 overflow-x-hidden">
@@ -310,7 +328,10 @@ function ProfilePage() {
               {uploading === 'cover' ? (
                 <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : (
-                <ImagePlus className="w-3.5 h-3.5" />
+                <>
+                  <Crop className="w-3.5 h-3.5" />
+                  <ImagePlus className="w-3.5 h-3.5" />
+                </>
               )}
               Cover
             </button>
@@ -360,6 +381,7 @@ function ProfilePage() {
               <div className="min-w-0">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <h2 className="text-2xl font-extrabold text-gray-900 dark:text-white tracking-tight truncate">{user?.name || 'User'}</h2>
+                  {user?.verified && <BadgeCheck className="w-6 h-6 text-blue-500 shrink-0" />}
                   <div className={`w-2 h-2 rounded-full bg-gradient-to-r ${roleGradient}`} />
                 </div>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1.5 min-w-0">
@@ -604,9 +626,21 @@ function ProfilePage() {
         </motion.div>
       </div>
 
-      {/* Hidden file inputs */}
-      <input ref={avatarRef} type="file" className="hidden" accept="image/*" onChange={onFile} />
-      <input ref={coverRef} type="file" className="hidden" accept="image/*" onChange={onFile} />
+      {/* Hidden file inputs — only accept JPG, PNG, WebP */}
+      <input ref={avatarRef} type="file" className="hidden" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={onFile} />
+      <input ref={coverRef} type="file" className="hidden" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={onFile} />
+
+      {/* Image Crop Dialog */}
+      {cropImageSrc && (
+        <ImageCropDialog
+          key={cropKey}
+          open={cropOpen}
+          onClose={() => { setCropOpen(false); setCropImageSrc(null); }}
+          onCrop={handleCropApply}
+          imageSrc={cropImageSrc}
+          type={uploadType}
+        />
+      )}
     </div>
   );
 }

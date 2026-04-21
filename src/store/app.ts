@@ -1,12 +1,14 @@
 import { create } from 'zustand';
 
-export type UserRole = 'ADMIN' | 'TEACHER' | 'STUDENT' | 'CR';
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'DEVELOPER' | 'TEACHER' | 'STUDENT' | 'CR';
 
 export interface User {
   id: string;
   name: string;
   email: string;
   role: UserRole;
+  verified?: boolean;
+  status?: string;
   avatar?: string;
   coverPhoto?: string;
   rollNumber?: string;
@@ -17,6 +19,7 @@ export interface User {
 }
 
 export type PageView =
+  | 'admin-panel'
   | 'dashboard'
   | 'assignments'
   | 'lab-reports'

@@ -76,6 +76,7 @@ function AuthPage() {
   const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState<string | null>(null); // Inline error for the form
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'STUDENT' });
   const { setAuth } = useAppStore();
 
@@ -86,7 +87,7 @@ function AuthPage() {
     try { localStorage.setItem('login-role', role); } catch {}
   }, []);
 
-  // Restore saved role + email on mount (after hydration)
+  // Restore saved role + email on mount, and auto-seed demo accounts
   useEffect(() => {
     try {
       const savedRole = localStorage.getItem('login-role');
@@ -98,6 +99,8 @@ function AuthPage() {
         setFormData(prev => ({ ...prev, email: savedEmail }));
       }
     } catch {}
+    // Auto-seed demo accounts on mount so they always work
+    fetch('/api/auth/seed', { method: 'POST' }).catch(() => {});
   }, []);
 
   // Google OAuth dialog state
@@ -124,6 +127,7 @@ function AuthPage() {
     // Prevent double-submission
     if (loading) return;
     setLoading(true);
+    setError(null); // Clear previous error before each attempt
     try {
       const result = activeTab === 'login'
         ? await authApi.login(formData.email, formData.password)
@@ -132,10 +136,19 @@ function AuthPage() {
       try { localStorage.removeItem('login-email'); } catch {}
       toast.success(activeTab === 'login' ? 'Welcome back!' : 'Account created successfully!');
     } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err);
       if (isNetworkError(err)) {
-        toast.error('Network error — please check your connection and try again');
+        setError('Network error — please check your internet connection and try again.');
+      } else if (msg.includes('Invalid email or password')) {
+        setError('Invalid email or password. Please check your credentials and try again.');
+      } else if (msg.includes('Email already registered')) {
+        setError('This email is already registered. Try signing in instead.');
+      } else if (msg.includes('Email and password are required')) {
+        setError('Please enter both email and password.');
+      } else if (msg.includes('Internal server error') || msg.includes('HTTP 5')) {
+        setError('Server is temporarily busy. Click to retry.');
       } else {
-        toast.error(err.message || 'Authentication failed');
+        setError(msg || 'Authentication failed. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -195,14 +208,16 @@ function AuthPage() {
   };
 
   const demoAccounts = [
+    { label: 'Super Admin', email: 'diya.jainazmain9086@example.com', password: 'superadmin2024', icon: <ShieldIcon className="w-5 h-5" />, role: 'SUPER_ADMIN' as const, color: 'emerald', desc: 'Full system control' },
+    { label: 'Admin', email: 'admin@pu.edu', password: 'admin123', icon: <Monitor className="w-5 h-5" />, role: 'ADMIN' as const, color: 'rose', desc: 'Manage the platform' },
+    { label: 'Teacher', email: 'dr.smith@pu.edu', password: 'teacher123', icon: <BookOpen className="w-5 h-5" />, role: 'TEACHER' as const, color: 'teal', desc: 'Create & grade assignments' },
     { label: 'Student', email: 'alice@stu.pu.edu', password: 'student123', icon: <GraduationCap className="w-5 h-5" />, role: 'STUDENT' as const, color: 'amber', desc: 'Submit assignments & track grades' },
-    { label: 'Teacher', email: 'dr.smith@pu.edu', password: 'teacher123', icon: <BookOpen className="w-5 h-5" />, role: 'TEACHER' as const, color: 'emerald', desc: 'Create & grade assignments' },
-    { label: 'Admin', email: 'admin@pu.edu', password: 'admin123', icon: <ShieldIcon className="w-5 h-5" />, role: 'ADMIN' as const, color: 'rose', desc: 'Manage the platform' },
   ];
 
   const quickLogin = async (email: string, password: string) => {
     if (loading) return;
     setLoading(true);
+    setError(null); // Clear previous error
     try {
       const result = await authApi.login(email, password);
       setAuth(result.user, result.token);
@@ -211,9 +226,11 @@ function AuthPage() {
     } catch (err: any) {
       try { localStorage.setItem('login-email', email); } catch {}
       if (isNetworkError(err)) {
-        toast.error('Network error — please check your connection and try again');
+        setError('Network error — please check your internet connection.');
+      } else if (err?.message?.includes('Internal server error') || err?.message?.includes('HTTP 5')) {
+        setError('Server is temporarily busy. Click to retry.');
       } else {
-        toast.error(err.message || 'Login failed');
+        setError('Demo login failed. Please try again or use manual login.');
       }
     } finally {
       setLoading(false);
@@ -424,6 +441,43 @@ function AuthPage() {
                   </motion.div>
                 )}
 
+                {/* ─── Inline Error Display ────────────────── */}
+                <AnimatePresence>
+                  {error && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -4, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: 'auto' }}
+                      exit={{ opacity: 0, y: -4, height: 0 }}
+                      className="flex items-start gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800"
+                    >
+                      <svg className="w-4 h-4 text-red-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <button
+                        type="button"
+                        className="text-xs text-red-600 dark:text-red-400 flex-1 text-left hover:underline cursor-pointer"
+                        onClick={() => {
+                          setError(null);
+                          // Re-submit the form to retry
+                          const form = document.querySelector('form');
+                          if (form) form.requestSubmit();
+                        }}
+                      >
+                        {error} <span className="font-semibold underline">↻ Tap to retry</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="shrink-0 text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors"
+                        onClick={() => setError(null)}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {/* ─── Submit Button ──────────────────────── */}
                 <Button
                   type="submit"
@@ -480,7 +534,7 @@ function AuthPage() {
                     <div className="mt-5">
                       <Separator className="my-4 bg-gray-200/60 dark:bg-gray-700/60" />
                       <p className="text-xs text-gray-400 dark:text-gray-500 text-center mb-3 font-medium">Quick Demo Access</p>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-2 gap-2">
                         {demoAccounts.map((acc, idx) => (
                           <motion.div
                             key={acc.email}
@@ -493,22 +547,35 @@ function AuthPage() {
                             <Button
                               type="button"
                               variant="outline"
-                              className={`w-full text-xs h-auto py-3 px-2 flex-col gap-1.5 rounded-xl border-2 transition-all duration-200 ${acc.role === 'STUDENT' ? 'border-amber-200/80 hover:bg-amber-50 dark:border-amber-800/60 dark:hover:bg-amber-950/20' : acc.role === 'TEACHER' ? 'border-emerald-200/80 hover:bg-emerald-50 dark:border-emerald-800/60 dark:hover:bg-emerald-950/20' : 'border-rose-200/80 hover:bg-rose-50 dark:border-rose-800/60 dark:hover:bg-rose-950/20'}`}
+                              className={`w-full text-xs h-auto py-3 px-2 flex-col gap-1.5 rounded-xl border-2 transition-all duration-200 ${
+                                acc.role === 'SUPER_ADMIN'
+                                  ? 'border-emerald-200/80 hover:bg-emerald-50 dark:border-emerald-800/60 dark:hover:bg-emerald-950/20'
+                                  : acc.role === 'ADMIN'
+                                  ? 'border-rose-200/80 hover:bg-rose-50 dark:border-rose-800/60 dark:hover:bg-rose-950/20'
+                                  : acc.role === 'TEACHER'
+                                  ? 'border-teal-200/80 hover:bg-teal-50 dark:border-teal-800/60 dark:hover:bg-teal-950/20'
+                                  : 'border-amber-200/80 hover:bg-amber-50 dark:border-amber-800/60 dark:hover:bg-amber-950/20'
+                              }`}
                               onClick={() => quickLogin(acc.email, acc.password)}
                               disabled={loading}
                             >
                               <span className={`${
-                                acc.role === 'STUDENT' ? 'text-amber-600 dark:text-amber-400' :
-                                acc.role === 'TEACHER' ? 'text-emerald-600 dark:text-emerald-400' :
-                                'text-rose-600 dark:text-rose-400'
+                                acc.role === 'SUPER_ADMIN' ? 'text-emerald-600 dark:text-emerald-400' :
+                                acc.role === 'ADMIN' ? 'text-rose-600 dark:text-rose-400' :
+                                acc.role === 'TEACHER' ? 'text-teal-600 dark:text-teal-400' :
+                                'text-amber-600 dark:text-amber-400'
                               }`}>
                                 {acc.icon}
                               </span>
                               <span className="font-semibold text-[11px]">{acc.label}</span>
+                              <span className="text-[9px] text-gray-400 dark:text-gray-500 leading-tight truncate w-full text-center">{acc.email}</span>
                             </Button>
                           </motion.div>
                         ))}
                       </div>
+                      <p className="text-[10px] text-gray-400 dark:text-gray-600 text-center mt-2">
+                        Click a role above for instant access, or enter credentials manually
+                      </p>
                     </div>
                   </motion.div>
                 </AnimatePresence>

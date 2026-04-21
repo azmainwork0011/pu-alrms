@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppStore } from '@/store/app';
-import { assignmentApi, submissionApi, commentApi } from '@/lib/api';
+import { useAssignment, useComments, useCreateComment, useSubmissions, useGradeSubmission, useCreateSubmission } from '@/lib/hooks/use-queries';
 import {
   Calendar, Upload, CheckCircle2, Send, ChevronLeft, BookOpen,
   PenTool, FileText, Clock, UsersRound, MessageSquare, AlertTriangle,
@@ -31,81 +31,65 @@ const scaleIn = { initial: { opacity: 0, scale: 0.95 }, animate: { opacity: 1, s
 
 function AssignmentDetailPage() {
   const { selectedAssignmentId, user } = useAppStore();
-  const [assignment, setAssignment] = useState<any>(null);
-  const [comments, setComments] = useState<any[]>([]);
-  const [submissions, setSubmissions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // React Query hooks for data fetching
+  const { data: assignment, isLoading: loading } = useAssignment(selectedAssignmentId);
+  const { data: commentsRaw } = useComments(selectedAssignmentId);
+  const { data: submissionsRaw } = useSubmissions(selectedAssignmentId ? { assignmentId: selectedAssignmentId } : {});
+
+  const comments = Array.isArray(commentsRaw) ? commentsRaw : [];
+  const submissions = Array.isArray(submissionsRaw) ? submissionsRaw : [];
+
+  // UI-only state
   const [newComment, setNewComment] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [gradingId, setGradingId] = useState<string | null>(null);
   const [gradeData, setGradeData] = useState({ marks: '', feedback: '' });
   const [gradeDialogOpen, setGradeDialogOpen] = useState(false);
   const [selectedSubId, setSelectedSubId] = useState<string | null>(null);
 
-  const loadData = useCallback(async () => {
-    if (!selectedAssignmentId) return;
-    setLoading(true);
-    try {
-      const [aData, cData, sData] = await Promise.all([
-        assignmentApi.get(selectedAssignmentId),
-        commentApi.list(selectedAssignmentId),
-        submissionApi.list({ assignmentId: selectedAssignmentId }),
-      ]);
-      setAssignment(aData);
-      setComments(Array.isArray(cData) ? cData : []);
-      setSubmissions(Array.isArray(sData) ? sData : []);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedAssignmentId]);
+  // Mutation hooks
+  const createComment = useCreateComment();
+  const createSubmission = useCreateSubmission();
+  const gradeSubmission = useGradeSubmission();
 
-  useEffect(() => { loadData(); }, [loadData]);
-
-  const handleComment = async () => {
+  const handleComment = () => {
     if (!newComment.trim() || !selectedAssignmentId) return;
-    try {
-      await commentApi.create({ assignmentId: selectedAssignmentId, content: newComment });
-      setNewComment('');
-      toast.success('Comment added');
-      loadData();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to add comment');
-    }
+    createComment.mutate(
+      { assignmentId: selectedAssignmentId, content: newComment },
+      {
+        onSuccess: () => { setNewComment(''); toast.success('Comment added'); },
+        onError: (err: any) => { toast.error(err.message || 'Failed to add comment'); },
+      },
+    );
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!selectedAssignmentId || !assignment) return;
-    setSubmitting(true);
-    try {
-      await submissionApi.create({
-        assignmentId: selectedAssignmentId,
-        fileName: `${assignment.title.replace(/\s+/g, '_')}_submission.pdf`,
-      });
-      toast.success('Submitted successfully!');
-      loadData();
-    } catch (err: any) {
-      toast.error(err.message || 'Submission failed');
-    } finally {
-      setSubmitting(false);
-    }
+    createSubmission.mutate({
+      assignmentId: selectedAssignmentId,
+      fileName: `${assignment.title.replace(/\s+/g, '_')}_submission.pdf`,
+    }, {
+      onError: (err: any) => {
+        toast.error(err.message || 'Submission failed');
+      },
+    });
   };
 
-  const handleGrade = async () => {
+  const handleGrade = () => {
     if (!selectedSubId) return;
-    setGradingId(selectedSubId);
-    try {
-      await submissionApi.grade(selectedSubId, { marks: parseFloat(gradeData.marks), feedback: gradeData.feedback });
-      toast.success('Graded successfully!');
-      setGradeDialogOpen(false);
-      setGradeData({ marks: '', feedback: '' });
-      loadData();
-    } catch (err: any) {
-      toast.error(err.message || 'Grading failed');
-    } finally {
-      setGradingId(null);
-    }
+    gradeSubmission.mutate(
+      {
+        id: selectedSubId,
+        data: { marks: parseFloat(gradeData.marks), feedback: gradeData.feedback },
+      },
+      {
+        onSuccess: () => {
+          setGradeDialogOpen(false);
+          setGradeData({ marks: '', feedback: '' });
+          setSelectedSubId(null);
+        },
+        onError: (err: any) => { toast.error(err.message || 'Grading failed'); },
+      },
+    );
   };
 
   const openGradeDialog = (subId: string) => {
@@ -316,10 +300,10 @@ function AssignmentDetailPage() {
                         </div>
                         <Button
                           onClick={handleSubmit}
-                          disabled={submitting}
+                          disabled={createSubmission.isPending}
                           className={`h-10 px-5 font-semibold shadow-sm ${deadlinePast ? 'bg-amber-600 hover:bg-amber-700' : 'bg-emerald-600 hover:bg-emerald-700'} text-white`}
                         >
-                          {submitting ? (
+                          {createSubmission.isPending ? (
                             <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" /> Submitting...</>
                           ) : (
                             <><Upload className="w-4 h-4 mr-2" /> Submit Work</>
@@ -436,10 +420,10 @@ function AssignmentDetailPage() {
                                     </Button>
                                     <Button
                                       onClick={handleGrade}
-                                      disabled={!gradeData.marks || !!gradingId}
+                                      disabled={!gradeData.marks || gradeSubmission.isPending}
                                       className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white"
                                     >
-                                      {gradingId ? (
+                                      {gradeSubmission.isPending ? (
                                         <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" /> Saving...</>
                                       ) : (
                                         <><Award className="w-4 h-4 mr-2" /> Submit Grade</>

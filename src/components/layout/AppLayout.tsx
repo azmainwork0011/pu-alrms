@@ -13,6 +13,7 @@ import {
   LayoutDashboard, ClipboardList, FlaskConical, Plus, FileText, Trophy,
   Megaphone, MessageSquare, Sparkles, Bell, User as UserIcon,
   LogOut, Menu, GraduationCap, Moon, Sun, BookOpen, Swords,
+  Shield, BadgeCheck,
 } from 'lucide-react';
 import { getInitials, PageTransition, DevCredit, playNotificationSound } from '@/components/pu-helpers';
 
@@ -31,6 +32,7 @@ import AnnouncementsPage from '@/components/pages/AnnouncementsPage';
 import QuizPage from '@/components/pages/QuizPage';
 import LearnWithGame from '@/components/pages/LearnWithGame';
 import BooksPage from '@/components/pages/BooksPage';
+import AdminPanelPage from '@/components/pages/AdminPanelPage';
 
 // ─── Sidebar Navigation ──────────────────────────────────
 function SidebarNav({ onNavigate }: { onNavigate: (page: PageView) => void }) {
@@ -38,6 +40,7 @@ function SidebarNav({ onNavigate }: { onNavigate: (page: PageView) => void }) {
 
   const navItems: { page: PageView; label: string; icon: React.ReactNode; roles?: UserRole[]; badge?: string }[] = [
     { page: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
+    { page: 'admin-panel', label: 'Admin Panel', icon: <Shield className="w-4 h-4" />, roles: ['SUPER_ADMIN'] },
     { page: 'assignments', label: 'Assignments', icon: <ClipboardList className="w-4 h-4" /> },
     { page: 'lab-reports', label: 'Lab Reports', icon: <FlaskConical className="w-4 h-4" /> },
     { page: 'create-assignment', label: 'Create Assignment', icon: <Plus className="w-4 h-4" />, roles: ['TEACHER', 'CR', 'ADMIN'] },
@@ -61,7 +64,7 @@ function SidebarNav({ onNavigate }: { onNavigate: (page: PageView) => void }) {
         <motion.div key={item.page} whileHover={{ x: 2 }} whileTap={{ scale: 0.98 }}>
           <Button
             variant={currentPage === item.page ? 'secondary' : 'ghost'}
-            className={`w-full h-10 md:h-9 justify-start gap-3 ${currentPage === item.page ? 'bg-emerald-100 text-emerald-800 font-medium dark:bg-emerald-900/30 dark:text-emerald-300' : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'}`}
+            className={`w-full h-10 md:h-9 justify-start gap-3 rounded-r-lg rounded-l-none border-l-2 ${currentPage === item.page ? 'border-l-emerald-500 bg-emerald-100 text-emerald-800 font-medium dark:bg-emerald-900/40 dark:text-emerald-300' : 'border-l-transparent text-gray-600 hover:text-gray-900 hover:border-l-emerald-300 hover:bg-gray-100 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:bg-gray-800'}`}
             onClick={() => onNavigate(item.page)}
           >
             {item.icon}
@@ -81,15 +84,24 @@ function MobileSidebar() {
       <SheetContent side="left" className="w-64 p-0 dark:bg-gray-900">
         <SheetHeader className="p-4 border-b dark:border-gray-800">
           <SheetTitle className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0">
+            <div className="w-8 h-8 rounded-lg overflow-hidden shrink-0 ring-1 ring-gray-200/60 dark:ring-gray-700/60">
               <img src="/logo.png" alt="PU-ALRMS" className="w-full h-full object-cover" />
             </div>
-            PU-ALRMS
+            <div className="flex items-center gap-2">
+              <span>PU-ALRMS</span>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+            </div>
           </SheetTitle>
         </SheetHeader>
         <SidebarNav onNavigate={(page) => { setPage(page); setSidebarOpen(false); }} />
         <div className="p-3 border-t dark:border-gray-800">
           <DevCredit />
+          <div className="flex justify-center mt-1.5">
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40">v2.0</span>
+          </div>
         </div>
       </SheetContent>
     </Sheet>
@@ -152,6 +164,7 @@ export default function AppLayout() {
       case 'quiz': return <QuizPage />;
       case 'code-quest': return <LearnWithGame />;
       case 'books': return <BooksPage />;
+      case 'admin-panel': return <AdminPanelPage />;
       default: return <DashboardPage />;
     }
   };
@@ -161,35 +174,42 @@ export default function AppLayout() {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-col border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 fixed top-0 left-0 h-full z-40 overflow-y-auto overflow-x-hidden">
         <div className="p-4 border-b dark:border-gray-800">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl overflow-hidden shrink-0 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl overflow-hidden shrink-0 shadow-sm ring-1 ring-gray-200/60 dark:ring-gray-700/60">
               <img src="/logo.png" alt="PU-ALRMS" className="w-full h-full object-cover" />
             </div>
-            <div>
-              <h2 className="font-bold text-sm text-gray-900 dark:text-white">PU-ALRMS</h2>
-              <p className="text-[10px] text-gray-400 dark:text-gray-500">Prime University</p>
+            <div className="flex items-center gap-2">
+              <h2 className="font-bold text-sm text-gray-900 dark:text-white tracking-tight">PU-ALRMS</h2>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
             </div>
           </div>
+          <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1 ml-12">Prime University</p>
         </div>
         <div className="flex-1 overflow-y-auto overflow-x-hidden">
           <SidebarNav onNavigate={(page) => setPage(page)} />
         </div>
         <div className="p-3 border-t dark:border-gray-800">
           <DevCredit />
+          <div className="flex justify-center mt-1.5">
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400 border border-emerald-200/60 dark:border-emerald-800/40">v2.0</span>
+          </div>
         </div>
       </aside>
 
       {/* Main Content */}
       <div className="flex-1 md:ml-64 flex flex-col min-h-screen min-w-0 overflow-x-hidden">
         {/* Header */}
-        <header className="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 min-w-0 overflow-x-hidden">
+        <header className="sticky top-0 z-30 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-gray-200 dark:border-gray-800 shadow-sm min-w-0 overflow-x-hidden">
           <div className="flex items-center justify-between h-14 px-4 gap-2">
             <div className="flex items-center gap-3">
               <Button variant="ghost" size="icon" className="md:hidden h-11 w-11" onClick={toggleSidebar}>
                 <Menu className="w-5 h-5" />
               </Button>
               <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 capitalize truncate max-w-[160px] sm:max-w-none">
-                {currentPage === 'student-community' ? 'Community Chat' : currentPage === 'announcements' ? 'Announcements' : currentPage === 'ai-chat' ? 'Lucky Strick AI' : currentPage === 'books' ? 'Digital Library' : currentPage === 'quiz' ? 'Quick Quiz' : currentPage === 'code-quest' ? 'Learn With Game' : currentPage.replace(/-/g, ' ')}
+                {currentPage === 'student-community' ? 'Community Chat' : currentPage === 'announcements' ? 'Announcements' : currentPage === 'ai-chat' ? 'Lucky Strick AI' : currentPage === 'books' ? 'Digital Library' : currentPage === 'quiz' ? 'Quick Quiz' : currentPage === 'code-quest' ? 'Learn With Game' : currentPage === 'admin-panel' ? 'Admin Panel' : currentPage.replace(/-/g, ' ')}
               </h2>
             </div>
 
@@ -206,8 +226,9 @@ export default function AppLayout() {
                 {notificationCount > 0 && (
                   <motion.span
                     initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                    className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white dark:ring-gray-900"
                   >
                     {notificationCount > 9 ? '9+' : notificationCount}
                   </motion.span>
@@ -221,7 +242,13 @@ export default function AppLayout() {
                       <AvatarImage src={user?.avatar} />
                       <AvatarFallback className="text-xs">{user?.name ? getInitials(user.name) : '?'}</AvatarFallback>
                     </Avatar>
-                    <span className="text-sm font-medium hidden sm:block dark:text-gray-200">{user?.name?.split(' ')[0]}</span>
+                    <div className="hidden sm:flex flex-col items-start">
+                      <div className="flex items-center gap-1">
+                        <span className="text-sm font-medium leading-tight dark:text-gray-200">{user?.name?.split(' ')[0]}</span>
+                        {user?.verified && <BadgeCheck className="w-3.5 h-3.5 text-blue-500" />}
+                      </div>
+                      <span className="text-[10px] leading-tight text-gray-400 dark:text-gray-500 capitalize">{user?.role === 'SUPER_ADMIN' ? 'Super Admin' : user?.role === 'CR' ? 'Class Rep' : user?.role === 'ADMIN' ? 'Admin' : user?.role === 'DEVELOPER' ? 'Developer' : user?.role}</span>
+                    </div>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48 dark:bg-gray-900 dark:border-gray-800">

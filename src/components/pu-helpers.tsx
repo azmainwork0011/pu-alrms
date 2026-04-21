@@ -36,7 +36,9 @@ export function getInitials(name: string) {
 
 export function getRoleBadgeColor(role: string) {
   switch (role) {
+    case 'SUPER_ADMIN': return 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-white border-transparent shadow-sm shadow-emerald-200/50';
     case 'ADMIN': return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/30 dark:text-red-300';
+    case 'DEVELOPER': return 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300';
     case 'TEACHER': return 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300';
     case 'CR': return 'bg-violet-100 text-violet-800 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300';
     case 'STUDENT': return 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300';
@@ -117,17 +119,104 @@ export function AnimatedCounter({ target, duration = 1200 }: { target: number; d
   return <span ref={ref}>{count}</span>;
 }
 
+// ─── Shimmer Animation Primitives ─────────────────────────
+let shimmerStyleInjected = false;
+
+function injectShimmerKeyframes() {
+  if (typeof document === 'undefined' || shimmerStyleInjected) return;
+  if (document.getElementById('shimmer-keyframes')) {
+    shimmerStyleInjected = true;
+    return;
+  }
+  const style = document.createElement('style');
+  style.id = 'shimmer-keyframes';
+  style.textContent = '@keyframes shimmer-slide{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}';
+  document.head.appendChild(style);
+  shimmerStyleInjected = true;
+}
+
+function ShimmerBlock({ className, rounded = 'rounded-lg' }: { className?: string; rounded?: string }) {
+  useEffect(() => { injectShimmerKeyframes(); }, []);
+
+  return (
+    <div className={`relative overflow-hidden ${rounded} bg-gray-200 dark:bg-gray-800 ${className ?? ''}`}>
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)',
+          animation: 'shimmer-slide 1.5s infinite',
+        }}
+      />
+    </div>
+  );
+}
+
 // ─── Dashboard Skeleton ──────────────────────────────────
 export function DashboardSkeleton() {
   return (
     <div className="space-y-6">
-      <div className="h-8 w-48 sm:w-64 rounded-xl bg-gray-200 dark:bg-gray-800 animate-pulse" />
+      <ShimmerBlock className="h-8 w-48 sm:w-64" rounded="rounded-xl" />
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[1, 2, 3, 4].map(i => <div key={i} className="h-24 rounded-xl bg-gray-200 dark:bg-gray-800 animate-pulse" />)}
+        {[1, 2, 3, 4].map(i => <ShimmerBlock key={i} className="h-24" rounded="rounded-xl" />)}
       </div>
       <div className="grid md:grid-cols-2 gap-6">
-        <div className="h-64 rounded-xl bg-gray-200 dark:bg-gray-800 animate-pulse" />
-        <div className="h-64 rounded-xl bg-gray-200 dark:bg-gray-800 animate-pulse" />
+        <ShimmerBlock className="h-64" rounded="rounded-xl" />
+        <ShimmerBlock className="h-64" rounded="rounded-xl" />
+      </div>
+    </div>
+  );
+}
+
+// ─── Assignment Card Skeleton ────────────────────────────
+export function AssignmentCardSkeleton() {
+  return (
+    <div className="flex items-center gap-3 p-3.5 sm:p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+      <ShimmerBlock className="w-10 h-10 shrink-0" rounded="rounded-full" />
+      <div className="flex-1 min-w-0 space-y-2">
+        <ShimmerBlock className="h-4 w-3/4" rounded="rounded" />
+        <ShimmerBlock className="h-3 w-1/2" rounded="rounded" />
+      </div>
+      <ShimmerBlock className="w-16 h-6 shrink-0" rounded="rounded-full" />
+    </div>
+  );
+}
+
+// ─── Book Card Skeleton ──────────────────────────────────
+export function BookCardSkeleton() {
+  return (
+    <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 overflow-hidden">
+      <ShimmerBlock className="h-40 w-full" rounded="rounded-none" />
+      <div className="p-3 space-y-2">
+        <ShimmerBlock className="h-4 w-full" rounded="rounded" />
+        <ShimmerBlock className="h-3 w-2/3" rounded="rounded" />
+      </div>
+    </div>
+  );
+}
+
+// ─── Chat Message Skeleton ───────────────────────────────
+export function ChatMessageSkeleton() {
+  return (
+    <div className="flex items-start gap-3">
+      <ShimmerBlock className="w-8 h-8 shrink-0" rounded="rounded-full" />
+      <div className="flex-1 min-w-0 p-3 rounded-2xl rounded-tl-sm bg-gray-100 dark:bg-gray-800 space-y-2">
+        <ShimmerBlock className="h-3 w-full" rounded="rounded" />
+        <ShimmerBlock className="h-3 w-5/6" rounded="rounded" />
+        <ShimmerBlock className="h-3 w-2/3" rounded="rounded" />
+      </div>
+    </div>
+  );
+}
+
+// ─── Generic Page Skeleton ───────────────────────────────
+export function GenericPageSkeleton() {
+  return (
+    <div className="space-y-6">
+      <ShimmerBlock className="h-8 w-48" rounded="rounded-xl" />
+      <div className="space-y-4">
+        <ShimmerBlock className="h-40 w-full" rounded="rounded-xl" />
+        <ShimmerBlock className="h-56 w-full" rounded="rounded-xl" />
+        <ShimmerBlock className="h-32 w-full" rounded="rounded-xl" />
       </div>
     </div>
   );

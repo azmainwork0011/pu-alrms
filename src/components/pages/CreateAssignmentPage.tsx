@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useAppStore } from '@/store/app';
-import { assignmentApi, subjectApi } from '@/lib/api';
+import { assignmentApi, subjectApi, silentError } from '@/lib/api';
 import {
   ArrowLeft, Plus, Sparkles, BookOpen, UsersRound, Calendar,
   GraduationCap, FileText, FlaskConical, Clock, ChevronRight,
@@ -57,7 +57,7 @@ function CreateAssignmentPage() {
     ]).then(([subjData, batchData]) => {
       setSubjects(Array.isArray(subjData) ? subjData : []);
       setBatches(Array.isArray(batchData) ? batchData : []);
-    }).catch(console.error);
+    }).catch((err) => silentError(err, 'Create assignment load error'));
   }, []);
 
   // Filter subjects by search

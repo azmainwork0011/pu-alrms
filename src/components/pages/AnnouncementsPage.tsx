@@ -1,20 +1,18 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { useAppStore } from '@/store/app';
-import { announcementApi } from '@/lib/api';
+import { useAnnouncements, useCreateAnnouncement, useUpdateAnnouncement, useDeleteAnnouncement } from '@/lib/hooks/use-queries';
 import {
   Megaphone, AlertTriangle, Bell, Edit, Trash2, MoreHorizontal, Plus, User as UserIcon,
 } from 'lucide-react';
@@ -22,51 +20,45 @@ import { DashboardSkeleton, timeAgo, playNotificationSound } from '@/components/
 
 function AnnouncementsPage() {
   const { user } = useAppStore();
-  const [announcements, setAnnouncements] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: announcements, isLoading: loading } = useAnnouncements();
+  const createAnnouncement = useCreateAnnouncement();
+  const updateAnnouncement = useUpdateAnnouncement();
+  const deleteAnnouncement = useDeleteAnnouncement();
   const [showCreate, setShowCreate] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [form, setForm] = useState({ title: '', message: '', type: 'GENERAL', priority: 'NORMAL' });
-  const [submitting, setSubmitting] = useState(false);
+
+  const submitting = createAnnouncement.isPending || updateAnnouncement.isPending;
+  const announcementList = Array.isArray(announcements) ? announcements : [];
 
   const canCreate = user?.role === 'TEACHER' || user?.role === 'ADMIN';
   const canEdit = user?.role === 'TEACHER' || user?.role === 'ADMIN' || user?.role === 'CR';
   const canDelete = user?.role === 'TEACHER' || user?.role === 'ADMIN';
 
-  const loadAnnouncements = useCallback(async () => {
-    try {
-      const data = await announcementApi.list();
-      setAnnouncements(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Failed to load announcements:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => { loadAnnouncements(); }, [loadAnnouncements]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.title.trim() || !form.message.trim()) return;
-    setSubmitting(true);
-    try {
-      if (editId) {
-        await announcementApi.update(editId, form);
-        toast.success('Announcement updated');
-      } else {
-        await announcementApi.create(form);
-        toast.success('Announcement published to all students!');
-        playNotificationSound();
-      }
+
+    const resetForm = () => {
       setShowCreate(false);
       setEditId(null);
       setForm({ title: '', message: '', type: 'GENERAL', priority: 'NORMAL' });
-      loadAnnouncements();
-    } catch (err: any) {
+    };
+
+    const onError = (err: any) => {
       toast.error(err.message || 'Failed to save announcement');
-    } finally {
-      setSubmitting(false);
+    };
+
+    if (editId) {
+      updateAnnouncement.mutate({ id: editId, data: form }, { onSuccess: resetForm, onError });
+    } else {
+      createAnnouncement.mutate(form, {
+        onSuccess: () => {
+          playNotificationSound();
+          resetForm();
+        },
+        onError,
+      });
     }
   };
 
@@ -76,15 +68,13 @@ function AnnouncementsPage() {
     setShowCreate(true);
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = (id: string) => {
     if (!confirm('Delete this announcement?')) return;
-    try {
-      await announcementApi.delete(id);
-      toast.success('Announcement deleted');
-      loadAnnouncements();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to delete');
-    }
+    deleteAnnouncement.mutate(id, {
+      onError: (err: any) => {
+        toast.error(err.message || 'Failed to delete');
+      },
+    });
   };
 
   const getTypeStyle = (type: string) => {
@@ -185,7 +175,7 @@ function AnnouncementsPage() {
       </Dialog>
 
       {/* Announcements List */}
-      {announcements.length === 0 ? (
+      {announcementList.length === 0 ? (
         <Card className="border dark:border-gray-800">
           <CardContent className="p-8 sm:p-12 text-center">
             <Megaphone className="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" />
@@ -195,7 +185,7 @@ function AnnouncementsPage() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {announcements.map((ann, i) => (
+          {announcementList.map((ann, i) => (
             <motion.div key={ann.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
               <Card className={`border dark:border-gray-800 ${ann.priority === 'CRITICAL' ? 'border-l-4 border-l-red-500 dark:border-l-red-400' : ann.priority === 'HIGH' ? 'border-l-4 border-l-amber-500 dark:border-l-amber-400' : ''}`}>
                 <CardContent className="p-4">

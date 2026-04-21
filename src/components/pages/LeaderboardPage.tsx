@@ -1,23 +1,19 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { leaderboardApi } from '@/lib/api';
+import { useLeaderboard } from '@/lib/hooks/use-queries';
 import { Trophy } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getInitials } from '@/components/pu-helpers';
 
 function LeaderboardPage() {
-  const [entries, setEntries] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    leaderboardApi.get().then((data) => setEntries(Array.isArray(data) ? data : [])).catch(console.error).finally(() => setLoading(false));
-  }, []);
+  const { data: rawEntries, isLoading: loading } = useLeaderboard();
+  const entries = Array.isArray(rawEntries) ? rawEntries : [];
 
   const medals = ['\ud83e\udd47', '\ud83e\udd48', '\ud83e\udd49'];
 

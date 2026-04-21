@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,37 +10,21 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useAppStore } from '@/store/app';
-import { submissionApi, assignmentApi } from '@/lib/api';
+import { useSubmissions, useAssignments } from '@/lib/hooks/use-queries';
 import { Eye } from 'lucide-react';
 import { getInitials, getStatusColor, safeFormat } from '@/components/pu-helpers';
 
 function SubmissionsPage() {
   const { user } = useAppStore();
-  const [submissions, setSubmissions] = useState<any[]>([]);
-  const [assignments, setAssignments] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [filterAssignment, setFilterAssignment] = useState('all');
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      try {
-        const [sData, aData] = await Promise.all([
-          submissionApi.list({}),
-          assignmentApi.list({}),
-        ]);
-        if (cancelled) return;
-        setSubmissions(Array.isArray(sData) ? sData : []);
-        setAssignments(Array.isArray(aData) ? aData : []);
-      } catch (err) {
-        console.error(err);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => { cancelled = true; };
-  }, []);
+  const { data: submissionsRaw, isLoading: submissionsLoading } = useSubmissions({});
+  const { data: assignmentsRaw, isLoading: assignmentsLoading } = useAssignments({});
+
+  const submissions = Array.isArray(submissionsRaw) ? submissionsRaw : [];
+  const assignments = Array.isArray(assignmentsRaw) ? assignmentsRaw : [];
+  const loading = submissionsLoading || assignmentsLoading;
+
+  const [filterAssignment, setFilterAssignment] = useState('all');
 
   const filtered = submissions.filter((s: any) => {
     if (user?.role === 'STUDENT' && s.studentId !== user.id) return false;

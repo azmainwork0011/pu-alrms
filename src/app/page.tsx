@@ -34,33 +34,73 @@ function ErrorFallback({ error, onRetry }: { error: Error; onRetry: () => void }
 }
 
 export default function Home() {
-  const [mounted, setMounted] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  // ── Mount gate: client-only after this point ──
+  // Subscribe to auth state — MUST be before any conditional returns (React hooks rule)
+  // Zustand's mounted flag is set to true by hydrate() on the client side.
+  // During SSR, it stays false (default), so we render null → no hydration mismatch.
+  const mounted = useAppStore((state) => state.mounted);
+  const isAuthenticated = useAppStore((state) => state.isAuthenticated);
+
+  // ── Client mount: hydrate auth state from localStorage ──
   useEffect(() => {
     // Mark document as hydrated (hides CSS-only loading overlay)
     document.documentElement.classList.add('hydrated');
 
-    // Hydrate auth state from localStorage (has its own try/catch)
+    // Remove the script-injected loading overlay DOM after fade-out transition
+    const overlayEl = document.getElementById('pu-loading-overlay');
+    if (overlayEl) {
+      setTimeout(() => {
+        try { overlayEl.remove(); } catch {}
+      }, 600);
+    }
+
+    // Hydrate auth state from localStorage — this sets store.mounted = true
     useAppStore.getState().hydrate();
-    setMounted(true);
   }, []);
 
-  // ── Global error handler ──
+  // ── Global error handler — only catches truly unexpected errors ──
   useEffect(() => {
     if (!mounted) return;
 
     const handler = (event: ErrorEvent) => {
+      // Ignore errors from login/auth — AuthPage handles these with inline error display
+      const msg = event.message || '';
+      if (
+        msg.includes('Internal server error') ||
+        msg.includes('Login failed') ||
+        msg.includes('Authentication') ||
+        msg.includes('Invalid email') ||
+        msg.includes('Network') ||
+        msg.includes('fetch') ||
+        msg.includes('localStorage') ||
+        msg.includes('timeout') ||
+        msg.includes('AbortError')
+      ) {
+        return; // Let the component handle these
+      }
       event.preventDefault();
-      setError(new Error(event.message || 'An unexpected error occurred'));
+      setError(new Error(msg || 'An unexpected error occurred'));
     };
     const rejectionHandler = (event: PromiseRejectionEvent) => {
       const msg = event.reason?.message || String(event.reason);
-      if (msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('localStorage')) {
-        event.preventDefault();
-        setError(new Error(msg));
+      // Only show ErrorFallback for truly unexpected promise rejections
+      // Auth/network errors are handled by apiFetch and component error handlers
+      if (
+        msg.includes('Failed to fetch') ||
+        msg.includes('NetworkError') ||
+        msg.includes('localStorage') ||
+        msg.includes('Internal server error') ||
+        msg.includes('Login failed') ||
+        msg.includes('Invalid email') ||
+        msg.includes('timeout') ||
+        msg.includes('HTTP 4') ||
+        msg.includes('HTTP 5')
+      ) {
+        return; // Expected — handled elsewhere
       }
+      event.preventDefault();
+      setError(new Error(msg));
     };
     window.addEventListener('error', handler);
     window.addEventListener('unhandledrejection', rejectionHandler);
@@ -76,20 +116,16 @@ export default function Home() {
   }, []);
 
   // ── Server + pre-mount client: render NOTHING ──
-  // Both server and client output identical empty content.
-  // The CSS-only loading overlay (on <html> pseudo-elements) provides
-  // visual feedback during this brief period.
-  // No browser extension can cause a mismatch because there is no
-  // server-rendered markup to conflict with.
+  // mounted starts as false. hydrate() sets it to true on first client render.
+  // The CSS-only loading overlay provides visual feedback during this brief period.
   if (!mounted) return null;
 
   // ── Client-only after mount: render real UI ──
-  // These are loaded with ssr: false, so they render client-side only.
-  // No hydration occurs for these components.
   if (error) {
     return <ErrorFallback error={error} onRetry={handleRetry} />;
   }
 
-  const isAuthenticated = useAppStore.getState().isAuthenticated;
+  // isAuthenticated is reactive — when login calls setAuth(), this re-renders
+  // and switches from AuthPage to AppLayout automatically.
   return isAuthenticated ? <AppLayout /> : <AuthPage />;
 }

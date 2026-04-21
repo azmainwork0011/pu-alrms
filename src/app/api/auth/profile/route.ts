@@ -1,8 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/jwt';
-import { writeFile, mkdir } from 'fs/promises';
+import { writeFile, mkdir, unlink } from 'fs/promises';
 import path from 'path';
+import sharp from 'sharp';
+
+// ─── Allowed image MIME types ────────────────────────────
+const ALLOWED_MIME_TYPES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+];
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+// ─── Output dimensions (must match frontend constants) ──
+const AVATAR_W = 150;
+const AVATAR_H = 150;
+const COVER_W = 1500;
+const COVER_H = 500;
 
 export async function GET(req: NextRequest) {
   try {
@@ -56,59 +73,107 @@ export async function PUT(req: NextRequest) {
     const contentType = req.headers.get('content-type') || '';
 
     if (contentType.includes('multipart/form-data')) {
-      // Handle file upload (avatar or cover photo)
+      // ════════════════════════════════════════════════════
+      // FILE UPLOAD — with sharp resize & optimization
+      // ════════════════════════════════════════════════════
       const formData = await req.formData();
       const file = formData.get('file') as File | null;
-      const type = formData.get('type') as string | null; // 'avatar' or 'cover'
+      const type = formData.get('type') as string | null;
 
       if (!file || !type) {
         return NextResponse.json({ error: 'File and type are required' }, { status: 400 });
       }
 
       if (!['avatar', 'cover'].includes(type)) {
-        return NextResponse.json({ error: 'Type must be avatar or cover' }, { status: 400 });
+        return NextResponse.json({ error: 'Type must be "avatar" or "cover"' }, { status: 400 });
       }
 
-      // Validate file type
-      if (!file.type.startsWith('image/')) {
-        return NextResponse.json({ error: 'Only image files are allowed' }, { status: 400 });
+      // ── Strict MIME type validation ──
+      if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+        return NextResponse.json(
+          { error: 'Invalid file type. Only JPG, PNG, and WebP images are allowed.' },
+          { status: 400 },
+        );
       }
 
-      // Max 5MB
-      if (file.size > 5 * 1024 * 1024) {
-        return NextResponse.json({ error: 'Image must be less than 5MB' }, { status: 400 });
+      // ── File size validation ──
+      if (file.size > MAX_FILE_SIZE) {
+        return NextResponse.json(
+          { error: `Image must be less than ${MAX_FILE_SIZE / (1024 * 1024)}MB` },
+          { status: 400 },
+        );
       }
 
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
+      // ── Path traversal protection ──
+      const safeUserId = payload.userId.replace(/[^a-zA-Z0-9_-]/g, '');
+      if (!safeUserId || safeUserId !== payload.userId) {
+        return NextResponse.json({ error: 'Invalid user ID' }, { status: 400 });
+      }
 
-      // Ensure upload directory exists
-      const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'profiles', payload.userId);
+      // ── Ensure upload directory exists ──
+      const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'profiles', safeUserId);
       await mkdir(uploadDir, { recursive: true });
 
-      // Generate filename
-      const ext = file.name.split('.').pop() || 'jpg';
-      const fileName = type === 'avatar' ? `avatar.${ext}` : `cover.${ext}`;
+      // ── Read file buffer ──
+      const bytes = await file.arrayBuffer();
+      const inputBuffer = Buffer.from(bytes);
+
+      // ── Determine output dimensions ──
+      const outW = type === 'avatar' ? AVATAR_W : COVER_W;
+      const outH = type === 'avatar' ? AVATAR_H : COVER_H;
+
+      // ── Process with sharp: resize + convert to JPEG ──
+      let processedBuffer: Buffer;
+      try {
+        processedBuffer = await sharp(inputBuffer)
+          .resize(outW, outH, {
+            fit: 'cover',        // Crop to fill — no distortion
+            position: 'center',  // Center the crop
+          })
+          .jpeg({
+            quality: 85,         // Good quality, small file size
+            mozjpeg: true,       // Use mozjpeg for better compression
+            chromaSubsampling: '4:2:0',
+          })
+          .toBuffer();
+      } catch (sharpErr) {
+        console.error('Sharp processing error:', sharpErr);
+        return NextResponse.json(
+          { error: 'Failed to process image. Please try a different image.' },
+          { status: 400 },
+        );
+      }
+
+      // ── Generate filename ──
+      const fileName = type === 'avatar' ? 'avatar.jpg' : 'cover.jpg';
       const filePath = path.join(uploadDir, fileName);
-      await writeFile(filePath, buffer);
 
-      // URL path
-      const fileUrl = `/uploads/profiles/${payload.userId}/${fileName}`;
+      // ── Write to disk ──
+      await writeFile(filePath, processedBuffer);
 
-      // Update user in database
+      // ── URL path for frontend ──
+      const fileUrl = `/uploads/profiles/${safeUserId}/${fileName}`;
+
+      // ── Update user in database ──
       const updateData = type === 'avatar' ? { avatar: fileUrl } : { coverPhoto: fileUrl };
       await db.user.update({
         where: { id: payload.userId },
         data: updateData,
       });
 
-      return NextResponse.json({ success: true, url: fileUrl });
+      return NextResponse.json({
+        success: true,
+        url: fileUrl,
+        dimensions: { width: outW, height: outH },
+        size: processedBuffer.length,
+      });
     } else {
-      // Handle JSON update (profile fields)
+      // ════════════════════════════════════════════════════
+      // JSON UPDATE — profile text fields
+      // ════════════════════════════════════════════════════
       const body = await req.json();
       const { name, rollNumber, batch, department, phone, bio } = body;
 
-      // Build update data (only include provided fields)
       const updateData: Record<string, string> = {};
       if (name !== undefined) updateData.name = name;
       if (rollNumber !== undefined) updateData.rollNumber = rollNumber;
