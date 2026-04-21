@@ -266,7 +266,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    if (payload.role === 'ADMIN') {
+    if (payload.role === 'ADMIN' || payload.role === 'SUPER_ADMIN' || payload.role === 'DEVELOPER') {
       // ─── Admin Dashboard ───────────────────────────────
       const [
         totalUsers,

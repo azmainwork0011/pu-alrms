@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Separator } from '@/components/ui/separator';
 import { useAppStore } from '@/store/app';
-import { assignmentApi, submissionApi, subjectApi } from '@/lib/api';
+import { useAssignments, useCreateAssignment, useDeleteAssignment, useUpdateAssignment, useSubjects, useSubmissions } from '@/lib/hooks/use-queries';
 import {
   Search, BookOpen, Calendar, Plus, MoreHorizontal, Edit, Trash2, Eye,
   UsersRound, Copy, Clock, CheckCircle2, AlertCircle, GraduationCap,
@@ -29,53 +29,39 @@ const fadeUp = { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 } }
 
 function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
   const { user, setPage, setAssignmentId } = useAppStore();
-  const [assignments, setAssignments] = useState<any[]>([]);
-  const [subjects, setSubjects] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+
+  // React Query hooks for data fetching
+  const { data: assignmentsRaw, isLoading: assignmentsLoading } = useAssignments({ type });
+  const { data: subjectsRaw } = useSubjects();
+  const { data: submissionsRaw } = useSubmissions({});
+
+  const assignments = Array.isArray(assignmentsRaw) ? assignmentsRaw : [];
+  const subjects = Array.isArray(subjectsRaw) ? subjectsRaw : [];
+  const submissions = Array.isArray(submissionsRaw) ? submissionsRaw : [];
+  const loading = assignmentsLoading;
+
+  // Mutation hooks
+  const createAssignment = useCreateAssignment();
+  const deleteAssignment = useDeleteAssignment();
+  const updateAssignment = useUpdateAssignment();
+
+  // UI-only state
   const [filterSubject, setFilterSubject] = useState('all');
   const [search, setSearch] = useState('');
-  const [submissions, setSubmissions] = useState<any[]>([]);
 
   // Edit dialog
   const [editOpen, setEditOpen] = useState(false);
   const [editForm, setEditForm] = useState({ id: '', title: '', description: '', deadline: '', status: '' });
-  const [editLoading, setEditLoading] = useState(false);
 
   // Delete confirm
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<any>(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Menu
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   const canManage = user?.role === 'TEACHER' || user?.role === 'ADMIN' || user?.role === 'CR';
   const isLabReport = type === 'LAB_REPORT';
-
-  const loadAssignments = useCallback(async () => {
-    try {
-      const [assignData, subData] = await Promise.all([
-        assignmentApi.list({ type }),
-        user?.role === 'STUDENT' ? submissionApi.list({}) : Promise.resolve([]),
-      ]);
-      setAssignments(Array.isArray(assignData) ? assignData : []);
-      setSubmissions(Array.isArray(subData) ? subData : []);
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
-  }, [type, user]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setLoading(true);
-      await loadAssignments();
-      if (!cancelled) {
-        const allSubjects = await subjectApi.list();
-        setSubjects(Array.isArray(allSubjects) ? allSubjects : []);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [loadAssignments]);
 
   // Close menu on outside click
   useEffect(() => {
@@ -107,39 +93,42 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
     setOpenMenuId(null);
   };
 
-  const handleEdit = async () => {
+  const handleEdit = () => {
     if (!editForm.title || !editForm.deadline) { toast.error('Title and deadline required'); return; }
-    setEditLoading(true);
-    try {
-      await assignmentApi.update(editForm.id, {
-        title: editForm.title,
-        description: editForm.description,
-        deadline: new Date(editForm.deadline).toISOString(),
-        status: editForm.status,
-      });
-      toast.success('Assignment updated!');
-      setEditOpen(false);
-      await loadAssignments();
-    } catch (err: any) { toast.error(err.message || 'Update failed'); }
-    finally { setEditLoading(false); }
+    updateAssignment.mutate(
+      {
+        id: editForm.id,
+        data: {
+          title: editForm.title,
+          description: editForm.description,
+          deadline: new Date(editForm.deadline).toISOString(),
+          status: editForm.status,
+        },
+      },
+      {
+        onSuccess: () => { setEditOpen(false); },
+        onError: (err: any) => { toast.error(err.message || 'Update failed'); },
+      },
+    );
   };
 
   // ─── Duplicate Handler ───────────────────────────
-  const handleDuplicate = async (e: React.MouseEvent, a: any) => {
+  const handleDuplicate = (e: React.MouseEvent, a: any) => {
     e.stopPropagation();
     setOpenMenuId(null);
-    try {
-      await assignmentApi.create({
+    createAssignment.mutate(
+      {
         title: `${a.title} (Copy)`,
         description: a.description,
         subjectId: a.subjectId,
         type: a.type,
         deadline: a.deadline,
         batch: a.batch,
-      });
-      toast.success('Assignment duplicated!');
-      await loadAssignments();
-    } catch (err: any) { toast.error(err.message || 'Duplicate failed'); }
+      },
+      {
+        onError: (err: any) => { toast.error(err.message || 'Duplicate failed'); },
+      },
+    );
   };
 
   // ─── Delete Handler ──────────────────────────────
@@ -150,17 +139,15 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
     setOpenMenuId(null);
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!deleteTarget) return;
-    setDeleteLoading(true);
-    try {
-      await assignmentApi.delete(deleteTarget.id);
-      toast.success('Assignment archived!');
-      setDeleteOpen(false);
-      setDeleteTarget(null);
-      await loadAssignments();
-    } catch (err: any) { toast.error(err.message || 'Delete failed'); }
-    finally { setDeleteLoading(false); }
+    deleteAssignment.mutate(deleteTarget.id, {
+      onSuccess: () => {
+        setDeleteOpen(false);
+        setDeleteTarget(null);
+      },
+      onError: (err: any) => { toast.error(err.message || 'Delete failed'); },
+    });
   };
 
   return (
@@ -453,8 +440,8 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
           </div>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setEditOpen(false)} className="dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300">Cancel</Button>
-            <Button onClick={handleEdit} disabled={editLoading} className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white">
-              {editLoading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" /> Saving...</> : 'Save Changes'}
+            <Button onClick={handleEdit} disabled={updateAssignment.isPending} className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white">
+              {updateAssignment.isPending ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" /> Saving...</> : 'Save Changes'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -476,8 +463,8 @@ function AssignmentsPage({ type = 'ASSIGNMENT' }: { type?: string }) {
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => { setDeleteOpen(false); setDeleteTarget(null); }} className="dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300">Cancel</Button>
-            <Button onClick={handleDelete} disabled={deleteLoading} variant="destructive">
-              {deleteLoading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" /> Archiving...</> : 'Archive'}
+            <Button onClick={handleDelete} disabled={deleteAssignment.isPending} variant="destructive">
+              {deleteAssignment.isPending ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" /> Archiving...</> : 'Archive'}
             </Button>
           </DialogFooter>
         </DialogContent>
