@@ -36,9 +36,9 @@ import AdminPanelPage from '@/components/pages/AdminPanelPage';
 
 // ─── Sidebar Navigation ──────────────────────────────────
 function SidebarNav({ onNavigate }: { onNavigate: (page: PageView) => void }) {
-  const { user, currentPage } = useAppStore();
+  const { user, currentPage, isDemoUser } = useAppStore();
 
-  const navItems: { page: PageView; label: string; icon: React.ReactNode; roles?: UserRole[]; badge?: string }[] = [
+  const navItems: { page: PageView; label: string; icon: React.ReactNode; roles?: UserRole[]; badge?: string; demoHidden?: boolean }[] = [
     { page: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
     { page: 'admin-panel', label: 'Admin Panel', icon: <Shield className="w-4 h-4" />, roles: ['SUPER_ADMIN'] },
     { page: 'assignments', label: 'Assignments', icon: <ClipboardList className="w-4 h-4" /> },
@@ -47,16 +47,22 @@ function SidebarNav({ onNavigate }: { onNavigate: (page: PageView) => void }) {
     { page: 'submissions', label: user?.role === 'TEACHER' ? 'Grade Submissions' : 'My Submissions', icon: <FileText className="w-4 h-4" /> },
     { page: 'leaderboard', label: 'Leaderboard', icon: <Trophy className="w-4 h-4" />, roles: ['STUDENT', 'CR', 'ADMIN'] },
     { page: 'announcements', label: 'Announcements', icon: <Megaphone className="w-4 h-4" /> },
-    { page: 'student-community', label: 'Community Chat', icon: <MessageSquare className="w-4 h-4" /> },
+    { page: 'student-community', label: 'Community Chat', icon: <MessageSquare className="w-4 h-4" />, demoHidden: true },
     { page: 'quiz', label: 'Quick Quiz', icon: <GraduationCap className="w-4 h-4" /> },
     { page: 'code-quest', label: 'Learn With Game', icon: <Swords className="w-4 h-4" /> },
     { page: 'books', label: 'Digital Library', icon: <BookOpen className="w-4 h-4" /> },
-    { page: 'ai-chat', label: 'Lucky Strick AI', icon: <Sparkles className="w-4 h-4" /> },
+    { page: 'ai-chat', label: 'Lucky Strick AI', icon: <Sparkles className="w-4 h-4" />, demoHidden: true },
     { page: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
     { page: 'profile', label: 'Profile', icon: <UserIcon className="w-4 h-4" /> },
   ];
 
-  const filtered = navItems.filter(item => !item.roles || item.roles.includes(user?.role || 'STUDENT'));
+  const filtered = navItems.filter(item => {
+    // Hide items restricted by role
+    if (item.roles && !item.roles.includes(user?.role || 'STUDENT')) return false;
+    // Hide write-interactive features for demo users
+    if (isDemoUser && item.demoHidden) return false;
+    return true;
+  });
 
   return (
     <nav className="flex flex-col gap-1 px-3 py-4 flex-1">
@@ -136,7 +142,7 @@ function ThemeToggle() {
 
 // ─── Main App Layout ────────────────────────────────────
 export default function AppLayout() {
-  const { currentPage, user, toggleSidebar, notificationCount, setPage, logout } = useAppStore();
+  const { currentPage, user, isDemoUser, toggleSidebar, notificationCount, setPage, logout } = useAppStore();
 
   // Listen for auth-expired events and auto-logout
   useEffect(() => {
@@ -148,6 +154,11 @@ export default function AppLayout() {
   }, [logout]);
 
   const renderPage = () => {
+    // Demo users cannot access hidden pages
+    const demoHiddenPages: PageView[] = ['student-community', 'ai-chat', 'create-assignment', 'admin-panel'];
+    if (isDemoUser && demoHiddenPages.includes(currentPage)) {
+      return <DashboardPage />;
+    }
     switch (currentPage) {
       case 'dashboard': return <DashboardPage />;
       case 'assignments': return <AssignmentsPage />;
@@ -269,6 +280,27 @@ export default function AppLayout() {
         </header>
 
         {/* Page Content */}
+        {/* Demo Mode Banner */}
+        {isDemoUser && (
+          <div
+            className="mx-4 md:mx-6 mt-4 flex items-center gap-2.5 px-4 py-2.5 rounded-xl"
+            style={{ background: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.12)' }}
+          >
+            <Shield className="w-4 h-4 text-amber-400 shrink-0" />
+            <p className="text-xs text-amber-300/80 flex-1">
+              <span className="font-semibold text-amber-300">Demo Mode</span> — You have read-only access. Some features are restricted.
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 px-2.5 text-[11px] text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 rounded-lg"
+              onClick={logout}
+            >
+              Exit Demo
+            </Button>
+          </div>
+        )}
+
         <main className="flex-1 p-4 pb-[env(safe-area-inset-bottom)] md:p-6 min-w-0 overflow-x-hidden">
           <PageTransition keyProp={currentPage}>
             {renderPage()}

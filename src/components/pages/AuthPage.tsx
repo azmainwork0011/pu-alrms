@@ -344,11 +344,11 @@ function AuthPage() {
     }
   };
 
+  // Demo access is restricted to Guest (Student) role only.
+  // Admin, Teacher, and Super Admin accounts are NOT available for demo.
+  // Demo users get read-only access — all write operations are blocked.
   const demoAccounts = [
-    { label: 'Super Admin', email: 'diya.jainazmain9086@example.com', password: 'superadmin2024', icon: <ShieldIcon className="w-4 h-4" />, role: 'SUPER_ADMIN' as const, color: 'emerald', desc: 'Full system control' },
-    { label: 'Admin', email: 'admin@pu.edu', password: 'admin123', icon: <Monitor className="w-4 h-4" />, role: 'ADMIN' as const, color: 'rose', desc: 'Manage the platform' },
-    { label: 'Teacher', email: 'dr.smith@pu.edu', password: 'teacher123', icon: <BookOpen className="w-4 h-4" />, role: 'TEACHER' as const, color: 'teal', desc: 'Create & grade' },
-    { label: 'Student', email: 'alice@stu.pu.edu', password: 'student123', icon: <GraduationCap className="w-4 h-4" />, role: 'STUDENT' as const, color: 'amber', desc: 'Submit & track' },
+    { label: 'Guest Student', email: 'alice@stu.pu.edu', password: 'student123', icon: <GraduationCap className="w-4 h-4" />, role: 'STUDENT' as const, color: 'amber', desc: 'Explore as guest' },
   ];
 
   const quickLogin = async (email: string, password: string) => {
@@ -357,9 +357,9 @@ function AuthPage() {
     setError(null);
     try {
       const result = await authApi.login(email, password);
-      setAuth(result.user, result.token);
+      setAuth(result.user, result.token, true); // Mark as demo user
       try { localStorage.removeItem('login-email'); } catch { /* ignore */ }
-      toast.success('Welcome back!');
+      toast.success('Welcome! You are in demo mode — view-only access.');
     } catch (err: any) {
       try { localStorage.setItem('login-email', email); } catch { /* ignore */ }
       if (isNetworkError(err)) {
@@ -776,12 +776,24 @@ function AuthPage() {
                       {/* Divider */}
                       <div className="flex items-center gap-3 my-5">
                         <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
-                        <span className="text-[11px] text-slate-600 uppercase tracking-wider font-medium">Quick Demo Access</span>
+                        <span className="text-[11px] text-slate-600 uppercase tracking-wider font-medium">Demo Access</span>
                         <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/[0.06] to-transparent" />
                       </div>
 
-                      {/* Demo Account Cards */}
-                      <div className="grid grid-cols-2 gap-2.5">
+                      {/* Demo security notice */}
+                      <div
+                        className="flex items-start gap-2.5 p-3 rounded-xl mb-3"
+                        style={{ background: 'rgba(234,179,8,0.04)', border: '1px solid rgba(234,179,8,0.1)' }}
+                      >
+                        <Shield className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-amber-300/70 leading-relaxed">
+                          Demo mode is <span className="font-semibold text-amber-300">read-only</span>. Admin &amp; Teacher roles are restricted.
+                          Guest users can explore content without modifying any data.
+                        </p>
+                      </div>
+
+                      {/* Demo Account Card */}
+                      <div className="flex justify-center">
                         {demoAccounts.map((acc, idx) => {
                           const colorMap: Record<string, { border: string; hoverBg: string; iconColor: string; labelColor: string }> = {
                             emerald: { border: 'border-emerald-500/20 hover:border-emerald-400/40', hoverBg: 'hover:bg-emerald-500/[0.04]', iconColor: 'text-emerald-400', labelColor: 'text-emerald-300' },
@@ -803,8 +815,8 @@ function AuthPage() {
                               onClick={() => quickLogin(acc.email, acc.password)}
                               disabled={loading}
                               className={`
-                                flex flex-col items-center gap-2 py-4 px-3 rounded-xl border
-                                transition-all duration-300 text-center
+                                flex items-center gap-3 py-3.5 px-5 rounded-xl border
+                                transition-all duration-300 text-left w-full max-w-xs
                                 ${colors.border} ${colors.hoverBg}
                                 bg-white/[0.02]
                               `}
@@ -813,9 +825,11 @@ function AuthPage() {
                               }}
                             >
                               <span className={colors.iconColor}>{acc.icon}</span>
-                              <span className={`text-xs font-semibold ${colors.labelColor}`}>{acc.label}</span>
-                              <span className="text-[10px] text-slate-600 leading-tight truncate w-full">{acc.desc}</span>
-                              <span className="text-[9px] text-slate-700 truncate w-full font-mono">{acc.email}</span>
+                              <div className="flex-1 min-w-0">
+                                <span className={`text-xs font-semibold ${colors.labelColor} block`}>{acc.label}</span>
+                                <span className="text-[10px] text-slate-600 truncate block">{acc.desc}</span>
+                              </div>
+                              <span className="text-[10px] text-slate-700 font-mono">{acc.email}</span>
                             </motion.button>
                           );
                         })}

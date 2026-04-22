@@ -193,11 +193,35 @@ export interface FetchOptions extends RequestInit {
   noAuth?: boolean;
 }
 
+// Write methods that demo users are blocked from using
+const WRITE_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
+
+function isDemoUser(): boolean {
+  try { return localStorage.getItem('is-demo') === 'true'; } catch { return false; }
+}
+
+/**
+ * Demo mode error — thrown when a demo user attempts a write operation.
+ * This prevents any data modification from the demo environment.
+ */
+export class DemoModeError extends Error {
+  constructor() {
+    super('Write operations are disabled in demo mode. Sign in with a real account to make changes.');
+    this.name = 'DemoModeError';
+  }
+}
+
 export async function apiFetch<T>(
   endpoint: string,
   options: FetchOptions = {},
 ): Promise<T> {
   const { timeout, noRetry, noAuth, headers: extraHeaders, ...restOptions } = options;
+  const method = (restOptions.method || 'GET').toUpperCase();
+
+  // ── Demo mode guard: block all write operations ──
+  if (isDemoUser() && WRITE_METHODS.includes(method) && !noAuth) {
+    throw new DemoModeError();
+  }
 
   const headers: Record<string, string> = {
     ...(extraHeaders as Record<string, string>),
@@ -212,6 +236,10 @@ export async function apiFetch<T>(
     const token = getAuthToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
+    }
+    // Mark demo requests so the backend can enforce read-only access
+    if (isDemoUser()) {
+      headers['X-Demo-Mode'] = 'true';
     }
   }
 
@@ -283,7 +311,10 @@ export const authApi = {
     formData.append('type', type);
     return fetchWithTimeout('/api/auth/profile', {
       method: 'PUT',
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(isDemoUser() ? { 'X-Demo-Mode': 'true' } : {}),
+      },
       body: formData,
     }, UPLOAD_TIMEOUT).then(async (res) => {
       if (!res.ok) {

@@ -43,6 +43,9 @@ interface AppState {
   isAuthenticated: boolean;
   mounted: boolean;
 
+  // Demo mode
+  isDemoUser: boolean;
+
   // Navigation
   currentPage: PageView;
   selectedAssignmentId: string | null;
@@ -52,7 +55,8 @@ interface AppState {
   notificationCount: number;
 
   // Actions
-  setAuth: (user: User, token: string) => void;
+  setAuth: (user: User, token: string, isDemo?: boolean) => void;
+  setDemoMode: (isDemo: boolean) => void;
   updateUser: (data: Partial<User>) => void;
   logout: () => void;
   setPage: (page: PageView) => void;
@@ -81,23 +85,38 @@ export const useAppStore = create<AppState>((set) => ({
   token: null,
   isAuthenticated: false,
   mounted: false,
+  isDemoUser: false,
   currentPage: 'dashboard',
   selectedAssignmentId: null,
   sidebarOpen: false,
   notificationCount: 0,
 
-  setAuth: (user, token) => {
+  setAuth: (user, token, isDemo = false) => {
     // Always update Zustand state first (guaranteed to work)
-    set({ user, token, isAuthenticated: true });
+    set({ user, token, isAuthenticated: true, isDemoUser: isDemo });
     // Persist to localStorage — failures are silently ignored so login never gets stuck
     if (typeof window !== 'undefined') {
       try {
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
+        if (isDemo) {
+          localStorage.setItem('is-demo', 'true');
+        } else {
+          localStorage.removeItem('is-demo');
+        }
       } catch {
         // localStorage might be full, blocked (private mode), or unavailable
-        // User is still logged in for this session; they'll just need to re-login on next visit
       }
+    }
+  },
+
+  setDemoMode: (isDemo) => {
+    set({ isDemoUser: isDemo });
+    if (typeof window !== 'undefined') {
+      try {
+        if (isDemo) localStorage.setItem('is-demo', 'true');
+        else localStorage.removeItem('is-demo');
+      } catch { /* ignore */ }
     }
   },
 
@@ -120,7 +139,7 @@ export const useAppStore = create<AppState>((set) => ({
         // Ignore localStorage errors during logout
       }
     }
-    set({ user: null, token: null, isAuthenticated: false, currentPage: 'dashboard', notificationCount: 0 });
+    set({ user: null, token: null, isAuthenticated: false, isDemoUser: false, currentPage: 'dashboard', notificationCount: 0 });
   },
 
   setPage: (page) => set({ currentPage: page, sidebarOpen: false }),
@@ -146,7 +165,8 @@ export const useAppStore = create<AppState>((set) => ({
           return;
         }
         const user = JSON.parse(userStr);
-        set({ user, token, isAuthenticated: true, mounted: true });
+        const isDemo = localStorage.getItem('is-demo') === 'true';
+        set({ user, token, isAuthenticated: true, isDemoUser: isDemo, mounted: true });
       } else {
         set({ mounted: true });
       }
