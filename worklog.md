@@ -58,3 +58,51 @@ Stage Summary:
 - Prominent demo mode banner with exit option
 - Backend guard returns 403 for any write attempt from demo users
 - Files modified: store/app.ts, AuthPage.tsx, AppLayout.tsx, api.ts, demo-guard.ts (new)
+
+---
+Task ID: 4
+Agent: Main
+Task: Complete Firebase Integration + All-in-One PowerShell Setup Script
+
+Work Log:
+- Previous session Firebase files were lost — rebuilt everything from scratch
+- Installed `firebase` + `firebase-admin` packages
+- Created `src/lib/firebase.ts` — Firebase SDK initialization with `isConfigured()` check
+- Created `src/providers/firebase-provider.tsx` — SSR-safe React Context Provider with:
+  - Dynamic `Promise.all([import('firebase/app'), import('firebase/auth')])` for SSR safety
+  - 15s timeout protection for SDK loading
+  - Module functions stored outside React state (survive re-renders)
+  - Direct `fetch()` for token exchange (avoids circular chunk dependency)
+  - Env vars check BEFORE importing heavy SDK
+- Created `src/app/api/auth/firebase/route.ts` — POST endpoint with:
+  - Firebase Admin SDK token verification (when service account configured)
+  - Manual JWT base64url decode fallback (when no service account)
+  - Auto user creation in DB for new Firebase users
+  - Profile photo sync from Google
+- Updated `src/app/layout.tsx` — Wrapped children with `<FirebaseProvider>`
+- Updated `src/lib/api.ts` — Added `firebaseAuth()` method and `/api/auth/firebase` to AUTH_ENDPOINTS
+- Updated `src/components/pages/AuthPage.tsx`:
+  - Import `useFirebase` hook and `Flame` icon
+  - Green "Sign in with Google" button when Firebase configured
+  - Manual Google dialog fallback when Firebase not configured
+  - Loading spinner during Firebase auth
+- Created `setup-firebase.ps1` — Complete 10-step all-in-one PowerShell script:
+  1. Prerequisites check (Node.js 18+, package manager, project dir)
+  2. Firebase CLI install
+  3. Google login (browser popup)
+  4. Firebase project create with auto-generated ID
+  5. Google Authentication enable
+  6. Web App register + config fetch via REST API
+  7. Service Account setup (Admin SDK)
+  8. .env.local write (preserves existing vars, generates JWT secret)
+  9. Package install + config files (firebase.json, .firebaserc, rules, .gitignore)
+  10. Next.js build
+- Zero lint errors, HTTP 200 verified
+
+Stage Summary:
+- Complete Firebase integration: client SDK + server Admin SDK + fallback
+- Green Google Sign-In button on auth page (real popup when configured)
+- 470-line PowerShell script: one paste-and-run, fully automated
+- App works without Firebase too (manual dialog fallback)
+- Files created: firebase.ts, firebase-provider.tsx, firebase/route.ts, setup-firebase.ps1
+- Files modified: layout.tsx, api.ts, AuthPage.tsx
