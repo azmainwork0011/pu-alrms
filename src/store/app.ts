@@ -34,7 +34,8 @@ export type PageView =
   | 'announcements'
   | 'quiz'
   | 'code-quest'
-  | 'books';
+  | 'books'
+  | 'firebase-guide';
 
 interface AppState {
   // Auth

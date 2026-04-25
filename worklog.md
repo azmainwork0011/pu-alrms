@@ -133,3 +133,29 @@ Stage Summary:
   - Deployment options (Firebase App Hosting, Hosting+Functions, Vercel, Docker)
   - Warnings (SQLite won't work on Firebase, standalone output, mini-services, sensitive info)
   - Summary section for AI assistant context
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Create comprehensive Firebase Setup Guide for PU-ALRMS
+
+Work Log:
+- Analyzed existing project state: Firebase SDK integrated but NOT configured (no API keys in .env)
+- Read existing files: package.json, DEPLOYMENT-GUIDE.md, firebase.ts, firebase-provider.tsx, setup-firebase.sh, AuthPage.tsx, AppLayout.tsx, store/app.ts
+- Created FirebaseGuidePage.tsx (1333 lines) - comprehensive step-by-step guide component
+- Added 'firebase-guide' to PageView type in store/app.ts
+- Added FirebaseGuidePage import and route in AppLayout.tsx
+- Added "Firebase Setup" sidebar navigation item with Link2 icon
+- Added header title mapping for 'firebase-guide' page
+- Added Firebase Guide Dialog on AuthPage.tsx (accessible before login)
+- Added state variable firebaseGuideOpen and trigger button in AuthPage footer
+
+Stage Summary:
+- Firebase Setup Guide accessible from TWO places:
+  1. Auth Page footer link (Dialog popup - works without login)
+  2. Sidebar navigation (full page - works after login)
+- Guide covers 5 steps: Create Project → Register Web App → Enable Auth → Set Env Vars → Test
+- Includes: env var reference table, troubleshooting section, security warnings
+- All text in Bengali with English technical terms
+- ESLint passes cleanly
+- Dev server running successfully
