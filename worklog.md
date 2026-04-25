@@ -159,3 +159,27 @@ Stage Summary:
 - All text in Bengali with English technical terms
 - ESLint passes cleanly
 - Dev server running successfully
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Create Android WebView App for PU-ALRMS
+
+Work Log:
+- Created complete Android Studio project in android-app/ directory
+- Created MainActivity.kt with WebView, progress bar, pull-to-refresh, error handling, file upload
+- Created SplashActivity.kt with 2.5s branded splash screen
+- Created layouts: activity_main.xml (WebView + error view), activity_splash.xml
+- Created resources: colors.xml (dark theme), strings.xml, themes.xml (Material3)
+- Created vector drawable icon (graduation cap + book design)
+- Created network_security_config.xml for HTTP/HTTPS support
+- Created build.gradle files (project + app level) with Kotlin, Material3, WebKit deps
+- Created build-android.sh helper script for Kali Linux
+- Added Firebase domain trust configuration
+
+Stage Summary:
+- Android project: 16 files in android-app/ directory
+- Features: Splash screen, WebView, progress bar, pull-to-refresh, error handling (Bengali), file upload, back navigation, exit dialog, external link handler
+- App URL configurable in MainActivity.kt companion object (default: pu-alrms.vercel.app)
+- Build methods: Gradle CLI or Android Studio GUI
+- Package: com.pualrms.app, minSdk 21, targetSdk 34
