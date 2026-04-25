@@ -1,212 +1,200 @@
-# PU-ALRMS — Complete Project Documentation for Firebase Hosting Deployment
+# PU-ALRMS — Complete Firebase Deployment Guide
 
-> **This document is designed to give another AI assistant complete context about the project for Firebase Hosting deployment.**
+> এই document-টি অন্য AI assistant-কে দেওয়ার জন্য তৈরি। এতে পুরো project structure, code, এবং deployment instructions আছে।
 
 ---
 
 ## 1. PROJECT SUMMARY
 
+**PU-ALRMS = Prime University Assignment & Lab Report Management System**
+
+এটি একটি university-level academic management web application যেটাতে:
+
+### App-এর Main Purpose:
+- **Teachers/Professors** assignment, lab report, notice তৈরি করতে পারবেন
+- **Students** assignment submit করতে পারবে, notice দেখতে পারবে, quiz দিতে পারবে
+- **Admin** সবার account manage করতে পারবেন
+- Dashboard, Leaderboard, AI Chat, Digital Library, Quiz Battle — সব আছে
+
+### Framework & Tech Stack:
 | Property | Value |
 |----------|-------|
 | **Framework** | **Next.js 16.1.1** (App Router, React 19) |
 | **Language** | TypeScript 5 |
-| **Styling** | Tailwind CSS 4 + shadcn/ui (Radix UI) |
-| **Runtime** | Bun (also works with npm) |
-| **Database** | SQLite via Prisma ORM |
-| **Authentication** | JWT (custom) + Firebase Google Auth (optional) |
-| **State Management** | Zustand (client) + TanStack Query (server) |
-| **Output Mode** | `standalone` (produces `.next/standalone/`) |
-| **Total Code** | ~21,000+ lines (pages + API routes + UI components) |
-| **UI Components** | ~5,800 lines (60+ shadcn/ui components) |
+| **Styling** | Tailwind CSS 4 + shadcn/ui (Radix UI) + Lucide icons |
+| **State** | Zustand (client) + TanStack Query (server) |
+| **Database** | SQLite via Prisma ORM (18 models) |
+| **Auth** | Custom JWT + Firebase Google Auth (optional) |
+| **Runtime** | Bun (also npm compatible) |
+| **Output** | `standalone` (Node.js server, NOT static) |
 
-### Architecture Pattern
-- **SPA-style single-page app**: Only one route (`/`) in `src/app/page.tsx`
-- Client-side navigation via Zustand `currentPage` state (NO React Router)
-- All API routes under `/api/*` (Next.js Route Handlers)
-- **CRITICAL**: This is a **full-stack** app with backend API routes + database — it is NOT a static frontend
-
-### ⚠️ DEPLOYMENT WARNING
-This app has **server-side API routes** and a **local SQLite database**. Firebase Hosting alone (static files) is **NOT sufficient** for full functionality. You need:
-- **Firebase Hosting** — for serving the frontend
-- **Firebase Cloud Functions** or **Firebase App Hosting** — for running API routes
-- OR migrate database to **Firestore** / external PostgreSQL
+### ⚠️ CRITICAL: এটি Full-Stack App
+এটি শুধু static HTML নয়। এর:
+- **44টা server-side API route** আছে (`/api/*`)
+- **Local SQLite database** আছে
+- **Socket.IO mini-services** আছে (2টা, ports 3001/3002)
+- Firebase Hosting আলাদা static files সার্ভ করতে পারবে, কিন্তু API routes চালাতে হলে **Firebase Cloud Functions** বা **Firebase App Hosting** লাগবে
 
 ---
 
-## 2. FULL FOLDER/FILE STRUCTURE
+## 2. USER ROLES & PERMISSIONS
+
+### Role System (6 roles):
+```typescript
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'DEVELOPER' | 'TEACHER' | 'STUDENT' | 'CR';
+```
+
+### প্রতিটা Role কী কী করতে পারে:
+
+| Feature | Student | CR | Teacher | Admin | Super Admin |
+|---------|:-------:|:--:|:-------:|:-----:|:-----------:|
+| Dashboard দেখা | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Assignment দেখা | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Assignment Submit | ✅ | ✅ | ❌ | ✅ | ✅ |
+| Assignment Create | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Submission Grade | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Lab Report দেখা | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Quiz দেওয়া | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Leaderboard | ✅ | ✅ | ❌ | ✅ | ✅ |
+| Announcements | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Community Chat | ✅ | ✅ | ✅ | ✅ | ✅ |
+| AI Chat | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Digital Library | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Profile Edit | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Notifications | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Admin Panel | ❌ | ❌ | ❌ | ❌ | ✅ |
+| User Management | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Course/Subject Create | ❌ | ❌ | ✅ | ✅ | ✅ |
+
+### Login Methods:
+1. **Email + Password** — POST `/api/auth/login`
+2. **Firebase Google Sign-In** — Google popup → token exchange → JWT
+3. **Google Manual** — POST `/api/auth/google` (fallback dialog)
+4. **Temp Email** — POST `/api/auth/temp-email` (demo/guest access)
+
+### Demo Mode:
+- Demo users: read-only access (সব POST/PUT/DELETE blocked frontend + backend)
+- Community Chat এবং AI Chat hidden for demo users
+- Admin Panel restricted
+
+---
+
+## 3. FULL FOLDER/FILE STRUCTURE
 
 ```
 pu-alrms/
-├── package.json                    # Dependencies & scripts
-├── next.config.ts                  # Next.js config (output: "standalone")
-├── tsconfig.json                   # TypeScript config
-├── tailwind.config.ts              # Tailwind CSS config
-├── postcss.config.mjs              # PostCSS config
-├── components.json                 # shadcn/ui config
-├── eslint.config.mjs               # ESLint config
-├── .gitignore                      # Git ignore rules
-├── setup-firebase.sh               # Firebase auto-setup bash script (Kali Linux)
-├── setup-firebase.ps1              # Firebase auto-setup PowerShell script (Windows)
+├── package.json
+├── next.config.ts
+├── tsconfig.json
+├── tailwind.config.ts
+├── postcss.config.mjs
+├── components.json
+├── eslint.config.mjs
+├── .gitignore
+├── setup-firebase.sh              # Kali Linux Firebase setup
+├── setup-firebase.ps1             # Windows Firebase setup
 │
 ├── prisma/
-│   ├── schema.prisma               # Database schema (SQLite, 15 models)
-│   ├── seed.ts                     # Database seeder (demo data)
-│   └── db/
-│       └── custom.db               # SQLite database file
+│   ├── schema.prisma              # 18 DB models
+│   ├── seed.ts                    # Demo data seeder
+│   └── db/custom.db               # SQLite file
 │
 ├── public/
-│   ├── logo.png                    # App logo
-│   ├── logo.svg                    # App logo (SVG)
-│   ├── hero-campus.png             # Hero background image
-│   ├── robots.txt                  # SEO robots
-│   └── uploads/profiles/           # User uploaded profile photos
+│   ├── logo.png, logo.svg
+│   ├── hero-campus.png
+│   ├── robots.txt
+│   ├── sounds/fahhh.mp3
+│   └── uploads/profiles/          # User uploaded photos
 │
 ├── src/
 │   ├── app/
-│   │   ├── layout.tsx              # Root layout (ThemeProvider, FirebaseProvider, ApiProvider)
-│   │   ├── page.tsx                # Single route — SPA entry point (Auth ↔ AppLayout)
-│   │   ├── globals.css             # Global styles + Tailwind
-│   │   └── api/                    # Backend API routes (44 route files)
-│   │       ├── route.ts            # API health check
+│   │   ├── layout.tsx             # Root layout
+│   │   ├── page.tsx               # SPA entry (single route)
+│   │   ├── globals.css            # Global styles
+│   │   └── api/                   # 44 API route files
+│   │       ├── route.ts           # Health check
 │   │       ├── auth/
 │   │       │   ├── login/route.ts
 │   │       │   ├── register/route.ts
-│   │       │   ├── firebase/route.ts     # Firebase token exchange
+│   │       │   ├── firebase/route.ts
 │   │       │   ├── google/route.ts
-│   │       │   ├── seed/route.ts
 │   │       │   ├── temp-email/route.ts
+│   │       │   ├── seed/route.ts
 │   │       │   ├── profile/route.ts
 │   │       │   └── profile/photo/route.ts
-│   │       ├── assignments/route.ts
-│   │       │   └── [id]/route.ts
-│   │       ├── submissions/route.ts
-│   │       │   └── [id]/grade/route.ts
-│   │       ├── announcements/route.ts
-│   │       │   └── [id]/route.ts
-│   │       ├── notifications/route.ts
-│   │       │   └── [id]/read/route.ts
-│   │       ├── comments/route.ts
-│   │       ├── subjects/route.ts
-│   │       ├── batches/route.ts
-│   │       ├── leaderboard/route.ts
-│   │       ├── dashboard/route.ts
-│   │       ├── admin/
-│   │       │   ├── stats/route.ts
-│   │       │   ├── users/route.ts
-│   │       │   └── logs/route.ts
-│   │       ├── ai/
-│   │       │   ├── chat/route.ts
-│   │       │   ├── generate-image/route.ts
-│   │       │   ├── scan/route.ts
-│   │       │   └── token/route.ts
-│   │       ├── quiz/
-│   │       │   ├── categories/route.ts
-│   │       │   ├── questions/route.ts
-│   │       │   ├── profile/route.ts
-│   │       │   ├── seed/route.ts
-│   │       │   ├── battle/route.ts
-│   │       │   └── leaderboard/route.ts
-│   │       ├── cq/                    # CodeQuest mini-game
-│   │       │   ├── profile/route.ts
-│   │       │   ├── friends/route.ts
-│   │       │   ├── battle/route.ts
-│   │       │   └── leaderboard/route.ts
-│   │       ├── chat/
-│   │       │   ├── rooms/route.ts
-│   │       │   ├── rooms/join/route.ts
-│   │       │   └── messages/route.ts
-│   │       └── books/
-│   │           ├── search/route.ts
-│   │           └── saved/route.ts
+│   │       ├── assignments/       # CRUD + [id]
+│   │       ├── submissions/       # CRUD + [id]/grade
+│   │       ├── announcements/     # CRUD + [id]
+│   │       ├── notifications/     # List + [id]/read
+│   │       ├── comments/
+│   │       ├── subjects/
+│   │       ├── batches/
+│   │       ├── leaderboard/
+│   │       ├── dashboard/
+│   │       ├── admin/stats, users, logs
+│   │       ├── ai/chat, generate-image, scan, token
+│   │       ├── quiz/categories, questions, profile, seed, battle, leaderboard
+│   │       ├── cq/profile, friends, battle, leaderboard
+│   │       ├── chat/rooms, rooms/join, messages
+│   │       └── books/search, saved
 │   │
 │   ├── components/
-│   │   ├── ui/                      # 60+ shadcn/ui components
-│   │   │   ├── button.tsx
-│   │   │   ├── card.tsx
-│   │   │   ├── dialog.tsx
-│   │   │   ├── input.tsx
-│   │   │   ├── sidebar.tsx
-│   │   │   ├── toast.tsx, toaster.tsx
-│   │   │   └── ... (50+ more)
-│   │   ├── pages/                   # Page components (18 pages)
-│   │   │   ├── AuthPage.tsx          # Login/register screen
-│   │   │   ├── DashboardPage.tsx     # Main dashboard
-│   │   │   ├── AssignmentsPage.tsx   # Assignment list
+│   │   ├── ui/                    # 60+ shadcn/ui components
+│   │   ├── pages/                 # 18 page components
+│   │   │   ├── AuthPage.tsx       # Login/register
+│   │   │   ├── DashboardPage.tsx
+│   │   │   ├── AssignmentsPage.tsx
 │   │   │   ├── AssignmentDetailPage.tsx
 │   │   │   ├── CreateAssignmentPage.tsx
-│   │   │   ├── SubmissionsPage.tsx   # Grade/submit assignments
-│   │   │   ├── QuizPage.tsx          # Quiz system
+│   │   │   ├── SubmissionsPage.tsx
+│   │   │   ├── QuizPage.tsx
 │   │   │   ├── LeaderboardPage.tsx
-│   │   │   ├── AIChatPage.tsx        # AI chat (Lucky Strick AI)
+│   │   │   ├── AIChatPage.tsx
 │   │   │   ├── StudentCommunityPage.tsx
 │   │   │   ├── AnnouncementsPage.tsx
 │   │   │   ├── NotificationsPage.tsx
 │   │   │   ├── ProfilePage.tsx
-│   │   │   ├── BooksPage.tsx         # Digital library
-│   │   │   ├── CodeQuestArena.tsx    # Code Quest game
+│   │   │   ├── BooksPage.tsx
+│   │   │   ├── CodeQuestArena.tsx
 │   │   │   ├── LearnWithGame.tsx
-│   │   │   ├── BattlePage.tsx        # Quiz battle
-│   │   │   └── AdminPanelPage.tsx    # Admin panel
+│   │   │   ├── BattlePage.tsx
+│   │   │   └── AdminPanelPage.tsx
 │   │   ├── layout/
-│   │   │   ├── AppLayout.tsx         # Main layout (sidebar + header + routing)
+│   │   │   ├── AppLayout.tsx      # Sidebar + header + page router
 │   │   │   └── LoadingOverlay.tsx
-│   │   ├── theme-provider.tsx        # next-themes dark/light mode
-│   │   └── pu-helpers.tsx            # Shared utilities
+│   │   ├── theme-provider.tsx
+│   │   └── pu-helpers.tsx
 │   │
 │   ├── store/
-│   │   └── app.ts                    # Zustand store (auth, navigation, UI state)
+│   │   └── app.ts                 # Zustand: auth, nav, UI state
 │   │
 │   ├── providers/
-│   │   ├── firebase-provider.tsx     # Firebase Auth context provider
-│   │   └── api-provider.tsx          # TanStack Query provider
+│   │   ├── firebase-provider.tsx  # Firebase Auth context
+│   │   └── api-provider.tsx       # TanStack Query
 │   │
-│   ├── lib/
-│   │   ├── api.ts                    # API client (fetch wrapper with retry)
-│   │   ├── db.ts                     # Prisma client singleton
-│   │   ├── firebase.ts               # Firebase SDK initialization
-│   │   ├── jwt.ts                    # JWT sign/verify
-│   │   ├── utils.ts                  # shadcn/ui cn() helper
-│   │   ├── demo-guard.ts             # Demo mode backend guard
-│   │   ├── query-client.ts           # TanStack Query config
-│   │   ├── zai.ts                    # z-ai-web-dev-sdk (AI features)
-│   │   ├── ai-token.ts               # AI token management
-│   │   ├── chat-encryption.ts        # Chat encryption
-│   │   ├── notification-sound.ts     # Notification sound
-│   │   ├── quiz-sounds.ts            # Quiz game sounds
-│   │   ├── cq-data.ts                # CodeQuest data
-│   │   ├── seed-quiz.ts              # Quiz seeder
-│   │   ├── hooks/
-│   │   │   ├── use-toast.ts
-│   │   │   ├── use-mobile.ts
-│   │   │   └── use-queries.ts        # React Query hooks
-│   │   └── security/
-│   │       ├── validation.ts
-│   │       ├── sanitize.ts
-│   │       ├── rate-limit.ts
-│   │       └── audit-logger.ts
-│   │
-│   ├── hooks/
-│   │   ├── use-toast.ts
-│   │   └── use-mobile.ts
-│   │
-│   └── middleware.ts.disabled        # Next.js middleware (currently disabled)
+│   └── lib/
+│       ├── api.ts                 # API client (fetch + retry)
+│       ├── db.ts                  # Prisma client
+│       ├── firebase.ts            # Firebase SDK init
+│       ├── jwt.ts                 # JWT sign/verify
+│       ├── utils.ts               # cn() helper
+│       ├── demo-guard.ts          # Demo mode guard
+│       ├── query-client.ts
+│       ├── zai.ts                 # AI SDK
+│       ├── chat-encryption.ts
+│       ├── security/              # validation, sanitize, rate-limit, audit
+│       └── hooks/use-queries.ts
 │
 └── mini-services/
-    ├── chat-service/                 # Socket.IO chat service (port 3001)
-    │   ├── index.ts
-    │   ├── package.json
-    │   └── prisma/schema.prisma
-    └── battle-service/               # Quiz battle service (port 3002)
-        ├── index.ts
-        └── package.json
+    ├── chat-service/              # Socket.IO (port 3001)
+    └── battle-service/            # Quiz battle (port 3002)
 ```
 
 ---
 
-## 3. IMPORTANT FILE CODES
+## 4. IMPORTANT FILE CODES
 
-### 3.1 `package.json`
-
+### 4.1 `package.json`
 ```json
 {
   "name": "nextjs_tailwind_shadcn_ts",
@@ -218,9 +206,7 @@ pu-alrms/
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
     "db:push": "prisma db push",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:reset": "prisma migrate reset"
+    "db:generate": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^6.11.1",
@@ -232,26 +218,21 @@ pu-alrms/
     "jsonwebtoken": "^9.0.3",
     "lucide-react": "^0.525.0",
     "next": "^16.1.1",
-    "next-auth": "^4.24.11",
     "next-themes": "^0.4.6",
     "prisma": "^6.11.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-hook-form": "^7.60.0",
     "recharts": "^2.15.4",
     "sharp": "^0.34.3",
     "socket.io-client": "^4.8.3",
     "sonner": "^2.0.6",
+    "z-ai-web-dev-sdk": "^0.0.17",
     "zod": "^4.0.2",
     "zustand": "^5.0.6",
     "@tanstack/react-query": "^5.82.0",
     "@tanstack/react-table": "^8.21.3",
-    "@dnd-kit/core": "^6.3.1",
-    "@dnd-kit/sortable": "^10.0.0",
-    "@mdxeditor/editor": "^3.39.1",
-    "@hookform/resolvers": "^5.1.1",
-    "z-ai-web-dev-sdk": "^0.0.17",
-    "@radix-ui/react-*": "various (25+ Radix UI packages)"
+    "react-hook-form": "^7.60.0",
+    "next-auth": "^4.24.11"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -267,42 +248,33 @@ pu-alrms/
 }
 ```
 
-### 3.2 `next.config.ts`
-
+### 4.2 `next.config.ts`
 ```typescript
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  typescript: {
-    ignoreBuildErrors: true,
-  },
+  typescript: { ignoreBuildErrors: true },
   reactStrictMode: false,
   allowedDevOrigins: ['*.space.z.ai', '*.z.ai'],
   async headers() {
-    return [
-      {
-        source: '/((?!_next/static|_next/image|favicon.ico|logo.png|sounds).*)',
-        headers: [
-          { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'X-XSS-Protection', value: '1; mode=block' },
-          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
-        ],
-      },
-    ];
+    return [{
+      source: '/((?!_next/static|_next/image|favicon.ico|logo.png|sounds).*)',
+      headers: [
+        { key: 'X-Content-Type-Options', value: 'nosniff' },
+        { key: 'X-XSS-Protection', value: '1; mode=block' },
+        { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=()' },
+      ],
+    }];
   },
 };
-
 export default nextConfig;
 ```
 
-### 3.3 `prisma/schema.prisma`
-
+### 4.3 `prisma/schema.prisma`
 ```prisma
-generator client {
-  provider = "prisma-client-js"
-}
+generator client { provider = "prisma-client-js" }
 
 datasource db {
   provider = "sqlite"
@@ -314,9 +286,9 @@ model User {
   name        String
   email       String   @unique
   password    String
-  role        String   @default("STUDENT")
+  role        String   @default("STUDENT")   // SUPER_ADMIN|ADMIN|DEVELOPER|TEACHER|STUDENT|CR
   verified    Boolean  @default(false)
-  status      String   @default("ACTIVE")
+  status      String   @default("ACTIVE")     // ACTIVE|SUSPENDED|BANNED
   avatar      String?
   coverPhoto  String?
   rollNumber  String?
@@ -327,67 +299,89 @@ model User {
   lastLogin   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  // Relations: subjects, assignments, submissions, comments,
-  // notifications, announcements, chatMessages, quizAttempts,
-  // quizProfile, savedBooks, battles, cqProfile, cqFriends, cqBattles
+  // 15+ relations...
 }
 
-model Subject { ... }
-model Assignment { ... }
-model Submission { ... }
-model Comment { ... }
-model Notification { ... }
-model Announcement { ... }
-model ChatRoom { ... }
-model ChatMessage { ... }
-model QuizCategory { ... }
-model QuizQuestion { ... }
-model QuizAttempt { ... }
-model QuizProfile { ... }
-model SavedBook { ... }
-model BattleRoom { ... }
-model CQProfile { ... }
-model CQFriend { ... }
-model CQBattleSession { ... }
+model Subject {
+  id        String   @id @default(cuid())
+  name      String
+  code      String
+  teacherId String
+  batch     String?
+  teacher   User        @relation(fields: [teacherId], references: [id])
+  assignments Assignment[]
+}
+
+model Assignment {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  subjectId   String
+  type        String   @default("ASSIGNMENT")  // ASSIGNMENT|LAB_REPORT
+  batch       String?
+  deadline    DateTime
+  status      String   @default("ACTIVE")
+  createdBy   String
+  subject     Subject     @relation(fields: [subjectId], references: [id])
+  creator     User        @relation(fields: [createdBy], references: [id])
+  submissions Submission[]
+  comments    Comment[]
+}
+
+model Submission {
+  id           String    @id @default(cuid())
+  assignmentId String
+  studentId    String
+  fileName     String
+  fileUrl      String?
+  status       String    @default("SUBMITTED")  // SUBMITTED|GRADED|LATE
+  marks        Float?
+  feedback     String?
+  submittedAt  DateTime  @default(now())
+  gradedAt     DateTime?
+}
+
+model Comment { id, assignmentId, userId, content, createdAt }
+model Notification { id, userId, title, message, type, isRead, createdAt }
+model Announcement { id, title, message, type, priority, createdBy, createdAt }
+model ChatRoom { id, name, type, batch, department, isPrivate, encryptionKey, messages }
+model ChatMessage { id, roomId, userId, content, messageType, fileUrl, createdAt }
+model QuizCategory { id, name, department, icon, difficulty, questions, attempts }
+model QuizQuestion { id, categoryId, question, optionA-D, correctOption, points }
+model QuizAttempt { id, userId, categoryId, score, totalPoints, correctCount, accuracy, timeTaken }
+model QuizProfile { id, userId, totalXP, dailyStreak, totalQuizzes, totalCorrect }
+model SavedBook { id, userId, bookId, title, authors, coverUrl, category, language }
+model BattleRoom { id, player1Id, player2Id, categoryId, status, scores, winnerId }
+model CQProfile { id, userId, level, totalXP, battlesWon, battlesLost, title }
+model CQFriend { id, userId, friendId, status }
+model CQBattleSession { id, player1Id, player2Id, language, status, rounds, scores }
 ```
 
-### 3.4 `src/app/page.tsx` (Entry Point)
-
+### 4.4 `src/app/page.tsx` (Entry Point)
 ```typescript
 'use client';
-
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useAppStore } from '@/store/app';
 
 const AuthPage = dynamic(() => import('@/components/pages/AuthPage'), { ssr: false });
 const AppLayout = dynamic(() => import('@/components/layout/AppLayout'), { ssr: false });
 
-function ErrorFallback({ error, onRetry }: { error: Error; onRetry: () => void }) {
-  // Error UI with retry button
-}
-
 export default function Home() {
-  const [error, setError] = useState<Error | null>(null);
-  const mounted = useAppStore((state) => state.mounted);
-  const isAuthenticated = useAppStore((state) => state.isAuthenticated);
+  const mounted = useAppStore((s) => s.mounted);
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated);
 
   useEffect(() => {
     document.documentElement.classList.add('hydrated');
     useAppStore.getState().hydrate();
   }, []);
 
-  // Error handlers...
-
   if (!mounted) return null;
-  if (error) return <ErrorFallback error={error} onRetry={handleRetry} />;
-
   return isAuthenticated ? <AppLayout /> : <AuthPage />;
 }
 ```
 
-### 3.5 `src/app/layout.tsx` (Root Layout)
-
+### 4.5 `src/app/layout.tsx` (Root Layout)
 ```typescript
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
@@ -405,7 +399,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
           <FirebaseProvider>
             <ApiProvider>
@@ -420,22 +414,139 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 }
 ```
 
-### 3.6 `.env.example`
+### 4.6 `src/store/app.ts` (Auth & Navigation)
+```typescript
+import { create } from 'zustand';
 
+export type UserRole = 'SUPER_ADMIN' | 'ADMIN' | 'DEVELOPER' | 'TEACHER' | 'STUDENT' | 'CR';
+
+export type PageView =
+  | 'admin-panel' | 'dashboard' | 'assignments' | 'lab-reports'
+  | 'assignment-detail' | 'create-assignment' | 'submissions'
+  | 'ai-chat' | 'leaderboard' | 'notifications' | 'profile'
+  | 'student-community' | 'announcements' | 'quiz'
+  | 'code-quest' | 'books';
+
+export const useAppStore = create((set) => ({
+  user: null, token: null, isAuthenticated: false, mounted: false,
+  isDemoUser: false, currentPage: 'dashboard', sidebarOpen: false,
+
+  setAuth: (user, token, isDemo = false) => {
+    set({ user, token, isAuthenticated: true, isDemoUser: isDemo });
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+  },
+
+  logout: () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    set({ user: null, token: null, isAuthenticated: false });
+  },
+
+  hydrate: () => {
+    const token = localStorage.getItem('token');
+    const user = localStorage.getItem('user');
+    if (token && user) {
+      set({ user: JSON.parse(user), token, isAuthenticated: true, mounted: true });
+    } else {
+      set({ mounted: true });
+    }
+  },
+
+  setPage: (page) => set({ currentPage: page, sidebarOpen: false }),
+}));
+```
+
+### 4.7 `src/lib/jwt.ts` (Authentication)
+```typescript
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || (process.env.NODE_ENV === 'production' ? '' : 'pu-alrms-dev-key-2024-local');
+
+export function signToken(payload) {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
+}
+
+export function verifyToken(token) {
+  try { return jwt.verify(token, JWT_SECRET); }
+  catch { return null; }
+}
+```
+
+### 4.8 `src/lib/db.ts` (Database)
+```typescript
+import { PrismaClient } from '@prisma/client'
+
+const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined }
+
+export const db: PrismaClient = globalForPrisma.prisma ?? new PrismaClient({
+  log: process.env.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+})
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = db
+}
+```
+
+### 4.9 `src/lib/firebase.ts` (Firebase Init)
+```typescript
+import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut as firebaseSignOut,
+  onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
+
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || '',
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || '',
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || '',
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || '',
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '',
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '',
+};
+
+function isFirebaseConfigured() {
+  return !!(firebaseConfig.apiKey && firebaseConfig.projectId && firebaseConfig.appId);
+}
+
+export const firebase = {
+  isConfigured: isFirebaseConfigured,
+  signInWithGoogle: async () => {
+    const result = await signInWithPopup(getAuth(getApps().length ? getApp() : initializeApp(firebaseConfig)),
+      Object.assign(new GoogleAuthProvider(), { customParameters: { prompt: 'select_account' } }));
+    return result.user;
+  },
+  signOut: async () => await firebaseSignOut(getAuth(getApp())),
+  getIdToken: (user, forceRefresh) => user.getIdToken(forceRefresh),
+  onAuthStateChanged: (cb) => onAuthStateChanged(getAuth(getApp()), cb),
+};
+```
+
+### 4.10 `src/lib/demo-guard.ts` (Backend Security)
+```typescript
+import { NextResponse } from 'next/server';
+
+const ALLOWED_ENDPOINTS = ['/api/auth/login','/api/auth/register','/api/auth/seed','/api/auth/temp-email','/api/auth/google'];
+const WRITE_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
+
+export function demoGuard(request: Request): NextResponse | null {
+  if (!WRITE_METHODS.includes(request.method)) return null;
+  const path = new URL(request.url).pathname;
+  if (ALLOWED_ENDPOINTS.some(ep => path.startsWith(ep))) return null;
+  if (request.headers.get('X-Demo-Mode') === 'true') {
+    return NextResponse.json({ error: 'Write operations disabled in demo mode.', code: 'DEMO_MODE_BLOCKED' }, { status: 403 });
+  }
+  return null;
+}
+```
+
+### 4.11 `.env.example`
 ```bash
-# ═══════════════════════════════════════════════════════
 # Database
-# ═══════════════════════════════════════════════════════
 DATABASE_URL="file:./db/custom.db"
 
-# ═══════════════════════════════════════════════════════
-# JWT Authentication
-# ═══════════════════════════════════════════════════════
-JWT_SECRET="your-random-40-char-secret-here"
+# JWT Auth
+JWT_SECRET="your-random-40-char-secret"
 
-# ═══════════════════════════════════════════════════════
-# Firebase Configuration (Client-side — PUBLIC)
-# ═══════════════════════════════════════════════════════
+# Firebase Client (PUBLIC — safe to expose)
 NEXT_PUBLIC_FIREBASE_API_KEY="your-api-key"
 NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN="your-project.firebaseapp.com"
 NEXT_PUBLIC_FIREBASE_PROJECT_ID="your-project-id"
@@ -443,25 +554,18 @@ NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET="your-project.appspot.com"
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID="123456789"
 NEXT_PUBLIC_FIREBASE_APP_ID="1:123456789:web:abcdef"
 
-# ═══════════════════════════════════════════════════════
-# Firebase Admin SDK (Server-side — KEEP SECRET!)
-# ═══════════════════════════════════════════════════════
+# Firebase Admin SDK (SERVER ONLY — KEEP SECRET!)
 FIREBASE_PROJECT_ID="your-project-id"
 FIREBASE_CLIENT_EMAIL="your-service-account@iam.gserviceaccount.com"
 FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_KEY_HERE\n-----END PRIVATE KEY-----"
 ```
 
-### 3.7 `firebase.json` (Create for deployment)
-
+### 4.12 `firebase.json` (তৈরি করতে হবে)
 ```json
 {
   "hosting": {
     "public": "out",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ],
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
     "rewrites": [
       { "source": "/api/**", "function": "api" },
       { "source": "**", "destination": "/index.html" }
@@ -470,8 +574,7 @@ FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_KEY_HERE\n-----END PRIVA
 }
 ```
 
-### 3.8 `.firebaserc` (Create for deployment)
-
+### 4.13 `.firebaserc` (তৈরি করতে হবে)
 ```json
 {
   "projects": {
@@ -482,184 +585,223 @@ FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nYOUR_KEY_HERE\n-----END PRIVA
 
 ---
 
-## 4. BUILD & DEPLOYMENT
+## 5. BUILD & OUTPUT
 
-### 4.1 Build Commands
-
+### Build Command:
 ```bash
-# Install dependencies
-npm install          # or: bun install
-
-# Generate Prisma client
-npx prisma generate  # or: bunx prisma generate
-
-# Build for production
-npm run build
-# This runs: next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/
+npm install                    # Install dependencies
+npx prisma generate           # Generate Prisma client
+npm run build                 # Build production app
 ```
 
-### 4.2 Output/Build Folder
+Build script: `next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/`
 
-| Folder | Description |
-|--------|-------------|
-| `.next/standalone/` | **Standalone server** — contains Node.js server + compiled code |
-| `.next/static/` | Static assets (copied into standalone by build script) |
-| `public/` | Static files (copied into standalone by build script) |
+### Output Folder: `.next/standalone/`
+এটা static `dist/` বা `out/` নয় — এটা একটা **Node.js server**:
+```
+.next/standalone/
+├── server.js           # ← Run this: node server.js or bun server.js
+├── .next/              # Compiled Next.js code
+├── node_modules/       # Required dependencies
+└── public/             # Static files
+```
 
-**IMPORTANT**: Next.js `standalone` output does NOT produce a static `dist/` or `out/` folder. It produces a **Node.js server** at `.next/standalone/server.js` that must be run with `node` or `bun`.
-
-### 4.3 Current Start Command
-
+### Start Commands:
 ```bash
 # Production
-bun .next/standalone/server.js
+node .next/standalone/server.js
+# or: bun .next/standalone/server.js
 
 # Development
-bun run dev    # next dev -p 3000
+npm run dev   # next dev -p 3000
 ```
 
 ---
 
-## 5. BACKEND / API / DATABASE
+## 6. AUTHENTICATION
 
-### 5.1 Database: SQLite via Prisma ORM
-- **Provider**: `sqlite`
-- **Location**: `file:./db/custom.db`
-- **Schema**: 15 models (User, Subject, Assignment, Submission, Comment, Notification, Announcement, ChatRoom, ChatMessage, QuizCategory, QuizQuestion, QuizAttempt, QuizProfile, SavedBook, BattleRoom, CQProfile, CQFriend, CQBattleSession)
-- **Setup**: `npx prisma db push`
-- **Seed**: `npx prisma db seed` (creates demo users + data)
+### Login Flow:
+```
+Student/Teacher opens app → AuthPage shown
+    │
+    ├─→ Email + Password → POST /api/auth/login → JWT token
+    │
+    ├─→ "Sign in with Google" → Firebase popup → POST /api/auth/firebase → JWT token
+    │
+    ├─→ Google (manual dialog) → POST /api/auth/google → JWT token
+    │
+    └─→ "Try as Guest" → POST /api/auth/temp-email → JWT token (demo mode)
 
-### 5.2 API Routes (44 route files)
-| Category | Endpoints |
-|----------|-----------|
-| **Auth** | `/api/auth/login`, `/api/auth/register`, `/api/auth/firebase`, `/api/auth/google`, `/api/auth/temp-email`, `/api/auth/seed`, `/api/auth/profile`, `/api/auth/profile/photo` |
-| **Assignments** | `/api/assignments`, `/api/assignments/[id]` |
-| **Submissions** | `/api/submissions`, `/api/submissions/[id]/grade` |
-| **Announcements** | `/api/announcements`, `/api/announcements/[id]` |
-| **Notifications** | `/api/notifications`, `/api/notifications/[id]/read` |
-| **Comments** | `/api/comments` |
-| **Subjects** | `/api/subjects` |
-| **Batches** | `/api/batches` |
-| **Dashboard** | `/api/dashboard` |
-| **Leaderboard** | `/api/leaderboard` |
-| **Admin** | `/api/admin/stats`, `/api/admin/users`, `/api/admin/logs` |
-| **AI** | `/api/ai/chat`, `/api/ai/generate-image`, `/api/ai/scan`, `/api/ai/token` |
-| **Quiz** | `/api/quiz/categories`, `/api/quiz/questions`, `/api/quiz/profile`, `/api/quiz/seed`, `/api/quiz/battle`, `/api/quiz/leaderboard` |
-| **CodeQuest** | `/api/cq/profile`, `/api/cq/friends`, `/api/cq/battle`, `/api/cq/leaderboard` |
-| **Chat** | `/api/chat/rooms`, `/api/chat/rooms/join`, `/api/chat/messages` |
-| **Books** | `/api/books/search`, `/api/books/books/saved` |
+JWT token → stored in localStorage → sent as Authorization: Bearer header
+Server verifies JWT on every API request → returns 401 if expired
+```
 
-### 5.3 Authentication Flow
-1. **Email/Password**: POST `/api/auth/login` → JWT token
-2. **Firebase Google**: `signInWithPopup()` → POST `/api/auth/firebase` (exchange ID token) → JWT token
-3. **Google Manual**: POST `/api/auth/google` → JWT token
-4. **Temp Email**: POST `/api/auth/temp-email` → JWT token
-5. JWT token sent as `Authorization: Bearer <token>` header
+### Server-side Auth Verification (every API route):
+```typescript
+import { verifyToken } from '@/lib/jwt';
+import { db } from '@/lib/db';
 
-### 5.4 Mini-Services (Socket.IO)
-| Service | Port | Purpose |
-|---------|------|---------|
-| `chat-service` | 3001 | Real-time chat rooms |
-| `battle-service` | 3002 | Quiz battle WebSocket |
+const token = request.headers.get('authorization')?.replace('Bearer ', '');
+const payload = verifyToken(token);
+if (!payload) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+// payload = { userId, email, role, name }
+```
 
 ---
 
-## 6. FIREBASE SERVICES NEEDED
+## 7. DATABASE REQUIREMENTS
 
-| Service | Required? | Purpose |
-|---------|-----------|---------|
-| **Firebase Hosting** | ✅ YES | Serve the frontend |
+### Data stored in SQLite:
+| Data Type | Models | Details |
+|-----------|--------|---------|
+| **Student/Teacher Data** | User | name, email, password, role, avatar, rollNumber, batch, department, phone, bio |
+| **Course Data** | Subject | name, code, teacherId, batch |
+| **Assignments** | Assignment | title, description, deadline, type, status, batch |
+| **Submissions** | Submission | fileName, fileUrl, status, marks, feedback, gradedAt |
+| **Notices** | Announcement | title, message, type, priority |
+| **Messages** | ChatRoom, ChatMessage | room-based encrypted messaging |
+| **Quiz Data** | QuizCategory, QuizQuestion, QuizAttempt, QuizProfile | categories, questions, scores, XP, streaks |
+| **Notifications** | Notification | title, message, type, isRead |
+| **Comments** | Comment | on assignments |
+| **Digital Library** | SavedBook | saved books with metadata |
+| **Battle/Leaderboard** | BattleRoom, CQProfile, CQBattleSession | quiz battles, XP, levels |
+
+### ⚠️ SQLite Deployment Issue:
+SQLite হলো local file database — Firebase Hosting-এ কাজ করবে না। Production-এর জন্য migrate করতে হবে:
+- **Firestore** (Firebase native — best option)
+- **PostgreSQL** (via Supabase, Neon)
+- **MySQL** (via PlanetScale)
+
+---
+
+## 8. FIREBASE SERVICES NEEDED
+
+| Service | Needed? | Purpose |
+|---------|:-------:|---------|
+| **Firebase Hosting** | ✅ YES | Frontend serve করতে |
 | **Firebase Authentication** | ✅ YES | Google Sign-In provider |
-| **Firebase Cloud Functions** | ✅ YES | Run API routes (server-side) |
-| **Firestore** | ❌ No | Not used (uses SQLite/Prisma) |
-| **Realtime Database** | ❌ No | Not used |
-| **Cloud Storage** | ❌ No | Uses local file uploads |
-| **Firebase App Hosting** | ✅ ALTERNATIVE | Better than Hosting + Functions for full-stack Next.js |
+| **Firebase Cloud Functions** | ✅ YES | API routes server-side run করতে |
+| **Firebase App Hosting** | ✅ BEST | Next.js full-stack এর জন্য সবচেয়ে suitable |
+| **Firestore** | ✅ YES* | Database migration target (*SQLite replace করতে হবে) |
+| **Realtime Database** | ❌ No | ব্যবহার হয় না |
+| **Cloud Storage** | ⚠️ MAYBE | File uploads-এর জন্য (এখন local filesystem) |
+| **Functions (2nd Gen)** | ⚠️ MAYBE | Socket.IO mini-services host করতে |
 
 ---
 
-## 7. DEPLOYMENT OPTIONS
+## 9. SECURITY NOTES
 
-### Option A: Firebase App Hosting (Recommended — Best for Next.js full-stack)
+### Role-Based Access:
+- **Frontend**: Sidebar nav items filtered by role (`roles: ['TEACHER', 'CR', 'ADMIN']`)
+- **Backend**: API routes check `payload.role` from JWT
+- **Admin Panel**: Only `SUPER_ADMIN` can access
+- **Create Assignment**: Only `TEACHER`, `CR`, `ADMIN`
+- **Grade Submissions**: Only `TEACHER`, `ADMIN`
+
+### Demo Mode Security:
+- Frontend: `DemoModeError` thrown for all POST/PUT/DELETE
+- Backend: `demoGuard()` checks `X-Demo-Mode: true` header → returns 403
+- Auth endpoints always allowed (login, register, seed)
+
+### Password Security:
+- Passwords hashed with `bcryptjs` (12 salt rounds)
+- Password never sent in API responses (`password: _` destructured)
+- JWT tokens expire in 7 days
+
+### Sensitive Variables (HIDDEN — variable names only shown):
+```
+JWT_SECRET                        # Random 40-char string
+FIREBASE_PRIVATE_KEY              # RSA private key (-----BEGIN PRIVATE KEY-----)
+FIREBASE_CLIENT_EMAIL             # service-account@iam.gserviceaccount.com
+NEXT_PUBLIC_FIREBASE_API_KEY      # Firebase API key (public but project-specific)
+DATABASE_URL                      # file:./db/custom.db
+```
+
+### Security Headers (configured in next.config.ts):
+- `X-Content-Type-Options: nosniff`
+- `X-XSS-Protection: 1; mode=block`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Permissions-Policy: camera=(), microphone=(), geolocation=()`
+
+---
+
+## 10. DEPLOYMENT WARNINGS
+
+### ⛔ Critical Blockers:
+
+1. **SQLite will NOT work on Firebase Hosting**
+   - SQLite = local file → serverless environments have read-only filesystem
+   - MUST migrate to Firestore or external PostgreSQL
+   - Prisma schema needs `provider = "postgresql"` or custom Firestore client
+
+2. **`output: "standalone"` ≠ static files**
+   - Produces a Node.js server (`.next/standalone/server.js`)
+   - Firebase Hosting serves static files only
+   - Need Firebase App Hosting or Cloud Functions
+
+3. **2 Mini-services need separate hosting**
+   - `chat-service` (Socket.IO, port 3001) — real-time chat
+   - `battle-service` (Socket.IO, port 3002) — quiz battles
+   - Options: Cloud Run, Railway, Fly.io
+
+4. **`z-ai-web-dev-sdk` is proprietary**
+   - AI chat/image features may not work outside dev environment
+   - These API routes (`/api/ai/*`) will return errors
+
+### ⚠️ Minor Issues:
+
+5. **`next-auth` listed but NOT used** — custom JWT auth is used instead. Can be removed.
+6. **`sharp` (native module)** — may need special build config on Cloud Functions
+7. **No `firebase.json` or `.firebaserc`** — need to create for deployment
+8. **`setup-firebase.sh`** — for local setup only, not for deployment
+
+---
+
+## 11. RECOMMENDED DEPLOYMENT APPROACH
+
+### Best Option: Firebase App Hosting
+Firebase App Hosting natively supports Next.js full-stack apps:
+
 ```bash
+# 1. Install Firebase CLI
 npm install -g firebase-tools
+
+# 2. Login
 firebase login
-firebase init hosting  # Choose "App Hosting"
+
+# 3. Initialize (choose App Hosting)
+firebase init
+
+# 4. Deploy
 firebase deploy
 ```
 
-### Option B: Firebase Hosting + Cloud Functions
-1. Export static output: Change `next.config.ts` to `output: "export"` (loses all API routes)
-2. Use Cloud Functions for API routes
-3. Configure rewrites in `firebase.json`
+**But first you must:**
+1. Migrate SQLite → Firestore
+2. Create `firebase.json` with hosting config
+3. Set all env vars in Firebase console
 
-### Option C: Vercel (Simplest for Next.js)
+### Alternative: Vercel (Simplest)
 ```bash
 npx vercel
 ```
-> Vercel natively supports Next.js App Router + API routes + standalone output
-
-### Option D: Docker
-```dockerfile
-FROM node:18-alpine
-WORKDIR /app
-COPY . .
-RUN npx prisma generate && npm run build
-EXPOSE 3000
-CMD ["node", ".next/standalone/server.js"]
-```
+Vercel natively handles Next.js API routes + standalone output. But you still need to migrate the database.
 
 ---
 
-## 8. WARNINGS & IMPORTANT NOTES
+## SHORT SUMMARY FOR AI ASSISTANT
 
-### ⚠️ Critical Issues
-1. **SQLite will NOT work on Firebase Hosting** — it's a local file database. For production, migrate to:
-   - **Firestore** (Firebase native)
-   - **PostgreSQL** (via Supabase, Neon, or PlanetScale)
-   - **MySQL** (via PlanetScale)
-
-2. **`output: "standalone"` is for Node.js server**, NOT static hosting. For pure static hosting:
-   - Change to `output: "export"` in `next.config.ts`
-   - BUT this will **BREAK all API routes** (no server-side code)
-
-3. **Mini-services** (`chat-service`, `battle-service`) run on separate ports (3001, 3002). These need their own hosting.
-
-4. **`z-ai-web-dev-sdk`** is a proprietary SDK for AI features — it may not work outside the development environment.
-
-### 🔒 Sensitive Info (Hidden)
-- `JWT_SECRET` — random 40-char string
-- `FIREBASE_PRIVATE_KEY` — RSA private key
-- `FIREBASE_CLIENT_EMAIL` — service account email
-- `NEXT_PUBLIC_FIREBASE_API_KEY` — Firebase API key (public but project-specific)
-- Seed passwords: `admin123`, `teacher123`, `student123`
-
-### 📋 Dependencies That Need Attention
-- `sharp` — native module, may need special handling during build
-- `bcryptjs` — used for password hashing (not native, should be fine)
-- `socket.io-client` — frontend only, no server socket.io dependency (mini-services handle that)
-- `next-auth` — listed but NOT actively used (custom JWT auth is used instead)
-
-### 🎨 UI Notes
-- Default theme: **dark mode**
-- Color scheme: emerald/green primary (NOT indigo/blue)
-- Responsive: mobile-first with desktop sidebar
-- Uses shadcn/ui New York style with Lucide icons
-- Framer Motion for page transitions and animations
-- Sonner for toast notifications
-
----
-
-## 9. SUMMARY FOR AI ASSISTANT
-
-> **Please help me deploy this Next.js 16 full-stack app (PU-ALRMS) to Firebase Hosting.**
+> **আমার PU-ALRMS Next.js 16 full-stack app-টি Firebase-এ deploy করতে সাহায্য দরকার।**
 >
-> Key points:
-> - **Framework**: Next.js 16.1.1 with App Router, TypeScript, React 19
-> - **Build**: `npm run build` → produces `.next/standalone/` (Node.js server, NOT static)
-> - **Database**: SQLite via Prisma (needs migration to Firestore/PostgreSQL for cloud deployment)
-> - **Auth**: Custom JWT + optional Firebase Google Auth
-> - **API Routes**: 44 endpoints under `/api/*`
-> - **Firebase Services**: Need Hosting + Cloud Functions (or Firebase App Hosting)
-> - **Mini-services**: 2 Socket.IO services on ports 3001, 3002
-> - **Sensitive env vars**: JWT_SECRET, FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL (see `.env.example`)
+> - **Framework**: Next.js 16.1.1, React 19, TypeScript 5, Tailwind CSS 4
+> - **Architecture**: SPA-style single route (`/`), Zustand state-based navigation
+> - **Build**: `npm run build` → `.next/standalone/` (Node.js server, NOT static)
+> - **Database**: SQLite via Prisma ORM (18 models) — needs Firestore migration
+> - **Auth**: Custom JWT + Firebase Google Auth (5 login methods)
+> - **Roles**: 6 roles (SUPER_ADMIN, ADMIN, DEVELOPER, TEACHER, STUDENT, CR)
+> - **API Routes**: 44 endpoints
+> - **Pages**: 18 pages (Dashboard, Assignments, Quiz, AI Chat, Community, etc.)
+> - **Mini-services**: 2 Socket.IO services (chat port 3001, battle port 3002)
+> - **Firebase needs**: Hosting + Cloud Functions + Authentication + Firestore
+> - **Sensitive env vars**: JWT_SECRET, FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL
+> - ** Biggest blocker**: SQLite → Firestore database migration required
