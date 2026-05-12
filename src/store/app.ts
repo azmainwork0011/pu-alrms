@@ -35,7 +35,8 @@ export type PageView =
   | 'quiz'
   | 'code-quest'
   | 'books'
-  | 'firebase-guide';
+  | 'firebase-guide'
+  | 'deploy-guide';
 
 interface AppState {
   // Auth

@@ -250,3 +250,35 @@ Stage Summary:
 - All auth endpoints verified working: seed, login, register
 - Server stable after fix (no more silent crashes)
 - File removed: src/middleware.ts (backed up as src/middleware.ts.disabled.bak)
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Vercel Deployment Preparation + Deploy Guide Page
+
+Work Log:
+- Removed `output: "standalone"` from next.config.ts (Vercel handles this automatically)
+- Created `.env.example` with all 12 required/optional environment variables documented
+- Fixed `.gitignore` to allow `.env.example` to be committed (was `.env*` blocking everything)
+- Created `vercel.json` with build command (prisma generate + next build)
+- Created comprehensive `DeployGuidePage.tsx` with 6-step Bengali+English guide:
+  - Step 1: GitHub-এ আপলোড করুন (exact git commands with copy buttons)
+  - Step 2: Vercel অ্যাকাউন্ট তৈরি করুন (sign up flow)
+  - Step 3: Turso ডাটাবেস সেটআপ (CLI commands, connection URL, auth token)
+  - Step 4: Prisma Schema আপডেট (sqlite → libsql provider change)
+  - Step 5: Vercel-এ ডিপ্লয় (import repo, set env vars, deploy)
+  - Step 6: যাচাই করুন (verify login, seed database)
+  - Env var reference table (required vs optional)
+  - Troubleshooting section (6 common issues)
+  - Deployment checklist
+- Added 'deploy-guide' to PageView type in store/app.ts
+- Added DeployGuidePage to AppLayout.tsx (import, route case, sidebar nav with Rocket icon)
+- Verified all functionality: Homepage 200, Seed 200, Login 200
+
+Stage Summary:
+- Vercel deployment fully prepared: next.config.ts, vercel.json, .env.example, .gitignore fixed
+- Deploy Guide page added to app sidebar (Rocket icon, "Deploy Guide" label)
+- Guide covers Turso (free SQLite-compatible cloud DB) as production database solution
+- All 12 env vars documented with sources and public/private classification
+- Files created: DeployGuidePage.tsx, vercel.json, .env.example
+- Files modified: next.config.ts, .gitignore, store/app.ts, AppLayout.tsx
