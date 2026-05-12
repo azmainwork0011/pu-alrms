@@ -225,3 +225,28 @@ Stage Summary:
 - Covers every file, function, API route, database model, and architectural decision
 - Designed for AI-to-AI context transfer (ChatGPT can continue development)
 - File saved at /home/z/my-project/PROJECT-HANDOFF-GUIDE.md
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix server crash / login page problem
+
+Work Log:
+- Diagnosed dev server crash: server would start, serve first request (GET / 200), then die silently
+- Root cause: `src/middleware.ts` uses deprecated "middleware" file convention in Next.js 16
+  - Next.js 16 warns: `The "middleware" file convention is deprecated. Please use "proxy" instead`
+  - The middleware was causing the server to crash after handling the first API request
+- Verified that security headers in middleware.ts were already duplicated in `next.config.ts` (async headers() function)
+- Renamed `src/middleware.ts` → `src/middleware.ts.disabled.bak` to disable it
+- Verified fix with end-to-end tests within a single session:
+  - GET / → HTTP 200 ✅
+  - POST /api/auth/seed → 200, all 6 demo accounts seeded ✅
+  - POST /api/auth/login (alice@stu.pu.edu) → 200, JWT token returned ✅
+  - POST /api/auth/register → 201, new account created ✅
+  - Server remained stable through all requests ✅
+
+Stage Summary:
+- Fix: Removed deprecated `middleware.ts` (headers already in next.config.ts)
+- All auth endpoints verified working: seed, login, register
+- Server stable after fix (no more silent crashes)
+- File removed: src/middleware.ts (backed up as src/middleware.ts.disabled.bak)
