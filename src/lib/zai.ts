@@ -1,21 +1,60 @@
 import ZAI from 'z-ai-web-dev-sdk';
 
-// Singleton ZAI instance — SDK auto-reads config from /etc/.z-ai-config
-let zaiInstance: InstanceType<typeof ZAI> | null = null;
+// ═══════════════════════════════════════════════════════════════════
+// Z-AI SDK Singleton — Robust with retry and error handling.
+// SDK auto-reads config from /etc/.z-ai-config, ~/.z-ai-config, etc.
+// ═══════════════════════════════════════════════════════════════════
+
+type ZAIInstance = Awaited<ReturnType<typeof ZAI.create>>;
+
+let zaiInstance: ZAIInstance | null = null;
+let zaiReady = false;
+let zaiError: string | null = null;
 
 /**
- * Create or return cached ZAI instance.
- * The SDK automatically reads config from:
- *   1. process.cwd()/.z-ai-config
- *   2. ~/.z-ai-config
- *   3. /etc/.z-ai-config
- *
- * No manual config loading or X-Token forwarding needed —
- * the config already contains baseUrl, apiKey, token, chatId, userId.
+ * Create or return cached ZAI instance with retry.
  */
-export async function getZAI(): Promise<InstanceType<typeof ZAI>> {
-  if (!zaiInstance) {
-    zaiInstance = await ZAI.create();
+export async function getZAI(maxRetries = 2): Promise<ZAIInstance> {
+  if (zaiReady && zaiInstance) return zaiInstance;
+  if (zaiError) throw new Error(zaiError);
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      zaiInstance = await ZAI.create();
+      zaiReady = true;
+      zaiError = null;
+      console.log('[Z-AI] SDK initialized successfully');
+      return zaiInstance;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`[Z-AI] Init attempt ${attempt}/${maxRetries} failed:`, msg);
+      if (attempt === maxRetries) {
+        zaiError = `Z-AI SDK failed: ${msg}`;
+        throw new Error(zaiError);
+      }
+      await new Promise(r => setTimeout(r, 500 * attempt));
+    }
   }
-  return zaiInstance;
+  throw new Error('Z-AI SDK initialization failed');
+}
+
+/**
+ * Check if Z-AI is available (non-throwing).
+ */
+export async function isZAIReady(): Promise<boolean> {
+  try {
+    await getZAI();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Reset the singleton (useful if config changes).
+ */
+export function resetZAI(): void {
+  zaiInstance = null;
+  zaiReady = false;
+  zaiError = null;
 }

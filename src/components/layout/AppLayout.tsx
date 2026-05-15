@@ -13,7 +13,7 @@ import {
   LayoutDashboard, ClipboardList, FlaskConical, Plus, FileText, Trophy,
   Megaphone, MessageSquare, Sparkles, Bell, User as UserIcon,
   LogOut, Menu, GraduationCap, Moon, Sun, BookOpen, Swords,
-  Shield, BadgeCheck, Link2, Rocket,
+  Shield, BadgeCheck, Rocket,
 } from 'lucide-react';
 import { getInitials, PageTransition, DevCredit, playNotificationSound } from '@/components/pu-helpers';
 
@@ -33,7 +33,6 @@ import QuizPage from '@/components/pages/QuizPage';
 import LearnWithGame from '@/components/pages/LearnWithGame';
 import BooksPage from '@/components/pages/BooksPage';
 import AdminPanelPage from '@/components/pages/AdminPanelPage';
-import FirebaseGuidePage from '@/components/pages/FirebaseGuidePage';
 import DeployGuidePage from '@/components/pages/DeployGuidePage';
 
 // ─── Sidebar Navigation ──────────────────────────────────
@@ -56,7 +55,6 @@ function SidebarNav({ onNavigate }: { onNavigate: (page: PageView) => void }) {
     { page: 'ai-chat', label: 'Lucky Strick AI', icon: <Sparkles className="w-4 h-4" />, demoHidden: true },
     { page: 'notifications', label: 'Notifications', icon: <Bell className="w-4 h-4" /> },
     { page: 'profile', label: 'Profile', icon: <UserIcon className="w-4 h-4" /> },
-    { page: 'firebase-guide', label: 'Firebase Setup', icon: <Link2 className="w-4 h-4" /> },
     { page: 'deploy-guide', label: 'Deploy Guide', icon: <Rocket className="w-4 h-4" /> },
   ];
 
@@ -180,7 +178,6 @@ export default function AppLayout() {
       case 'code-quest': return <LearnWithGame />;
       case 'books': return <BooksPage />;
       case 'admin-panel': return <AdminPanelPage />;
-      case 'firebase-guide': return <FirebaseGuidePage />;
       case 'deploy-guide': return <DeployGuidePage />;
       default: return <DashboardPage />;
     }
@@ -226,7 +223,7 @@ export default function AppLayout() {
                 <Menu className="w-5 h-5" />
               </Button>
               <h2 className="text-sm font-medium text-gray-500 dark:text-gray-400 capitalize truncate max-w-[160px] sm:max-w-none">
-                {currentPage === 'student-community' ? 'Community Chat' : currentPage === 'announcements' ? 'Announcements' : currentPage === 'ai-chat' ? 'Lucky Strick AI' : currentPage === 'books' ? 'Digital Library' : currentPage === 'quiz' ? 'Quick Quiz' : currentPage === 'code-quest' ? 'Learn With Game' : currentPage === 'admin-panel' ? 'Admin Panel' : currentPage === 'firebase-guide' ? 'Firebase Setup Guide' : currentPage === 'deploy-guide' ? 'Vercel Deploy Guide' : currentPage.replace(/-/g, ' ')}
+                {currentPage === 'student-community' ? 'Community Chat' : currentPage === 'announcements' ? 'Announcements' : currentPage === 'ai-chat' ? 'Lucky Strick AI' : currentPage === 'books' ? 'Digital Library' : currentPage === 'quiz' ? 'Quick Quiz' : currentPage === 'code-quest' ? 'Learn With Game' : currentPage === 'admin-panel' ? 'Admin Panel' : currentPage === 'deploy-guide' ? 'Vercel Deploy Guide' : currentPage.replace(/-/g, ' ')}
               </h2>
             </div>
 

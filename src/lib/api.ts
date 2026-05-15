@@ -15,7 +15,7 @@ const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
 
 // Auth endpoints where 401 means "wrong credentials" (not expired session)
-const AUTH_ENDPOINTS = ['/api/auth/login', '/api/auth/register', '/api/auth/temp-email', '/api/auth/google', '/api/auth/firebase'];
+const AUTH_ENDPOINTS = ['/api/auth/login', '/api/auth/register', '/api/auth/temp-email', '/api/auth/google'];
 
 // Endpoints that should NOT be retried (mutations, uploads)
 const NO_RETRY_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
@@ -340,13 +340,6 @@ export const authApi = {
       noAuth: true,
     }),
 
-  firebaseAuth: (data: { idToken: string }) =>
-    apiFetch<{ token: string; user: any; isNewUser: boolean; provider: string }>('/api/auth/firebase', {
-      method: 'POST',
-      body: JSON.stringify(data),
-      timeout: AUTH_TIMEOUT,
-      noAuth: true,
-    }),
 };
 
 export const assignmentApi = {

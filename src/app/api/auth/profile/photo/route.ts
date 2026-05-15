@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/jwt';
-import { unlink } from 'fs/promises';
-import path from 'path';
 
 export async function DELETE(req: NextRequest) {
   try {
@@ -25,33 +23,7 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Type must be "avatar" or "cover"' }, { status: 400 });
     }
 
-    // Fetch current user to get the file path
-    const user = await db.user.findUnique({
-      where: { id: payload.userId },
-      select: { avatar: true, coverPhoto: true },
-    });
-
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    // Try to delete the physical file
-    const photoUrl = type === 'avatar' ? user.avatar : user.coverPhoto;
-    if (photoUrl) {
-      try {
-        const filePath = path.join(process.cwd(), 'public', photoUrl);
-        // Validate path to prevent traversal attacks
-        const resolved = path.resolve(filePath);
-        const publicDir = path.resolve(process.cwd(), 'public');
-        if (resolved.startsWith(publicDir) && resolved.includes('/uploads/profiles/')) {
-          await unlink(filePath);
-        }
-      } catch {
-        // File might not exist, that's okay
-      }
-    }
-
-    // Update database: set the field to null
+    // Update database: set the field to null (photos stored as base64 in DB)
     const updateData = type === 'avatar' ? { avatar: null } : { coverPhoto: null };
     const updated = await db.user.update({
       where: { id: payload.userId },

@@ -42,10 +42,45 @@ const DEMO_ACCOUNTS = [
     role: 'TEACHER',
     verified: false,
   },
+  {
+    name: 'Prof. Mark Johnson',
+    email: 'prof.johnson@pu.edu',
+    password: 'teacher123',
+    role: 'TEACHER',
+    verified: false,
+  },
   // ─── Student ───
   {
     name: 'Alice Chen',
     email: 'alice@stu.pu.edu',
+    password: 'student123',
+    role: 'STUDENT',
+    verified: false,
+  },
+  {
+    name: 'Bob Martinez',
+    email: 'bob@stu.pu.edu',
+    password: 'student123',
+    role: 'STUDENT',
+    verified: false,
+  },
+  {
+    name: 'Carol Williams',
+    email: 'carol@stu.pu.edu',
+    password: 'student123',
+    role: 'STUDENT',
+    verified: false,
+  },
+  {
+    name: 'David Kim',
+    email: 'david@stu.pu.edu',
+    password: 'student123',
+    role: 'STUDENT',
+    verified: false,
+  },
+  {
+    name: 'Emma Wilson',
+    email: 'emma@stu.pu.edu',
     password: 'student123',
     role: 'STUDENT',
     verified: false,
@@ -58,11 +93,9 @@ export async function POST() {
 
     for (const acc of DEMO_ACCOUNTS) {
       const existing = await db.user.findUnique({ where: { email: acc.email } });
-
       const hashedPassword = await hash(acc.password, 12);
 
       if (existing) {
-        // Update password, role, verified status to ensure they match
         await db.user.update({
           where: { email: acc.email },
           data: {
@@ -83,6 +116,11 @@ export async function POST() {
             role: acc.role,
             verified: acc.verified,
             status: 'ACTIVE',
+            avatar: acc.role === 'SUPER_ADMIN'
+              ? 'https://api.dicebear.com/9.x/initials/svg?seed=SA&backgroundColor=c0392b'
+              : acc.role === 'TEACHER'
+              ? `https://api.dicebear.com/9.x/initials/svg?seed=${acc.name.split(' ').map(n => n[0]).join('')}&backgroundColor=27ae60`
+              : `https://api.dicebear.com/9.x/initials/svg?seed=${acc.name.split(' ').map(n => n[0]).join('')}&backgroundColor=8e44ad`,
           },
         });
         results.push({ email: acc.email, status: 'created' });

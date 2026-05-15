@@ -30,28 +30,68 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files — .env.example is safe to commit, everything else is NOT
 .env
 .env.local
+.env.production
 .env.production.local
 .env.development.local
 
 # vercel
 .vercel
 
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-local-*
+
+# AI/sandbox specific
 .claude
 .z-ai-config
 *.log
 dev.log
 dev.out.log
+server.log
 test
 prompt
-
-server.log
-# Skills directory
 /skills/
+
+# Agent context (development only)
+/agent-ctx/
+
+# Upload directories (user uploaded files)
+/upload/
+
+# Local database files (use Turso in production)
+/db/*.db
+/prisma/db/*.db
+
+# Mini services (separate deployment)
+/mini-services/
+
+# Android app (separate repository)
+/android-app/
+
+# Development/temp files
+keep-alive.sh
+keepalive.sh
+start-dev.sh
+keep-server.sh
+start-server.sh
+monitor.sh
+start.sh
+build-android.sh
+Caddyfile
+DEPLOYMENT-GUIDE.md
+PROJECT-HANDOFF-GUIDE.md
+worklog.md
+.accesslog
+.config.juicefs
+.keepalive.pid
+.stats
+.zscripts/
+download/
+examples/
+public/uploads/
+
+# Lock files (Vercel uses npm)
+bun.lock

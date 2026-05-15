@@ -127,11 +127,24 @@ function AIChatPage() {
     setInput(''); setLoading(true); scroll();
     try {
       const r = await aiApi.chat(msg, 'single', selectedModel.id);
-      setMessages(p => [...p, { id: gid(), role: 'assistant', content: r.response || 'No response.', timestamp: Date.now(), modelName: r.modelName || selectedModel.name, modelId: r.modelId || selectedModel.id }]);
+      if (r.error) {
+        // Backend returned a meaningful error message — show it in chat
+        setMessages(p => [...p, { id: gid(), role: 'assistant', content: r.error, timestamp: Date.now(), modelName: selectedModel.name }]);
+        if (r.retryAfterMs) {
+          toast.info(`Please wait ${Math.ceil(r.retryAfterMs / 1000)}s before trying again.`);
+        }
+      } else {
+        setMessages(p => [...p, { id: gid(), role: 'assistant', content: r.response || 'No response.', timestamp: Date.now(), modelName: r.modelName || selectedModel.name, modelId: r.modelId || selectedModel.id }]);
+      }
     } catch (e: any) {
-      const errMsg = e?.message || 'Failed to get response';
-      toast.error(errMsg.includes('HTTP') ? 'Session expired. Please sign in again.' : errMsg);
-      setMessages(p => [...p, { id: gid(), role: 'assistant', content: 'Sorry, I encountered an error. Please try again.', timestamp: Date.now(), modelName: selectedModel.name, modelId: selectedModel.id }]);
+      const errMsg = e?.message || 'Connection issue';
+      if (errMsg.includes('HTTP') || errMsg.includes('401')) {
+        toast.error('Session expired. Please sign in again.');
+        setMessages(p => [...p, { id: gid(), role: 'assistant', content: '⚠️ Your session has expired. Please sign in again to continue chatting with me.', timestamp: Date.now(), modelName: 'System' }]);
+      } else {
+        toast.error('Connection issue. Retrying...');
+        setMessages(p => [...p, { id: gid(), role: 'assistant', content: "I couldn't connect to my AI engine just now. Please try rephrasing your question — I'll respond as soon as possible!", timestamp: Date.now(), modelName: selectedModel.name }]);
+      }
     }
     finally { setLoading(false); scroll(); }
   }, [input, loading, selectedModel, scroll]);
@@ -146,8 +159,12 @@ function AIChatPage() {
       const r = await aiApi.chat(msg, 'battle', undefined, battleModels);
       setMessages(p => [...p, { id: gid(), role: 'assistant', content: '', timestamp: Date.now(), battleResponses: r.responses || [], battleId: r.battleId }]);
     } catch (e: any) {
-      const errMsg = e?.message || 'Battle failed';
-      toast.error(errMsg.includes('HTTP') ? 'Session expired. Please sign in again.' : errMsg);
+      const errMsg = e?.message || 'Connection issue';
+      if (errMsg.includes('HTTP') || errMsg.includes('401')) {
+        toast.error('Session expired. Please sign in again.');
+      } else {
+        toast.error('Battle failed to start. Please try again.');
+      }
     }
     finally { setLoading(false); scroll(); }
   }, [input, loading, battleModels, scroll]);
@@ -158,7 +175,7 @@ function AIChatPage() {
       const r = await aiApi.voteBattle(battleId, label);
       setMessages(p => p.map(m => m.id === msgId ? { ...m, votedLabel: label, battleReveals: r.reveals } : m));
       toast.success('Vote recorded! Models revealed.');
-    } catch { toast.error('Vote failed'); }
+    } catch { toast.error('Could not record vote. Try again.'); }
   }, []);
 
   // ─── Image Gen ────────────────────────────────────────
@@ -171,8 +188,12 @@ function AIChatPage() {
       const r = await aiApi.generateImage(msg);
       setMessages(p => [...p, { id: gid(), role: 'assistant', content: `Generated: "${msg}"`, generatedImage: r.image, timestamp: Date.now(), modelName: 'AI Image Gen' }]);
     } catch (e: any) {
-      const errMsg = e?.message || 'Image gen failed';
-      toast.error(errMsg.includes('HTTP') ? 'Session expired. Please sign in again.' : errMsg);
+      const errMsg = e?.message || 'Connection issue';
+      if (errMsg.includes('HTTP') || errMsg.includes('401')) {
+        toast.error('Session expired. Please sign in again.');
+      } else {
+        toast.error('Image generation failed. Try a simpler description.');
+      }
     }
     finally { setImageLoading(false); scroll(); }
   }, [input, imageLoading, scroll]);
@@ -196,8 +217,12 @@ function AIChatPage() {
       const r = await aiApi.scanImage(scanPreview.dataUrl, scanQ || 'Describe this image');
       setMessages(p => [...p, { id: gid(), role: 'assistant', content: r.response || 'Done.', timestamp: Date.now(), modelName: 'Vision AI' }]);
     } catch (e: any) {
-      const errMsg = e?.message || 'Scan failed';
-      toast.error(errMsg.includes('HTTP') ? 'Session expired. Please sign in again.' : errMsg);
+      const errMsg = e?.message || 'Connection issue';
+      if (errMsg.includes('HTTP') || errMsg.includes('401')) {
+        toast.error('Session expired. Please sign in again.');
+      } else {
+        toast.error('Image scan failed. Try a clearer image.');
+      }
     }
     finally { setScanLoading(false); scroll(); }
   }, [scanPreview, scanQ, scanLoading, scroll]);
