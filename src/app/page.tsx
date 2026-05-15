@@ -116,10 +116,10 @@ export default function Home() {
     window.location.reload();
   }, []);
 
-  // ── Server + pre-mount client: render NOTHING ──
+  // ── Server + pre-mount client: show minimal loading shell ──
   // mounted starts as false. hydrate() sets it to true on first client render.
-  // The CSS-only loading overlay provides visual feedback during this brief period.
-  if (!mounted) return null;
+  // The CSS-only loading overlay (in layout.tsx) provides visual feedback.
+  if (!mounted) return <div className="min-h-screen" />;
 
   // ── Client-only after mount: render real UI ──
   if (error) {

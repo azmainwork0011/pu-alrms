@@ -973,18 +973,6 @@ DATABASE_URL="libsql://pu-alrms-username.turso.io?authToken=YOUR_TURSO_AUTH_TOKE
                     </div>
                     <div className="text-xs text-muted-foreground space-y-1">
                       <p>
-                        • <code className="font-mono bg-muted px-1 rounded">NEXT_PUBLIC_FIREBASE_API_KEY</code> — আগে Firebase Setup করে থাকলে
-                      </p>
-                      <p>
-                        • <code className="font-mono bg-muted px-1 rounded">NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN</code> — Firebase auth domain
-                      </p>
-                      <p>
-                        • <code className="font-mono bg-muted px-1 rounded">NEXT_PUBLIC_FIREBASE_PROJECT_ID</code> — Firebase project ID
-                      </p>
-                      <p>
-                        • <code className="font-mono bg-muted px-1 rounded">NEXT_PUBLIC_FIREBASE_APP_ID</code> — Firebase app ID
-                      </p>
-                      <p>
                         • <code className="font-mono bg-muted px-1 rounded">ZAI_TOKEN</code> — AI features চাইলে
                       </p>
                     </div>
@@ -1221,36 +1209,6 @@ npx prisma db seed`}
                   <AccordionContent>
                     <div className="space-y-0 mt-2">
                       <EnvVarRow
-                        variable="NEXT_PUBLIC_FIREBASE_API_KEY"
-                        isPublic
-                        source="Firebase Console → Project Settings → Web App Config"
-                      />
-                      <EnvVarRow
-                        variable="NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN"
-                        isPublic
-                        source="Same Firebase config object → authDomain"
-                      />
-                      <EnvVarRow
-                        variable="NEXT_PUBLIC_FIREBASE_PROJECT_ID"
-                        isPublic
-                        source="Same Firebase config object → projectId"
-                      />
-                      <EnvVarRow
-                        variable="NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET"
-                        isPublic
-                        source="Same Firebase config object → storageBucket"
-                      />
-                      <EnvVarRow
-                        variable="NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID"
-                        isPublic
-                        source="Same Firebase config object → messagingSenderId"
-                      />
-                      <EnvVarRow
-                        variable="NEXT_PUBLIC_FIREBASE_APP_ID"
-                        isPublic
-                        source="Same Firebase config object → appId"
-                      />
-                      <EnvVarRow
                         variable="ZAI_TOKEN"
                         isPublic={false}
                         source="AI chat feature enable করতে (যদি থাকে)"
@@ -1351,27 +1309,6 @@ bun run build`}
                   </AccordionContent>
                 </AccordionItem>
 
-                {/* Issue 4 */}
-                <AccordionItem value="issue-4">
-                  <AccordionTrigger className="text-sm font-medium">
-                    <span className="flex items-center gap-2 text-left">
-                      <XCircle className="size-4 text-red-500 shrink-0" />
-                      Firebase Auth কাজ করছে না
-                    </span>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <div className="space-y-3 mt-2">
-                      <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
-                        <p className="text-xs font-semibold">সমাধান:</p>
-                        <p className="text-xs text-muted-foreground">1. সব NEXT_PUBLIC_FIREBASE_* variables Vercel-এ সেট করেছেন কিনা চেক করুন</p>
-                        <p className="text-xs text-muted-foreground">2. Firebase Console → Authentication → Authorized domains-এ Vercel URL যোগ করুন</p>
-                        <p className="text-xs text-muted-foreground">3. Vercel URL যেমন: <code className="font-mono bg-muted px-1 rounded">your-app.vercel.app</code></p>
-                        <p className="text-xs text-muted-foreground">4. Firebase না চাইলে অ্যাপ Email/Password login ব্যবহার করবে — চিন্তার কিছু নেই!</p>
-                      </div>
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-
                 {/* Issue 5 */}
                 <AccordionItem value="issue-5">
                   <AccordionTrigger className="text-sm font-medium">
@@ -1409,7 +1346,6 @@ bun run build`}
                         <p className="text-xs text-muted-foreground">2. আপনার domain (যেমন: pu-alrms.com) যোগ করুন</p>
                         <p className="text-xs text-muted-foreground">3. DNS settings-এ Vercel দেওয়া records যোগ করুন</p>
                         <p className="text-xs text-muted-foreground">4. SSL সার্টিফিকেট অটোmatic তৈরি হবে (ফ্রি!)</p>
-                        <p className="text-xs text-muted-foreground">5. Firebase Authorized domains-এও কাস্টম domain যোগ করুন</p>
                       </div>
                     </div>
                   </AccordionContent>

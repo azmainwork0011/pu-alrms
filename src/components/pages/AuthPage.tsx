@@ -10,10 +10,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useAppStore } from '@/store/app';
 import { authApi } from '@/lib/api';
-import { useFirebase } from '@/providers/firebase-provider';
 import {
   GraduationCap, BookOpen, Mail, Lock, Eye, EyeOff, Globe, Zap, ArrowRight, Sparkles, UserPlus, KeyRound,
-  Monitor, Shield, ChevronRight, Check, X, AlertCircle, Loader2, Flame,
+  Monitor, Shield, ChevronRight, Check, X, AlertCircle, Loader2,
 } from 'lucide-react';
 import {
   getPasswordStrength, isValidEmail, DevCredit, Shield as ShieldIcon,
@@ -252,15 +251,9 @@ function AuthPage() {
     fetch('/api/auth/seed', { method: 'POST' }).catch(() => {});
   }, []);
 
-  // ── Firebase Google Sign-In ──
-  const { isFirebaseReady, signInWithGoogle, isLoading: fbAuthLoading } = useFirebase();
-  const [fbLoading, setFbLoading] = useState(false);
-
   const [googleOpen, setGoogleOpen] = useState(false);
-  const [firebaseGuideOpen, setFirebaseGuideOpen] = useState(false);
   const [googleForm, setGoogleForm] = useState({ name: '', email: '', role: 'STUDENT' });
   const [googleLoading, setGoogleLoading] = useState(false);
-
   const [tempEmailOpen, setTempEmailOpen] = useState(false);
   const [tempName, setTempName] = useState('');
   const [tempLoading, setTempLoading] = useState(false);
@@ -329,15 +322,6 @@ function AuthPage() {
     } finally {
       setGoogleLoading(false);
     }
-  };
-
-  // Real Firebase Google Sign-In handler
-  const handleFirebaseGoogle = async () => {
-    if (fbLoading) return;
-    setFbLoading(true);
-    try { await signInWithGoogle(); }
-    catch {} // FirebaseProvider handles errors + toast
-    finally { setFbLoading(false); }
   };
 
   const handleTempEmailAuth = async () => {
@@ -765,27 +749,17 @@ function AuthPage() {
                         <Button
                           type="button"
                           variant="outline"
-                          className={`h-11 gap-2 text-xs rounded-xl transition-all duration-200 ${
-                            isFirebaseReady
-                              ? 'border-emerald-500/25 bg-emerald-500/[0.06] text-emerald-300 hover:bg-emerald-500/10 hover:border-emerald-400/50'
-                              : 'border-white/[0.06] bg-white/[0.03] text-slate-400 hover:bg-white/[0.06] hover:text-slate-200 hover:border-white/[0.1]'
-                          }`}
-                          onClick={isFirebaseReady ? handleFirebaseGoogle : () => setGoogleOpen(true)}
-                          disabled={fbLoading || loading}
+                          className="h-11 gap-2 text-xs rounded-xl border-white/[0.06] bg-white/[0.03] text-slate-400 hover:bg-white/[0.06] hover:text-slate-200 hover:border-white/[0.1] transition-all duration-200"
+                          onClick={() => setGoogleOpen(true)}
+                          disabled={loading}
                         >
-                          {(fbLoading || fbAuthLoading) ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : isFirebaseReady ? (
-                            <Flame className="w-4 h-4" />
-                          ) : (
-                            <svg className="w-4 h-4" viewBox="0 0 24 24">
-                              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
-                              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                            </svg>
-                          )}
-                          {isFirebaseReady ? 'Sign in with Google' : 'Google'}
+                          <svg className="w-4 h-4" viewBox="0 0 24 24">
+                            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
+                            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                          </svg>
+                          Google
                         </Button>
 
                         <Button
@@ -875,12 +849,6 @@ function AuthPage() {
             transition={{ delay: 0.4, duration: 0.5 }}
           >
             <DevCredit />
-            <button
-              onClick={() => setFirebaseGuideOpen(true)}
-              className="w-full text-center text-[11px] text-slate-500 hover:text-slate-400 transition-colors cursor-pointer"
-            >
-              🔗 Firebase Setup Guide — Google Firebase সেটআপ করুন
-            </button>
             <p className="text-center text-[11px] text-slate-700">
               PU-ALRMS &copy; 2026 Prime University. All rights reserved.
             </p>
@@ -1053,119 +1021,6 @@ function AuthPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ═══════════════════════════════════════════════════════════ */}
-      {/* Firebase Setup Guide Dialog                                */}
-      {/* ═══════════════════════════════════════════════════════════ */}
-      <Dialog open={firebaseGuideOpen} onOpenChange={setFirebaseGuideOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[85vh] overflow-y-auto rounded-2xl border-white/[0.08]"
-          style={{ background: '#0f1219', boxShadow: '0 24px 48px rgba(0,0,0,0.5)' }}>
-          <DialogHeader>
-            <DialogTitle className="text-white text-lg flex items-center gap-2">
-              🔗 Firebase Setup Guide
-            </DialogTitle>
-            <DialogDescription className="text-slate-500 text-sm">
-              Google Firebase সেটআপ করুন ধাপে ধাপে — PU-ALRMS-এ Google Sign-In চালু করুন
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-5 pt-2 text-slate-300">
-            {/* Step 1 */}
-            <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center justify-center">1</span>
-                <h3 className="text-sm font-semibold text-white">Firebase Project তৈরি করুন</h3>
-              </div>
-              <ol className="text-xs space-y-1.5 ml-8 text-slate-400 list-decimal">
-                <li>যান: <span className="text-emerald-400">console.firebase.google.com</span></li>
-                <li>"Create a project" বা "Add project" ক্লিক করুন</li>
-                <li>Project name: <code className="px-1.5 py-0.5 rounded bg-white/[0.06] text-emerald-300">PU-ALRMS</code></li>
-                <li>Project ID: <code className="px-1.5 py-0.5 rounded bg-white/[0.06] text-emerald-300">pu-alrms</code> (lowercase)</li>
-                <li>Google Analytics — Disable করুন → "Create project"</li>
-              </ol>
-            </div>
-
-            {/* Step 2 */}
-            <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center justify-center">2</span>
-                <h3 className="text-sm font-semibold text-white">Web App রেজিস্টার করুন</h3>
-              </div>
-              <ol className="text-xs space-y-1.5 ml-8 text-slate-400 list-decimal">
-                <li>Project overview-এ <code className="px-1.5 py-0.5 rounded bg-white/[0.06] text-emerald-300">&lt;/&gt;</code> icon ক্লিক করুন</li>
-                <li>App nickname: <code className="px-1.5 py-0.5 rounded bg-white/[0.06] text-emerald-300">pu-alrms-web</code></li>
-                <li>"Also set up Firebase Hosting" — <strong className="text-red-400">UNCHACK</strong> রাখুন</li>
-                <li>"Register app" ক্লিক করুন</li>
-                <li><strong className="text-amber-300">firebaseConfig object কপি করুন</strong> — এটা পরের ধাপে লাগবে!</li>
-              </ol>
-            </div>
-
-            {/* Step 3 */}
-            <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center justify-center">3</span>
-                <h3 className="text-sm font-semibold text-white">Google Authentication চালু করুন</h3>
-              </div>
-              <ol className="text-xs space-y-1.5 ml-8 text-slate-400 list-decimal">
-                <li>যান: <span className="text-emerald-400">Authentication → Sign-in method</span></li>
-                <li><strong className="text-white">"Google"</strong> ক্লিক করুন → <strong className="text-emerald-400">Enable</strong> করুন → Save</li>
-                <li>যান: <span className="text-emerald-400">Authentication → Settings → Authorized domains</span></li>
-                <li><code className="px-1.5 py-0.5 rounded bg-white/[0.06] text-emerald-300">localhost</code> Add করুন</li>
-                <li>Deploy করার পর আপনার domain ও যোগ করবেন</li>
-              </ol>
-            </div>
-
-            {/* Step 4 */}
-            <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center justify-center">4</span>
-                <h3 className="text-sm font-semibold text-white">Environment Variables সেট করুন</h3>
-              </div>
-              <p className="text-xs text-slate-400 ml-8 mb-3">প্রজেক্ট folder-এ <code className="px-1.5 py-0.5 rounded bg-white/[0.06] text-emerald-300">.env.local</code> ফাইল তৈরি করুন:</p>
-              <div className="ml-8 p-3 rounded-lg bg-black/30 border border-white/[0.04] font-mono text-[11px] text-slate-400 space-y-1 overflow-x-auto">
-                <p>NEXT_PUBLIC_FIREBASE_API_KEY=<span className="text-amber-300">"আপনার-api-key"</span></p>
-                <p>NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=<span className="text-amber-300">"pu-alrms.firebaseapp.com"</span></p>
-                <p>NEXT_PUBLIC_FIREBASE_PROJECT_ID=<span className="text-amber-300">"pu-alrms"</span></p>
-                <p>NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=<span className="text-amber-300">"pu-alrms.appspot.com"</span></p>
-                <p>NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=<span className="text-amber-300">"123456789"</span></p>
-                <p>NEXT_PUBLIC_FIREBASE_APP_ID=<span className="text-amber-300">"1:123456789:web:abc"</span></p>
-              </div>
-              <p className="text-[11px] text-amber-400/70 mt-2 ml-8">💡 এই values firebaseConfig object থেকে পাবেন (Step 2 এ কপি করেছিলেন)</p>
-              <div className="mt-2 ml-8 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
-                <p className="text-xs text-emerald-300 font-medium mb-1">⚡ অথবা Auto Setup Script চালান:</p>
-                <code className="text-[11px] text-emerald-400/80">bash setup-firebase.sh</code>
-              </div>
-            </div>
-
-            {/* Step 5 */}
-            <div className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-bold flex items-center justify-center">5</span>
-                <h3 className="text-sm font-semibold text-white">Test করুন ✅</h3>
-              </div>
-              <ol className="text-xs space-y-1.5 ml-8 text-slate-400 list-decimal">
-                <li><code className="px-1.5 py-0.5 rounded bg-white/[0.06] text-emerald-300">bun run dev</code> চালান</li>
-                <li>Browser-এ <code className="px-1.5 py-0.5 rounded bg-white/[0.06] text-emerald-300">localhost:3000</code> যান</li>
-                <li>Login page-এ <strong className="text-white">"Sign in with Google"</strong> button দেখাবে</li>
-                <li>Button ক্লিক করলে Google popup আসবে → Login করুন</li>
-                <li>সফল হলে dashboard-এ redirect হবে! 🎉</li>
-              </ol>
-            </div>
-
-            {/* Warning */}
-            <div className="flex items-start gap-2.5 p-3 rounded-xl" style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.12)' }}>
-              <Shield className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-              <div className="text-xs text-red-300/80 space-y-1">
-                <p className="font-semibold text-red-300">⚠️ গুরুত্বপূর্ণ:</p>
-                <ul className="list-disc ml-3 space-y-0.5">
-                  <li>.env.local কখনো git-এ commit করবেন না</li>
-                  <li>Firebase Private Key client-side code-এ রাখবেন না</li>
-                  <li>Firebase না থাকলেও app কাজ করবে — Email/Password login ব্যবহার করুন</li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
