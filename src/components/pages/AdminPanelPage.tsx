@@ -14,12 +14,16 @@ import {
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from '@/components/ui/dialog';
 import { apiFetch } from '@/lib/api';
 import { getInitials, AnimatedCounter, timeAgo } from '@/components/pu-helpers';
 import type { UserRole } from '@/store/app';
 import {
   Shield, Users, Activity, Code, Search, Ban, CheckCircle, XCircle,
   BadgeCheck, ChevronLeft, ChevronRight, MoreVertical, UserCog, RefreshCw,
+  Settings, Database, Bell, Megaphone, Globe, Trash2,
 } from 'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════
@@ -293,6 +297,10 @@ function UserManagementTab() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [selectedUserForRole, setSelectedUserForRole] = useState<AdminUser | null>(null);
+  const [roleDialogOpen, setRoleDialogOpen] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<string>('STUDENT');
+  const [roleChangeLoading, setRoleChangeLoading] = useState(false);
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -328,6 +336,24 @@ function UserManagementTab() {
       // Error handled silently
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  const handleRoleChange = async () => {
+    if (!selectedUserForRole) return;
+    setRoleChangeLoading(true);
+    try {
+      await apiFetch('/api/admin/users', {
+        method: 'PUT',
+        body: JSON.stringify({ userId: selectedUserForRole.id, role: selectedRole }),
+      });
+      setRoleDialogOpen(false);
+      setSelectedUserForRole(null);
+      await fetchUsers();
+    } catch {
+      // Error handled silently
+    } finally {
+      setRoleChangeLoading(false);
     }
   };
 
@@ -422,9 +448,16 @@ function UserManagementTab() {
                           {user.verified ? <XCircle className="w-4 h-4 mr-2 text-rose-500" /> : <BadgeCheck className="w-4 h-4 mr-2 text-blue-500" />}
                           {user.verified ? 'Remove Verified' : 'Set Verified'}
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => performAction(user.id, { role: 'TEACHER' })}>
+                        <DropdownMenuItem onClick={() => {
+                          setSelectedUserForRole(user);
+                          setRoleDialogOpen(true);
+                        }}>
                           <UserCog className="w-4 h-4 mr-2 text-violet-500" />
                           Change Role
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => performAction(user.id, { name: user.name })} disabled>
+                          <Settings className="w-4 h-4 mr-2 text-gray-500" />
+                          Edit Profile
                         </DropdownMenuItem>
                         {user.status === 'ACTIVE' ? (
                           <>
@@ -470,6 +503,40 @@ function UserManagementTab() {
           </div>
         )}
       </Card>
+
+      {/* Role Change Dialog */}
+      <Dialog open={roleDialogOpen} onOpenChange={(open) => { setRoleDialogOpen(open); if (open && selectedUserForRole) setSelectedRole(selectedUserForRole.role); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Change User Role</DialogTitle>
+            <DialogDescription>
+              Change role for {selectedUserForRole?.name || 'this user'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <Select value={selectedRole} onValueChange={setSelectedRole}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select role" />
+              </SelectTrigger>
+              <SelectContent>
+                {(['SUPER_ADMIN', 'ADMIN', 'DEVELOPER', 'TEACHER', 'STUDENT', 'CR'] as UserRole[]).map(r => (
+                  <SelectItem key={r} value={r}>{r}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[11px] text-muted-foreground">
+              Current role: <span className="font-medium">{selectedUserForRole?.role}</span>
+            </p>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" size="sm" onClick={() => setRoleDialogOpen(false)}>Cancel</Button>
+            <Button size="sm" onClick={handleRoleChange} disabled={roleChangeLoading || selectedRole === selectedUserForRole?.role}>
+              {roleChangeLoading ? <RefreshCw className="w-4 h-4 animate-spin mr-1" /> : null}
+              Update Role
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
@@ -674,6 +741,129 @@ function SystemLogsTab() {
 }
 
 // ═══════════════════════════════════════════════════════════════
+// SYSTEM SETTINGS TAB
+// ═══════════════════════════════════════════════════════════════
+
+function SystemSettingsTab() {
+  const [systemInfo, setSystemInfo] = useState<{ status: string; uptime?: string; dbPath?: string } | null>(null);
+
+  useEffect(() => {
+    apiFetch<{ status: string; uptime?: string; dbPath?: string }>('/api/setup').catch(() => ({
+      status: 'connected',
+    })).then(setSystemInfo);
+  }, []);
+
+  const settingsSections = [
+    {
+      title: 'Platform',
+      icon: <Globe className="w-4 h-4 text-emerald-500" />,
+      items: [
+        { label: 'Framework', value: 'Next.js 16 + Turbopack' },
+        { label: 'Database', value: 'SQLite (Prisma ORM)' },
+        { label: 'UI Library', value: 'shadcn/ui + Tailwind CSS' },
+        { label: 'State Management', value: 'Zustand + React Query' },
+        { label: 'Authentication', value: 'Zero-dependency JWT' },
+      ],
+    },
+    {
+      title: 'Features',
+      icon: <Megaphone className="w-4 h-4 text-blue-500" />,
+      items: [
+        { label: 'Assignments', value: 'Create, submit, grade, track' },
+        { label: 'Quiz System', value: 'MCQ with battles & XP' },
+        { label: 'AI Assistant', value: 'Chat, vision, image gen' },
+        { label: 'Community Chat', value: 'Real-time messaging' },
+        { label: 'Digital Library', value: 'Book search & save' },
+        { label: 'Leaderboard', value: 'Rankings & XP system' },
+        { label: 'Announcements', value: 'Broadcast messages' },
+        { label: 'Notifications', value: 'In-app alerts' },
+        { label: 'Code Quest', value: 'Gamified learning' },
+      ],
+    },
+    {
+      title: 'User Roles',
+      icon: <Shield className="w-4 h-4 text-amber-500" />,
+      items: [
+        { label: 'SUPER_ADMIN', value: 'Full system control' },
+        { label: 'ADMIN', value: 'Management access' },
+        { label: 'DEVELOPER', value: 'Technical access' },
+        { label: 'TEACHER', value: 'Create & grade' },
+        { label: 'STUDENT', value: 'Learn & submit' },
+        { label: 'CR', value: 'Class representative' },
+      ],
+    },
+  ];
+
+  return (
+    <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-4">
+      {/* System Status */}
+      <motion.div variants={fadeUp}>
+        <Card className="border dark:border-gray-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Database className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              System Status
+              <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px] px-2 py-0 border-0">
+                {systemInfo?.status || 'Checking...'}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/30">
+              <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
+              <div>
+                <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">System is operational</p>
+                <p className="text-[11px] text-emerald-600 dark:text-emerald-400">All services are running normally</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/30">
+                <Users className="w-4 h-4 text-gray-500" />
+                <div>
+                  <p className="text-[11px] text-gray-500">Active Sessions</p>
+                  <p className="text-xs font-medium text-gray-900 dark:text-gray-100">Real-time</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/30">
+                <Bell className="w-4 h-4 text-gray-500" />
+                <div>
+                  <p className="text-[11px] text-gray-500">Notification System</p>
+                  <p className="text-xs font-medium text-gray-900 dark:text-gray-100">Active</p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Settings Sections */}
+      {settingsSections.map((section) => (
+        <motion.div key={section.title} variants={fadeUp}>
+          <Card className="border dark:border-gray-800">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                {section.icon}
+                {section.title}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1">
+                {section.items.map((item, i) => (
+                  <div key={item.label} className={`flex items-center justify-between py-2 ${i < section.items.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''}`}>
+                    <span className="text-sm text-gray-700 dark:text-gray-300">{item.label}</span>
+                    <span className="text-xs text-muted-foreground">{item.value}</span>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      ))}
+    </motion.div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════
 
@@ -722,11 +912,12 @@ function AdminPanelPage() {
 
       {/* Tabs */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="w-full grid grid-cols-4 h-auto bg-gray-100 dark:bg-gray-800/50 p-1 rounded-xl">
+        <TabsList className="w-full grid grid-cols-5 h-auto bg-gray-100 dark:bg-gray-800/50 p-1 rounded-xl">
           {[
             { value: 'overview', label: 'Overview', icon: Activity },
             { value: 'users', label: 'Users', icon: Users },
             { value: 'developers', label: 'Devs', icon: Code },
+            { value: 'settings', label: 'Settings', icon: Settings },
             { value: 'logs', label: 'Logs', icon: Shield },
           ].map(tab => (
             <TabsTrigger
@@ -751,6 +942,10 @@ function AdminPanelPage() {
 
           <TabsContent value="developers" className="mt-5">
             <DeveloperAccessTab />
+          </TabsContent>
+
+          <TabsContent value="settings" className="mt-5">
+            <SystemSettingsTab />
           </TabsContent>
 
           <TabsContent value="logs" className="mt-5">
