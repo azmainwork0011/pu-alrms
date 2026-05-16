@@ -28,6 +28,8 @@ export async function GET(req: NextRequest) {
         recentAnnouncements,
         allAssignments,
         allSubjects,
+        submittedAssignmentIds,
+        weeklySubs,
       ] = await Promise.all([
         // Pending assignments count
         db.assignment.count({
@@ -86,38 +88,39 @@ export async function GET(req: NextRequest) {
         // All active assignments for completion tracking
         db.assignment.findMany({
           where: { status: 'ACTIVE' },
-          include: { subject: { select: { name: true, code: true } } },
+          select: { id: true, subjectId: true },
         }),
 
-        // All subjects
+        // All subjects with counts
         db.subject.findMany({
           include: {
             _count: { select: { assignments: true } },
             teacher: { select: { name: true } },
           },
         }),
+
+        // Submitted assignment IDs (single query)
+        db.submission.findMany({
+          where: { studentId: payload.userId },
+          select: { assignmentId: true },
+        }),
+
+        // Weekly performance (last 6 weeks) - single query
+        db.submission.findMany({
+          where: {
+            studentId: payload.userId,
+            submittedAt: { gte: new Date(Date.now() - 6 * 7 * 24 * 60 * 60 * 1000) },
+            status: 'GRADED',
+            marks: { not: null },
+          },
+          select: { marks: true, submittedAt: true },
+          orderBy: { submittedAt: 'asc' },
+        }),
       ]);
 
-      // Submission rate per subject
-      const submittedAssignmentIds = (await db.submission.findMany({
-        where: { studentId: payload.userId },
-        select: { assignmentId: true },
-      })).map(s => s.assignmentId);
+      const submittedIds = submittedAssignmentIds.map(s => s.assignmentId);
 
-      // Weekly performance data (last 6 weeks)
-      const sixWeeksAgo = new Date(Date.now() - 6 * 7 * 24 * 60 * 60 * 1000);
-      const weeklySubs = await db.submission.findMany({
-        where: {
-          studentId: payload.userId,
-          submittedAt: { gte: sixWeeksAgo },
-          status: 'GRADED',
-          marks: { not: null },
-        },
-        select: { marks: true, submittedAt: true },
-        orderBy: { submittedAt: 'asc' },
-      });
-
-      // Group by week
+      // Group by week (pure computation, no DB)
       const weeklyData: { week: string; avgMarks: number; count: number }[] = [];
       for (let i = 5; i >= 0; i--) {
         const weekStart = new Date(Date.now() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
@@ -134,20 +137,42 @@ export async function GET(req: NextRequest) {
         });
       }
 
-      // Subject performance breakdown
-      const subjectPerf = await Promise.all(
-        allSubjects.map(async (subj) => {
-          const subjAssignments = allAssignments.filter(a => a.subjectId === subj.id && a.status === 'ACTIVE');
-          const total = subjAssignments.length;
-          const submitted = subjAssignments.filter(a => submittedAssignmentIds.includes(a.id)).length;
-          const gradedSubs = await db.submission.findMany({
-            where: { studentId: payload.userId, assignment: { subjectId: subj.id }, status: 'GRADED', marks: { not: null } },
-            select: { marks: true },
-          });
-          const avg = gradedSubs.length > 0 ? Math.round(gradedSubs.reduce((a, b) => a + (b.marks || 0), 0) / gradedSubs.length * 10) / 10 : 0;
-          return { id: subj.id, name: subj.name, code: subj.code, teacher: subj.teacher.name, total, submitted, avg };
-        })
-      );
+      // Subject performance — single aggregated query instead of N+1
+      const assignmentIdsBySubject = new Map<string, string[]>();
+      for (const a of allAssignments) {
+        const ids = assignmentIdsBySubject.get(a.subjectId) || [];
+        ids.push(a.id);
+        assignmentIdsBySubject.set(a.subjectId, ids);
+      }
+
+      // Batch grade query: all graded submissions for this student, grouped by subject via assignment
+      const allGradedForStudent = await db.submission.findMany({
+        where: {
+          studentId: payload.userId,
+          status: 'GRADED',
+          marks: { not: null },
+          assignment: { subjectId: { in: allSubjects.map(s => s.id) } },
+        },
+        select: { marks: true, assignment: { select: { subjectId: true } } },
+      });
+
+      // Group grades by subjectId
+      const gradesBySubject = new Map<string, number[]>();
+      for (const s of allGradedForStudent) {
+        const sid = s.assignment.subjectId;
+        const grades = gradesBySubject.get(sid) || [];
+        grades.push(s.marks || 0);
+        gradesBySubject.set(sid, grades);
+      }
+
+      // Build subjectPerf without N+1 queries
+      const subjectPerf = allSubjects.map(subj => {
+        const total = assignmentIdsBySubject.get(subj.id)?.length || 0;
+        const submitted = assignmentIdsBySubject.get(subj.id)?.filter(id => submittedIds.includes(id)).length || 0;
+        const grades = gradesBySubject.get(subj.id) || [];
+        const avg = grades.length > 0 ? Math.round(grades.reduce((a, b) => a + b, 0) / grades.length * 10) / 10 : 0;
+        return { id: subj.id, name: subj.name, code: subj.code, teacher: subj.teacher.name, total, submitted, avg };
+      });
 
       return NextResponse.json({
         pendingAssignments,
@@ -164,7 +189,7 @@ export async function GET(req: NextRequest) {
         subjectPerformance: subjectPerf,
         totalSubjects: allSubjects.length,
         completionRate: allAssignments.length > 0
-          ? Math.round(submittedAssignmentIds.length / allAssignments.length * 100)
+          ? Math.round(submittedIds.length / allAssignments.length * 100)
           : 0,
       });
     }
@@ -183,21 +208,16 @@ export async function GET(req: NextRequest) {
         submissionTrend,
       ] = await Promise.all([
         db.assignment.count({ where: { createdBy: payload.userId } }),
-
         db.submission.count({ where: { assignment: { createdBy: payload.userId } } }),
-
         db.submission.count({
           where: { assignment: { createdBy: payload.userId }, status: { in: ['SUBMITTED', 'LATE'] } },
         }),
-
         db.submission.aggregate({
           where: { assignment: { createdBy: payload.userId }, status: 'GRADED', marks: { not: null } },
           _avg: { marks: true },
           _count: true,
           _max: { marks: true },
         }),
-
-        // Recent ungraded submissions
         db.submission.findMany({
           where: { assignment: { createdBy: payload.userId }, status: { in: ['SUBMITTED', 'LATE'] } },
           include: {
@@ -207,28 +227,21 @@ export async function GET(req: NextRequest) {
           orderBy: { submittedAt: 'desc' },
           take: 5,
         }),
-
-        // Recent assignments created
         db.assignment.findMany({
           where: { createdBy: payload.userId },
           include: { subject: { select: { name: true, code: true } }, _count: { select: { submissions: true } } },
           orderBy: { createdAt: 'desc' },
           take: 5,
         }),
-
         db.announcement.findMany({
           orderBy: { createdAt: 'desc' },
           take: 3,
           include: { creator: { select: { name: true } } },
         }),
-
-        // Teacher's subjects
         db.subject.findMany({
           where: { teacherId: payload.userId },
           include: { _count: { select: { assignments: true } } },
         }),
-
-        // Submission trend (last 6 weeks)
         db.submission.findMany({
           where: { assignment: { createdBy: payload.userId }, submittedAt: { gte: new Date(Date.now() - 6 * 7 * 24 * 60 * 60 * 1000) } },
           select: { submittedAt: true, status: true },
@@ -236,7 +249,6 @@ export async function GET(req: NextRequest) {
         }),
       ]);
 
-      // Weekly submission trend
       const weeklyData: { week: string; submitted: number; graded: number }[] = [];
       for (let i = 5; i >= 0; i--) {
         const weekStart = new Date(Date.now() - (i + 1) * 7 * 24 * 60 * 60 * 1000);
@@ -305,7 +317,6 @@ export async function GET(req: NextRequest) {
           select: { submittedAt: true, status: true },
           orderBy: { submittedAt: 'asc' },
         }),
-        // Top 5 students by average grade
         db.user.findMany({
           where: { role: 'STUDENT' },
           take: 30,
@@ -330,7 +341,6 @@ export async function GET(req: NextRequest) {
         db.submission.count({ where: { status: { in: ['SUBMITTED', 'LATE'] } } }),
       ]);
 
-      // Weekly trend
       const weeklyData: { week: string; total: number; graded: number }[] = [];
       for (let i = 5; i >= 0; i--) {
         const weekStart = new Date(Date.now() - (i + 1) * 7 * 24 * 60 * 60 * 1000);

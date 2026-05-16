@@ -4,7 +4,7 @@
  * Custom React Query hooks for all API endpoints.
  *
  * Benefits over raw apiFetch calls:
- * ✅ Automatic caching (30s staleTime, 5min gcTime)
+ * ✅ Smart caching (60s staleTime, 5min gcTime)
  * ✅ Request deduplication (same query = single request)
  * ✅ Automatic retry with exponential backoff (network/5xx errors)
  * ✅ Background refetch on window focus
@@ -34,26 +34,28 @@ import {
 import { queryKeys } from '@/lib/query-client';
 
 // ═══════════════════════════════════════════════════════════════
-// DASHBOARD
+// DASHBOARD — cached 60s (main landing page)
 // ═══════════════════════════════════════════════════════════════
 
 export function useDashboard() {
   return useQuery({
     queryKey: queryKeys.dashboard.stats,
     queryFn: () => dashboardApi.getStats(),
-    staleTime: 60_000, // Cache for 1 minute to reduce loading
-    gcTime: 5 * 60_000, // Keep in cache for 5 minutes
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
   });
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ASSIGNMENTS
+// ASSIGNMENTS — cached 30s
 // ═══════════════════════════════════════════════════════════════
 
 export function useAssignments(params?: Record<string, string>) {
   return useQuery({
     queryKey: queryKeys.assignments.lists(params),
     queryFn: () => assignmentApi.list(params),
+    staleTime: 30_000,
+    gcTime: 2 * 60_000,
   });
 }
 
@@ -61,7 +63,8 @@ export function useAssignment(id: string | null) {
   return useQuery({
     queryKey: queryKeys.assignments.detail(id || ''),
     queryFn: () => assignmentApi.get(id!),
-    enabled: !!id, // Don't fetch until we have an ID
+    enabled: !!id,
+    staleTime: 30_000,
   });
 }
 
@@ -94,11 +97,8 @@ export function useDeleteAssignment() {
   return useMutation({
     mutationFn: assignmentApi.delete,
     onMutate: async (id) => {
-      // Cancel outgoing refetches
       await qc.cancelQueries({ queryKey: queryKeys.assignments.all });
-      // Snapshot current data
       const snapshot = qc.getQueryData<any[]>(queryKeys.assignments.lists());
-      // Optimistically remove from list
       qc.setQueryData(
         queryKeys.assignments.lists(),
         snapshot?.filter((a: any) => a.id !== id) ?? [],
@@ -106,7 +106,6 @@ export function useDeleteAssignment() {
       return { snapshot };
     },
     onError: (_err, _id, context) => {
-      // Rollback on error
       if (context?.snapshot) {
         qc.setQueryData(queryKeys.assignments.lists(), context.snapshot);
       }
@@ -121,13 +120,15 @@ export function useDeleteAssignment() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SUBMISSIONS
+// SUBMISSIONS — cached 30s
 // ═══════════════════════════════════════════════════════════════
 
 export function useSubmissions(params?: Record<string, string>) {
   return useQuery({
     queryKey: queryKeys.submissions.lists(params),
     queryFn: () => submissionApi.list(params),
+    staleTime: 30_000,
+    gcTime: 2 * 60_000,
   });
 }
 
@@ -157,14 +158,15 @@ export function useGradeSubmission() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// SUBJECTS
+// SUBJECTS — cached 60s (rarely changes)
 // ═══════════════════════════════════════════════════════════════
 
 export function useSubjects() {
   return useQuery({
     queryKey: queryKeys.subjects.all,
     queryFn: () => subjectApi.list(),
-    staleTime: 60_000, // Subjects don't change often — cache for 1min
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
   });
 }
 
@@ -180,7 +182,7 @@ export function useCreateSubject() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// BATCHES
+// BATCHES — cached 60s (rarely changes)
 // ═══════════════════════════════════════════════════════════════
 
 export function useBatches() {
@@ -188,18 +190,20 @@ export function useBatches() {
     queryKey: queryKeys.batches.all,
     queryFn: () => batchApi.list(),
     staleTime: 60_000,
+    gcTime: 5 * 60_000,
   });
 }
 
 // ═══════════════════════════════════════════════════════════════
-// NOTIFICATIONS
+// NOTIFICATIONS — cached 15s (should be fresh)
 // ═══════════════════════════════════════════════════════════════
 
 export function useNotifications() {
   return useQuery({
     queryKey: queryKeys.notifications.all,
     queryFn: () => notificationApi.list(),
-    staleTime: 10_000, // Notifications should be fairly fresh
+    staleTime: 15_000,
+    gcTime: 2 * 60_000,
   });
 }
 
@@ -214,25 +218,28 @@ export function useMarkNotificationRead() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// LEADERBOARD
+// LEADERBOARD — cached 60s (updates infrequently)
 // ═══════════════════════════════════════════════════════════════
 
 export function useLeaderboard() {
   return useQuery({
     queryKey: queryKeys.leaderboard.all,
     queryFn: () => leaderboardApi.get(),
-    staleTime: 60_000, // Leaderboard updates are not urgent
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
   });
 }
 
 // ═══════════════════════════════════════════════════════════════
-// ANNOUNCEMENTS
+// ANNOUNCEMENTS — cached 30s
 // ═══════════════════════════════════════════════════════════════
 
 export function useAnnouncements(params?: Record<string, string>) {
   return useQuery({
     queryKey: queryKeys.announcements.lists(params),
     queryFn: () => announcementApi.list(params),
+    staleTime: 30_000,
+    gcTime: 2 * 60_000,
   });
 }
 
@@ -241,6 +248,7 @@ export function useAnnouncement(id: string | null) {
     queryKey: queryKeys.announcements.detail(id || ''),
     queryFn: () => announcementApi.get(id!),
     enabled: !!id,
+    staleTime: 30_000,
   });
 }
 
@@ -335,6 +343,7 @@ export function useSavedBooks() {
   return useQuery({
     queryKey: queryKeys.books.saved,
     queryFn: () => booksApi.getSaved(),
+    staleTime: 30_000,
   });
 }
 
@@ -368,6 +377,7 @@ export function useQuizProfile() {
   return useQuery({
     queryKey: queryKeys.quiz.profile,
     queryFn: () => quizApi.getProfile(),
+    staleTime: 30_000,
   });
 }
 
@@ -400,14 +410,14 @@ export function useSubmitQuizAttempt() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// AUTH (mutations only — profile handled via Zustand)
+// AUTH
 // ═══════════════════════════════════════════════════════════════
 
 export function useAuthProfile() {
   return useQuery({
     queryKey: queryKeys.auth.profile,
     queryFn: () => authApi.getProfile(),
-    staleTime: 2 * 60_000, // 2 min — profile doesn't change often
+    staleTime: 2 * 60_000,
     meta: { suppressToast: true },
   });
 }
@@ -416,10 +426,6 @@ export function useAuthProfile() {
 // UTILITY HOOKS
 // ═══════════════════════════════════════════════════════════════
 
-/**
- * Generic mutation hook for simple POST/PUT/DELETE operations
- * where you don't need a domain-specific hook.
- */
 export function useApiMutation<TData = any, TVariables = any>(
   endpoint: string,
   options?: {
@@ -438,11 +444,9 @@ export function useApiMutation<TData = any, TVariables = any>(
         body: JSON.stringify(variables),
       }),
     onSuccess: (data) => {
-      // Invalidate any specified query keys
       options?.invalidateKeys?.forEach((key) => {
         qc.invalidateQueries({ queryKey: key as any });
       });
-      // Show success toast
       if (options?.successMessage) {
         toast.success(options.successMessage);
       }
@@ -450,11 +454,10 @@ export function useApiMutation<TData = any, TVariables = any>(
     },
     onError: (error) => {
       if (error instanceof ApiError && error.status >= 400 && error.status < 500) {
-        // Don't double-toast 4xx errors (the component handles these)
         return;
       }
       options?.onError?.(error);
     },
-    meta: { suppressToast: true }, // We handle toasts here
+    meta: { suppressToast: true },
   });
 }

@@ -11,8 +11,8 @@ const API_BASE = '';
 const DEFAULT_TIMEOUT = 30000; // 30s for complex queries
 const AUTH_TIMEOUT = 20000;
 const UPLOAD_TIMEOUT = 60000; // 60s for uploads
-const MAX_RETRIES = 2;
-const RETRY_DELAY_MS = 1000;
+const MAX_RETRIES = 1; // Reduced from 2 — fail fast for better UX
+const RETRY_DELAY_MS = 500; // Reduced from 1000 — quicker retry
 
 // Auth endpoints where 401 means "wrong credentials" (not expired session)
 const AUTH_ENDPOINTS = ['/api/auth/login', '/api/auth/register'];
@@ -305,9 +305,11 @@ export const authApi = {
 };
 
 export const assignmentApi = {
-  list: (params?: Record<string, string>) => {
+  list: async (params?: Record<string, string>) => {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
-    return apiFetch<any[]>('/api/assignments' + query);
+    const data = await apiFetch<any>('/api/assignments' + query);
+    // Handle both paginated { assignments, total } and legacy array format
+    return Array.isArray(data) ? data : (data?.assignments || []);
   },
   get: (id: string) =>
     apiFetch<any>(`/api/assignments/${id}`),
@@ -328,9 +330,11 @@ export const assignmentApi = {
 };
 
 export const submissionApi = {
-  list: (params?: Record<string, string>) => {
+  list: async (params?: Record<string, string>) => {
     const query = params ? '?' + new URLSearchParams(params).toString() : '';
-    return apiFetch<any[]>('/api/submissions' + query);
+    const data = await apiFetch<any>('/api/submissions' + query);
+    // Handle both paginated { submissions, total } and legacy array format
+    return Array.isArray(data) ? data : (data?.submissions || []);
   },
   create: (data: { assignmentId: string; fileName: string; fileUrl?: string }) =>
     apiFetch<any>('/api/submissions', {

@@ -19,6 +19,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const assignmentId = searchParams.get('assignmentId');
     const studentId = searchParams.get('studentId');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
+    const offset = parseInt(searchParams.get('offset') || '0');
 
     const where: Record<string, unknown> = {};
 
@@ -31,24 +33,29 @@ export async function GET(req: NextRequest) {
       where.studentId = studentId;
     }
 
-    const submissions = await db.submission.findMany({
-      where,
-      include: {
-        assignment: {
-          include: {
-            subject: {
-              select: { id: true, name: true, code: true },
+    const [submissions, total] = await Promise.all([
+      db.submission.findMany({
+        where,
+        include: {
+          assignment: {
+            include: {
+              subject: {
+                select: { id: true, name: true, code: true },
+              },
             },
           },
+          student: {
+            select: { id: true, name: true, email: true, avatar: true },
+          },
         },
-        student: {
-          select: { id: true, name: true, email: true, avatar: true },
-        },
-      },
-      orderBy: { submittedAt: 'desc' },
-    });
+        orderBy: { submittedAt: 'desc' },
+        take: limit,
+        skip: offset,
+      }),
+      db.submission.count({ where }),
+    ]);
 
-    return NextResponse.json(submissions);
+    return NextResponse.json({ submissions, total });
   } catch (error) {
     console.error('Get submissions error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -72,7 +79,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Assignment ID and file name are required' }, { status: 400 });
     }
 
-    // Check if assignment exists and is active
     const assignment = await db.assignment.findUnique({
       where: { id: assignmentId },
     });
@@ -85,7 +91,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Assignment is no longer accepting submissions' }, { status: 400 });
     }
 
-    // Check if already submitted
     const existingSubmission = await db.submission.findFirst({
       where: {
         assignmentId,
@@ -97,7 +102,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'You have already submitted this assignment' }, { status: 409 });
     }
 
-    // Check if deadline passed
     const isLate = new Date() > new Date(assignment.deadline);
 
     const submission = await db.submission.create({
@@ -122,7 +126,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Create notification for the teacher who created the assignment
     await db.notification.create({
       data: {
         userId: assignment.createdBy,
