@@ -15,7 +15,7 @@ const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
 
 // Auth endpoints where 401 means "wrong credentials" (not expired session)
-const AUTH_ENDPOINTS = ['/api/auth/login', '/api/auth/register', '/api/auth/temp-email', '/api/auth/google'];
+const AUTH_ENDPOINTS = ['/api/auth/login', '/api/auth/register'];
 
 // Endpoints that should NOT be retried (mutations, uploads)
 const NO_RETRY_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
@@ -324,21 +324,6 @@ export const authApi = {
       return res.json() as Promise<{ success: boolean; url: string }>;
     });
   },
-
-  googleAuth: (data: { name: string; email: string; avatar?: string; role?: string }) =>
-    apiFetch<{ token: string; user: any; isExisting: boolean }>('/api/auth/google', {
-      method: 'POST',
-      body: JSON.stringify(data),
-      timeout: AUTH_TIMEOUT,
-    }),
-
-  tempEmailAuth: (name?: string) =>
-    apiFetch<{ token: string; user: any; tempEmail: string }>('/api/auth/temp-email', {
-      method: 'POST',
-      body: JSON.stringify({ name }),
-      timeout: AUTH_TIMEOUT,
-      noAuth: true,
-    }),
 
 };
 

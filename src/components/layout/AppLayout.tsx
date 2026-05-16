@@ -15,7 +15,7 @@ import {
   LogOut, Menu, GraduationCap, Moon, Sun, BookOpen, Swords,
   Shield, BadgeCheck, Settings,
 } from 'lucide-react';
-import { getInitials, PageTransition, DevCredit } from '@/components/pu-helpers';
+import { getInitials, PageTransition } from '@/components/pu-helpers';
 
 // ─── Page Components ─────────────────────────────────────
 import DashboardPage from '@/components/pages/DashboardPage';
@@ -82,33 +82,37 @@ function SidebarNav({ onNavigate, compact = false }: { onNavigate: (page: PageVi
     return true;
   });
 
-  let currentSection = '';
+  const sections = filtered.map(item => item.section).filter(Boolean);
+  const uniqueSections = [...new Set(sections)];
 
   return (
     <nav className="flex flex-col py-2 flex-1" role="navigation" aria-label="Main navigation">
-      {filtered.map((item) => {
-        const Icon = item.icon;
-        const showSectionLabel = item.section && item.section !== currentSection;
-        if (item.section) currentSection = item.section;
-        const isActive = currentPage === item.page;
-
+      {uniqueSections.map((section) => {
+        const sectionItems = filtered.filter(item => item.section === section);
         return (
-          <React.Fragment key={item.page}>
-            {showSectionLabel && !compact && <SectionLabel label={item.section!} />}
-            <Button
-              variant="ghost"
-              className={`
-                mx-2 h-9 justify-start gap-3 rounded-lg px-3 text-sm font-normal transition-all duration-200
-                ${isActive
-                  ? 'bg-primary/10 text-primary font-medium shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-                }
-              `}
-              onClick={() => onNavigate(item.page)}
-            >
-              <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-primary' : ''}`} />
-              <span className="truncate">{item.label}</span>
-            </Button>
+          <React.Fragment key={section}>
+            {!compact && <SectionLabel label={section} />}
+            {sectionItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = currentPage === item.page;
+              return (
+                <Button
+                  key={item.page}
+                  variant="ghost"
+                  className={`
+                    mx-2 h-9 justify-start gap-3 rounded-lg px-3 text-sm font-normal transition-all duration-200
+                    ${isActive
+                      ? 'bg-primary/10 text-primary font-medium shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                    }
+                  `}
+                  onClick={() => onNavigate(item.page)}
+                >
+                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-primary' : ''}`} />
+                  <span className="truncate">{item.label}</span>
+                </Button>
+              );
+            })}
           </React.Fragment>
         );
       })}
@@ -158,7 +162,6 @@ function MobileSidebar() {
               <LogOut className="w-4 h-4" />
             </Button>
           </div>
-          <DevCredit />
         </div>
       </SheetContent>
     </Sheet>
@@ -279,7 +282,6 @@ export default function AppLayout() {
 
         {/* Footer */}
         <div className="p-3 border-t">
-          <DevCredit />
         </div>
       </aside>
 

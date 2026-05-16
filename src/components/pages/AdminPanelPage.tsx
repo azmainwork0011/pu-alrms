@@ -18,6 +18,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/components/ui/dialog';
 import { apiFetch } from '@/lib/api';
+import { toast } from 'sonner';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { getInitials, AnimatedCounter, timeAgo } from '@/components/pu-helpers';
 import type { UserRole } from '@/store/app';
 import {
@@ -745,90 +748,126 @@ function SystemLogsTab() {
 // ═══════════════════════════════════════════════════════════════
 
 function SystemSettingsTab() {
-  const [systemInfo, setSystemInfo] = useState<{ status: string; uptime?: string; dbPath?: string } | null>(null);
+  // Database connection status
+  const [dbConnected, setDbConnected] = useState<boolean | null>(null);
+  const [seeding, setSeeding] = useState(false);
 
+  // Quick stats
+  const [quickStats, setQuickStats] = useState<{ totalAssignments: number; totalSubmissions: number } | null>(null);
+
+  // Announcement form
+  const [annTitle, setAnnTitle] = useState('');
+  const [annMessage, setAnnMessage] = useState('');
+  const [annType, setAnnType] = useState('GENERAL');
+  const [annPriority, setAnnPriority] = useState('NORMAL');
+  const [annSubmitting, setAnnSubmitting] = useState(false);
+
+  // Check DB connection on mount
   useEffect(() => {
-    apiFetch<{ status: string; uptime?: string; dbPath?: string }>('/api/setup').catch(() => ({
-      status: 'connected',
-    })).then(setSystemInfo);
+    apiFetch<{ status: string }>('/api/setup')
+      .then(() => setDbConnected(true))
+      .catch(() => setDbConnected(false));
   }, []);
 
-  const settingsSections = [
-    {
-      title: 'Platform',
-      icon: <Globe className="w-4 h-4 text-emerald-500" />,
-      items: [
-        { label: 'Framework', value: 'Next.js 16 + Turbopack' },
-        { label: 'Database', value: 'SQLite (Prisma ORM)' },
-        { label: 'UI Library', value: 'shadcn/ui + Tailwind CSS' },
-        { label: 'State Management', value: 'Zustand + React Query' },
-        { label: 'Authentication', value: 'Zero-dependency JWT' },
-      ],
-    },
-    {
-      title: 'Features',
-      icon: <Megaphone className="w-4 h-4 text-blue-500" />,
-      items: [
-        { label: 'Assignments', value: 'Create, submit, grade, track' },
-        { label: 'Quiz System', value: 'MCQ with battles & XP' },
-        { label: 'AI Assistant', value: 'Chat, vision, image gen' },
-        { label: 'Community Chat', value: 'Real-time messaging' },
-        { label: 'Digital Library', value: 'Book search & save' },
-        { label: 'Leaderboard', value: 'Rankings & XP system' },
-        { label: 'Announcements', value: 'Broadcast messages' },
-        { label: 'Notifications', value: 'In-app alerts' },
-        { label: 'Code Quest', value: 'Gamified learning' },
-      ],
-    },
-    {
-      title: 'User Roles',
-      icon: <Shield className="w-4 h-4 text-amber-500" />,
-      items: [
-        { label: 'SUPER_ADMIN', value: 'Full system control' },
-        { label: 'ADMIN', value: 'Management access' },
-        { label: 'DEVELOPER', value: 'Technical access' },
-        { label: 'TEACHER', value: 'Create & grade' },
-        { label: 'STUDENT', value: 'Learn & submit' },
-        { label: 'CR', value: 'Class representative' },
-      ],
-    },
-  ];
+  // Fetch quick stats
+  useEffect(() => {
+    apiFetch<{ totalAssignments: number; totalSubmissions: number }>('/api/admin/stats')
+      .then(data => setQuickStats({
+        totalAssignments: (data as any)?.totalAssignments ?? 0,
+        totalSubmissions: (data as any)?.totalSubmissions ?? 0,
+      }))
+      .catch(() => setQuickStats({ totalAssignments: 0, totalSubmissions: 0 }));
+  }, []);
+
+  const handleReseed = async () => {
+    setSeeding(true);
+    try {
+      await apiFetch('/api/auth/seed', { method: 'POST' });
+      toast.success('Demo data reseeded successfully');
+    } catch {
+      toast.error('Failed to reseed demo data');
+    } finally {
+      setSeeding(false);
+    }
+  };
+
+  const handleCreateAnnouncement = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!annTitle.trim() || !annMessage.trim()) {
+      toast.error('Title and message are required');
+      return;
+    }
+    setAnnSubmitting(true);
+    try {
+      await apiFetch('/api/announcements', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: annTitle.trim(),
+          message: annMessage.trim(),
+          type: annType,
+          priority: annPriority,
+        }),
+      });
+      toast.success('Announcement created successfully');
+      setAnnTitle('');
+      setAnnMessage('');
+      setAnnType('GENERAL');
+      setAnnPriority('NORMAL');
+    } catch {
+      toast.error('Failed to create announcement');
+    } finally {
+      setAnnSubmitting(false);
+    }
+  };
 
   return (
     <motion.div variants={stagger} initial="hidden" animate="visible" className="space-y-4">
-      {/* System Status */}
+      {/* System Status — Simplified */}
+      <motion.div variants={fadeUp}>
+        <Card className="border dark:border-gray-800">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
+              <span className="text-sm font-medium text-gray-900 dark:text-gray-100">System Operational</span>
+              <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px] px-2 py-0 border-0">
+                Healthy
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Quick Stats */}
       <motion.div variants={fadeUp}>
         <Card className="border dark:border-gray-800">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <Database className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-              System Status
-              <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px] px-2 py-0 border-0">
-                {systemInfo?.status || 'Checking...'}
-              </Badge>
+              <Activity className="w-4 h-4 text-cyan-600 dark:text-cyan-400" />
+              Quick Stats
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/30">
-              <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0" />
-              <div>
-                <p className="text-sm font-medium text-emerald-800 dark:text-emerald-300">System is operational</p>
-                <p className="text-[11px] text-emerald-600 dark:text-emerald-400">All services are running normally</p>
-              </div>
-            </div>
+          <CardContent>
             <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/30">
-                <Users className="w-4 h-4 text-gray-500" />
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/30">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-violet-500 to-purple-500 text-white">
+                  <Trash2 className="w-4 h-4" />
+                </div>
                 <div>
-                  <p className="text-[11px] text-gray-500">Active Sessions</p>
-                  <p className="text-xs font-medium text-gray-900 dark:text-gray-100">Real-time</p>
+                  <p className="text-[11px] text-gray-500">Total Assignments</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                    {quickStats?.totalAssignments ?? '—'}
+                  </p>
                 </div>
               </div>
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/30">
-                <Bell className="w-4 h-4 text-gray-500" />
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/30">
+                <div className="p-2 rounded-lg bg-gradient-to-br from-cyan-500 to-teal-500 text-white">
+                  <CheckCircle className="w-4 h-4" />
+                </div>
                 <div>
-                  <p className="text-[11px] text-gray-500">Notification System</p>
-                  <p className="text-xs font-medium text-gray-900 dark:text-gray-100">Active</p>
+                  <p className="text-[11px] text-gray-500">Total Submissions</p>
+                  <p className="text-lg font-bold text-gray-900 dark:text-gray-100">
+                    {quickStats?.totalSubmissions ?? '—'}
+                  </p>
                 </div>
               </div>
             </div>
@@ -836,29 +875,102 @@ function SystemSettingsTab() {
         </Card>
       </motion.div>
 
-      {/* Settings Sections */}
-      {settingsSections.map((section) => (
-        <motion.div key={section.title} variants={fadeUp}>
-          <Card className="border dark:border-gray-800">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                {section.icon}
-                {section.title}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-1">
-                {section.items.map((item, i) => (
-                  <div key={item.label} className={`flex items-center justify-between py-2 ${i < section.items.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''}`}>
-                    <span className="text-sm text-gray-700 dark:text-gray-300">{item.label}</span>
-                    <span className="text-xs text-muted-foreground">{item.value}</span>
-                  </div>
-                ))}
+      {/* Database Actions */}
+      <motion.div variants={fadeUp}>
+        <Card className="border dark:border-gray-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Database className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              Database Actions
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-700 dark:text-gray-300">Connection Status</span>
+                <Badge className={`${dbConnected === true ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : dbConnected === false ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' : 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400'} text-[10px] px-2 py-0 border-0`}>
+                  {dbConnected === true ? 'Connected' : dbConnected === false ? 'Disconnected' : 'Checking...'}
+                </Badge>
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      ))}
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 text-xs"
+                disabled={seeding}
+                onClick={handleReseed}
+              >
+                {seeding && <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1" />}
+                Reseed Demo Data
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Announcement Management */}
+      <motion.div variants={fadeUp}>
+        <Card className="border dark:border-gray-800">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <Megaphone className="w-4 h-4 text-blue-500" />
+              Create Announcement
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleCreateAnnouncement} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="ann-title" className="text-xs">Title</Label>
+                <Input
+                  id="ann-title"
+                  placeholder="Announcement title..."
+                  value={annTitle}
+                  onChange={e => setAnnTitle(e.target.value)}
+                  className="h-9"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="ann-message" className="text-xs">Message</Label>
+                <Textarea
+                  id="ann-message"
+                  placeholder="Write your announcement..."
+                  value={annMessage}
+                  onChange={e => setAnnMessage(e.target.value)}
+                  rows={3}
+                  className="resize-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label className="text-xs">Type</Label>
+                  <Select value={annType} onValueChange={setAnnType}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="GENERAL">General</SelectItem>
+                      <SelectItem value="URGENT">Urgent</SelectItem>
+                      <SelectItem value="INFO">Info</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Priority</Label>
+                  <Select value={annPriority} onValueChange={setAnnPriority}>
+                    <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="NORMAL">Normal</SelectItem>
+                      <SelectItem value="HIGH">High</SelectItem>
+                      <SelectItem value="CRITICAL">Critical</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button type="submit" size="sm" className="h-9" disabled={annSubmitting}>
+                {annSubmitting && <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1" />}
+                Publish Announcement
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </motion.div>
     </motion.div>
   );
 }

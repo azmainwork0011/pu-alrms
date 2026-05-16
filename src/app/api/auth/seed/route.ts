@@ -31,7 +31,7 @@ const DEMO_ACCOUNTS = [
     name: 'System Admin',
     email: 'admin@pu.edu',
     password: 'admin123',
-    role: 'ADMIN',
+    role: 'SUPER_ADMIN',
     verified: true,
   },
   // ─── Teacher ───
