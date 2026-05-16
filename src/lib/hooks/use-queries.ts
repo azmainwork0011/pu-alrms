@@ -41,7 +41,8 @@ export function useDashboard() {
   return useQuery({
     queryKey: queryKeys.dashboard.stats,
     queryFn: () => dashboardApi.getStats(),
-    staleTime: 20_000, // Dashboard refreshes every 20s
+    staleTime: 60_000, // Cache for 1 minute to reduce loading
+    gcTime: 5 * 60_000, // Keep in cache for 5 minutes
   });
 }
 

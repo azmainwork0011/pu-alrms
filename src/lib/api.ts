@@ -8,9 +8,9 @@
 const API_BASE = '';
 
 // ─── Config ────────────────────────────────────────────────
-const DEFAULT_TIMEOUT = 15000;
+const DEFAULT_TIMEOUT = 30000; // 30s for complex queries
 const AUTH_TIMEOUT = 20000;
-const UPLOAD_TIMEOUT = 30000;
+const UPLOAD_TIMEOUT = 60000; // 60s for uploads
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1000;
 
@@ -411,6 +411,7 @@ export const aiApi = {
     apiFetch<any>('/api/ai/chat', {
       method: 'POST',
       body: JSON.stringify({ message, mode, modelId, selectedModels }),
+      timeout: 60000, // AI responses can take up to 60s
     }),
   voteBattle: (battleId: string, label: string) =>
     apiFetch<{ success: boolean; votes: any; reveals: Record<string, string> }>('/api/ai/chat', {
@@ -423,11 +424,13 @@ export const aiApi = {
     apiFetch<{ image: string; prompt: string }>('/api/ai/generate-image', {
       method: 'POST',
       body: JSON.stringify({ prompt }),
+      timeout: 60000, // Image gen can take up to 60s
     }),
   scanImage: (image: string, question: string) =>
     apiFetch<{ response: string }>('/api/ai/scan', {
       method: 'POST',
       body: JSON.stringify({ image, question }),
+      timeout: 60000, // Vision scan can take up to 60s
     }),
 };
 
