@@ -254,10 +254,11 @@ function AIChatPage() {
           <div className="min-w-0">
             <h1 className="text-base font-bold bg-gradient-to-r from-emerald-600 to-purple-600 dark:from-emerald-400 dark:to-purple-400 bg-clip-text text-transparent flex items-center gap-1.5">
               <Zap className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-              <span className="truncate">Lucky Strick AI</span>
+              <span className="truncate">Chat Z AI</span>
             </h1>
             <p className="text-[10px] text-gray-400 dark:text-gray-500 hidden sm:block">
               {tab === 'chat' && chatPhase === 'chatting' ? `Chatting with ${curModel.name}` : tab === 'chat' ? 'Choose an AI model to chat with' : tab === 'battle' && battlePhase === 'compare' ? 'Battle Arena' : tab === 'battle' ? 'Select models to compare' : 'AI Image Generator'}
+              {tab === 'chat' && chatPhase === 'chatting' && <span className="text-[10px] text-emerald-500 block sm:inline"> • Real-time & Bilingual</span>}
             </p>
           </div>
         </div>
@@ -340,7 +341,7 @@ function AIChatPage() {
               <Avatar className="w-7 h-7"><AvatarFallback className="bg-gradient-to-br from-emerald-100 to-purple-100 text-purple-700 text-[10px] font-bold dark:from-emerald-900/30 dark:to-purple-900/30 dark:text-purple-300">AI</AvatarFallback></Avatar>
               <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl rounded-tl-md px-3.5 py-3 flex items-center gap-2">
                 <div className="flex gap-1">{[0, 1, 2].map(i => <motion.div key={i} className="w-1.5 h-1.5 rounded-full bg-emerald-500" animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }} transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }} />)}</div>
-                <span className="text-xs text-gray-400">{tab === 'battle' ? 'Generating battle responses...' : imageLoading ? 'Creating image...' : `${curModel.name} is thinking...`}</span>
+                <span className="text-xs text-gray-400">{tab === 'battle' ? 'Generating battle responses...' : imageLoading ? 'Creating image...' : `${curModel.name} is thinking...`}{tab === 'chat' && <span className="text-emerald-500 ml-1">{' \u{1F310} Searching web...'}</span>}</span>
               </div>
             </motion.div>
           )}
@@ -356,7 +357,7 @@ function AIChatPage() {
               )}
               <div className="flex-1 min-w-0">
                 <Input value={input} onChange={(e) => setInput(e.target.value)}
-                  placeholder={tab === 'battle' ? 'Ask a question to compare models...' : tab === 'image' ? 'Describe the image to generate...' : `Ask ${curModel.name} anything...`}
+                  placeholder={tab === 'battle' ? 'Ask a question to compare models...' : tab === 'image' ? 'Describe the image to generate...' : `Ask Chat Z AI anything (Bangla/English)...`}
                   disabled={loading || imageLoading} className="dark:bg-gray-800 dark:border-gray-700 text-sm h-9"
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) e.preventDefault(); }} />
               </div>
@@ -366,7 +367,7 @@ function AIChatPage() {
               </Button>
             </form>
             <p className="text-[10px] text-gray-400 dark:text-gray-600 text-center mt-2">
-              {tab === 'battle' ? 'One prompt → Compare responses → Vote for the best' : tab === 'image' ? 'Describe any image to generate with AI' : `Chatting with ${curModel.name} by ${curModel.provider}`}
+              {tab === 'battle' ? 'One prompt → Compare responses → Vote for the best' : tab === 'image' ? 'Describe any image to generate with AI' : `${curModel.name} • Real-time web search • Bangla & English`}
             </p>
           </div>
         )}
@@ -443,14 +444,14 @@ function ModelSelectGrid({ models, onSelect }: { models: typeof AI_MODELS; onSel
 // ─── Chat Welcome (after selecting model) ──────────────────
 function ChatWelcome({ model, onPrompt }: { model: typeof AI_MODELS[0]; onPrompt: (t: string) => void }) {
   const prompts = [
-    { icon: '\uD83D\uDCDD', label: 'Writing', text: 'Help me write an assignment introduction' },
-    { icon: '\uD83E\uDDEE', label: 'Math', text: 'Explain binary search with examples' },
-    { icon: '\uD83D\uDCC4', label: 'Science', text: 'Write a lab report structure for physics' },
-    { icon: '\uD83D\uDC1B', label: 'Debug', text: 'Find bugs in my code: [paste code]' },
-    { icon: '\uD83D\uDCA1', label: 'Ideas', text: 'Give me 5 project ideas for my semester' },
-    { icon: '\uD83D\uDCDA', label: 'Study', text: 'Summarize this topic for my exam' },
+    { icon: '\uD83D\uDCDD', label: 'Assignment', text: 'Help me write an assignment introduction' },
+    { icon: '\uD83E\uDDEE', label: 'Math', text: 'Solve this equation step by step: 2x + 5 = 15' },
+    { icon: '\uD83D\uDCC4', label: 'Lab Report', text: 'Write a lab report structure for physics experiment' },
+    { icon: '\uD83D\uDCBB', label: 'Code', text: 'Write a Python function to sort a list' },
+    { icon: '\uD83C\uDFE0', label: 'Bangla', text: 'কোয়ান্টাম মেকানিক্স কি? সহজে বুঝিয়ে বলো' },
+    { icon: '\uD83D\uDD0D', label: 'Research', text: 'What are the latest AI trends in 2025?' },
   ];
-  const capabilities = ['\u270D\uFE0F Writing', '\uD83D\uDD27 Code Help', '\uD83D\uDCDA Research', '\uD83D\uDCDD Summaries'];
+  const capabilities = ['\uD83D\uDD0D Web Search', '\uD83C\uDFE0 Bangla+English', '\uD83D\uDD27 Code Help', '\uD83D\uDCDA Academic', '\uD83D\uDCD6 Lab Reports'];
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-4 py-6">
       <motion.div className={`w-14 h-14 rounded-2xl bg-gradient-to-br ${model.gradient} flex items-center justify-center shadow-xl mb-4`} initial={{ scale: 0.8 }} animate={{ scale: 1 }} transition={{ type: 'spring' }}>

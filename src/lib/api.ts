@@ -432,6 +432,12 @@ export const aiApi = {
       body: JSON.stringify({ image, question }),
       timeout: 60000, // Vision scan can take up to 60s
     }),
+  webSearch: (query: string) =>
+    apiFetch<{ success: boolean; results: any[]; totalResults: number }>('/api/ai/search', {
+      method: 'POST',
+      body: JSON.stringify({ query }),
+      timeout: 30000, // Web search timeout
+    }),
 };
 
 // ─── New API namespaces for previously raw fetch() callers ──
