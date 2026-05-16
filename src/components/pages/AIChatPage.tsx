@@ -257,8 +257,8 @@ function AIChatPage() {
               <span className="truncate">Chat Z AI</span>
             </h1>
             <p className="text-[10px] text-gray-400 dark:text-gray-500 hidden sm:block">
-              {tab === 'chat' && chatPhase === 'chatting' ? `Chatting with ${curModel.name}` : tab === 'chat' ? 'Choose an AI model to chat with' : tab === 'battle' && battlePhase === 'compare' ? 'Battle Arena' : tab === 'battle' ? 'Select models to compare' : 'AI Image Generator'}
-              {tab === 'chat' && chatPhase === 'chatting' && <span className="text-[10px] text-emerald-500 block sm:inline"> • Real-time & Bilingual</span>}
+              {tab === 'chat' && chatPhase === 'chatting' ? `Chatting with ${curModel.name}` : tab === 'chat' ? 'Choose an AI model to start' : tab === 'battle' && battlePhase === 'compare' ? 'Battle Arena' : tab === 'battle' ? 'Select models to compare' : 'AI Image Generator'}
+              {tab === 'chat' && chatPhase === 'chatting' && <span className="text-[10px] text-emerald-500 block sm:inline"> • Fast & Bilingual</span>}
             </p>
           </div>
         </div>
@@ -341,7 +341,7 @@ function AIChatPage() {
               <Avatar className="w-7 h-7"><AvatarFallback className="bg-gradient-to-br from-emerald-100 to-purple-100 text-purple-700 text-[10px] font-bold dark:from-emerald-900/30 dark:to-purple-900/30 dark:text-purple-300">AI</AvatarFallback></Avatar>
               <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl rounded-tl-md px-3.5 py-3 flex items-center gap-2">
                 <div className="flex gap-1">{[0, 1, 2].map(i => <motion.div key={i} className="w-1.5 h-1.5 rounded-full bg-emerald-500" animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }} transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }} />)}</div>
-                <span className="text-xs text-gray-400">{tab === 'battle' ? 'Generating battle responses...' : imageLoading ? 'Creating image...' : `${curModel.name} is thinking...`}{tab === 'chat' && <span className="text-emerald-500 ml-1">{' \u{1F310} Searching web...'}</span>}</span>
+                <span className="text-xs text-gray-400">{tab === 'battle' ? 'Comparing models...' : imageLoading ? 'Creating image...' : 'Thinking...'}</span>
               </div>
             </motion.div>
           )}
@@ -367,7 +367,7 @@ function AIChatPage() {
               </Button>
             </form>
             <p className="text-[10px] text-gray-400 dark:text-gray-600 text-center mt-2">
-              {tab === 'battle' ? 'One prompt → Compare responses → Vote for the best' : tab === 'image' ? 'Describe any image to generate with AI' : `${curModel.name} • Real-time web search • Bangla & English`}
+              {tab === 'battle' ? 'One prompt → Compare responses → Vote for the best' : tab === 'image' ? 'Describe any image to generate with AI' : `${curModel.name} • Bangla & English • Academic AI`}
             </p>
           </div>
         )}
