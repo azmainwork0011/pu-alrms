@@ -20,6 +20,8 @@ export async function GET(req: NextRequest) {
     const type = searchParams.get('type');
     const subjectId = searchParams.get('subjectId');
     const status = searchParams.get('status');
+    const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
+    const offset = parseInt(searchParams.get('offset') || '0');
 
     const where: Record<string, unknown> = {};
 
@@ -32,8 +34,7 @@ export async function GET(req: NextRequest) {
       where.createdBy = payload.userId;
     } else if (payload.role === 'STUDENT' || payload.role === 'CR') {
       where.status = status || 'ACTIVE';
-      // Students with a batch should see: batch-specific assignments matching their batch,
-      // plus assignments with no batch (open to all)
+      // Students see: batch-specific + open assignments
       const user = await db.user.findUnique({ where: { id: payload.userId }, select: { batch: true } });
       if (user?.batch) {
         where.OR = [
@@ -42,29 +43,33 @@ export async function GET(req: NextRequest) {
         ];
       }
     }
-    // ADMIN sees everything
 
-    const assignments = await db.assignment.findMany({
-      where,
-      include: {
-        subject: {
-          include: {
-            teacher: {
-              select: { id: true, name: true, email: true },
+    const [assignments, total] = await Promise.all([
+      db.assignment.findMany({
+        where,
+        include: {
+          subject: {
+            include: {
+              teacher: {
+                select: { id: true, name: true, email: true },
+              },
             },
           },
+          creator: {
+            select: { id: true, name: true, email: true },
+          },
+          _count: {
+            select: { submissions: true, comments: true },
+          },
         },
-        creator: {
-          select: { id: true, name: true, email: true },
-        },
-        _count: {
-          select: { submissions: true, comments: true },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        skip: offset,
+      }),
+      db.assignment.count({ where }),
+    ]);
 
-    return NextResponse.json(assignments);
+    return NextResponse.json({ assignments, total });
   } catch (error) {
     console.error('Get assignments error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -91,7 +96,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Verify subject exists
     const subject = await db.subject.findUnique({ where: { id: subjectId } });
     if (!subject) {
       return NextResponse.json({ error: 'Subject not found' }, { status: 404 });
@@ -118,7 +122,6 @@ export async function POST(req: NextRequest) {
     });
 
     // Create notifications for relevant students
-    // If batch is specified, only notify students in that batch; otherwise all
     const studentWhere: Record<string, unknown> = { role: 'STUDENT' };
     if (batch) {
       studentWhere.batch = batch;
