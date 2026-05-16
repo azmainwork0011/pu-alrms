@@ -74,11 +74,10 @@ function SectionLabel({ label }: { label: string }) {
 
 // ─── Sidebar Navigation ──────────────────────────────────
 function SidebarNav({ onNavigate, compact = false }: { onNavigate: (page: PageView) => void; compact?: boolean }) {
-  const { user, currentPage, isDemoUser } = useAppStore();
+  const { user, currentPage } = useAppStore();
 
   const filtered = navItems.filter(item => {
     if (item.roles && !item.roles.includes(user?.role || 'STUDENT')) return false;
-    if (isDemoUser && item.demoHidden) return false;
     return true;
   });
 
@@ -216,7 +215,7 @@ const pageTitles: Record<string, string> = {
 
 // ─── Main App Layout ────────────────────────────────────
 export default function AppLayout() {
-  const { currentPage, user, isDemoUser, toggleSidebar, notificationCount, setPage, logout } = useAppStore();
+  const { currentPage, user, toggleSidebar, notificationCount, setPage, logout } = useAppStore();
 
   // Listen for auth-expired events and auto-logout
   useEffect(() => {
@@ -228,11 +227,6 @@ export default function AppLayout() {
   }, [logout]);
 
   const renderPage = () => {
-    // Demo users cannot access hidden pages
-    const demoHiddenPages: PageView[] = ['student-community', 'ai-chat', 'create-assignment', 'admin-panel'];
-    if (isDemoUser && demoHiddenPages.includes(currentPage)) {
-      return <DashboardPage />;
-    }
     switch (currentPage) {
       case 'dashboard': return <DashboardPage />;
       case 'assignments': return <AssignmentsPage />;
@@ -364,28 +358,6 @@ export default function AppLayout() {
         </header>
 
         {/* Page Content */}
-        {/* Demo Mode Banner */}
-        {isDemoUser && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mx-4 mt-4 flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/40 text-amber-800 dark:text-amber-200"
-          >
-            <Shield className="w-4 h-4 shrink-0" />
-            <p className="text-xs flex-1">
-              <span className="font-semibold">Demo Mode</span> — Read-only access. Some features are restricted.
-            </p>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2.5 text-[11px] hover:bg-amber-100 dark:hover:bg-amber-900/30 rounded-lg"
-              onClick={logout}
-            >
-              Exit
-            </Button>
-          </motion.div>
-        )}
-
         <main className="flex-1 p-4 pb-[env(safe-area-inset-bottom)] md:p-6 min-w-0 overflow-x-hidden">
           <PageTransition keyProp={currentPage}>
             {renderPage()}
