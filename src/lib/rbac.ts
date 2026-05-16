@@ -362,50 +362,8 @@ export function requireMinRole(minRole: Role) {
   };
 }
 
-// ─── Demo mode endpoint guard ──────────────────────────────
-// Enhanced version that also blocks sensitive GET endpoints for demo users
+// ─── Demo mode endpoint guard (disabled — production app) ────
 export function demoGuard(request: Request): NextResponse | null {
-  const url = new URL(request.url);
-  const path = url.pathname;
-  const method = request.method.toUpperCase();
-
-  // Auth endpoints are always allowed
-  const ALLOWED_AUTH = [
-    '/api/auth/login',
-    '/api/auth/register',
-    '/api/auth/seed',
-    '/api/auth/temp-email',
-    '/api/auth/google',
-    '/api/auth/profile',
-  ];
-  if (ALLOWED_AUTH.some(ep => path.startsWith(ep))) {
-    return null;
-  }
-
-  const isDemo = request.headers.get('X-Demo-Mode') === 'true';
-  if (!isDemo) return null;
-
-  // Demo users: Block sensitive areas entirely (even GET)
-  const DEMO_RESTRICTED_PREFIXES = [
-    '/api/admin/',
-  ];
-
-  if (DEMO_RESTRICTED_PREFIXES.some(prefix => path.startsWith(prefix))) {
-    return NextResponse.json(
-      { error: 'Admin endpoints are restricted in demo mode.', code: 'DEMO_ACCESS_DENIED' },
-      { status: 403 },
-    );
-  }
-
-  // Block all write operations
-  const WRITE_METHODS = ['POST', 'PUT', 'DELETE', 'PATCH'];
-  if (WRITE_METHODS.includes(method)) {
-    return NextResponse.json(
-      { error: 'Write operations are disabled in demo mode.', code: 'DEMO_MODE_BLOCKED' },
-      { status: 403 },
-    );
-  }
-
   return null;
 }
 
@@ -430,15 +388,15 @@ export interface PageAccessRule {
 
 export const PAGE_ACCESS_RULES: PageAccessRule[] = [
   { page: 'dashboard', requiredPermission: 'dashboard:view' },
-  { page: 'admin-panel', requiredPermission: 'admin:access', minRole: ROLES.SUPER_ADMIN, hiddenForDemo: true },
+  { page: 'admin-panel', requiredPermission: 'admin:access', minRole: ROLES.SUPER_ADMIN },
   { page: 'assignments', requiredPermission: 'assignment:view' },
   { page: 'lab-reports', requiredPermission: 'assignment:view' },
-  { page: 'create-assignment', requiredPermission: 'assignment:create', hiddenForDemo: true, hiddenForRoles: [ROLES.STUDENT, ROLES.CR] },
+  { page: 'create-assignment', requiredPermission: 'assignment:create', hiddenForRoles: [ROLES.STUDENT, ROLES.CR] },
   { page: 'submissions', requiredPermission: 'submission:view' },
-  { page: 'ai-chat', requiredPermission: 'ai:chat', hiddenForDemo: true },
+  { page: 'ai-chat', requiredPermission: 'ai:chat' },
   { page: 'leaderboard', requiredPermission: 'leaderboard:view', hiddenForRoles: [ROLES.TEACHER] },
   { page: 'announcements', requiredPermission: 'announcement:view' },
-  { page: 'student-community', requiredPermission: 'chat:access', hiddenForDemo: true },
+  { page: 'student-community', requiredPermission: 'chat:access' },
   { page: 'quiz', requiredPermission: 'quiz:view' },
   { page: 'code-quest', requiredPermission: 'quiz:view' },
   { page: 'books', requiredPermission: 'books:view' },

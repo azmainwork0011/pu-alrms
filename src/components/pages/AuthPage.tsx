@@ -119,8 +119,8 @@ function AuthPage() {
     setError(null);
     try {
       const result = await authApi.login('alice@stu.pu.edu', 'student123');
-      setAuth(result.user, result.token, true);
-      toast.success('Welcome! You are in demo mode.');
+      setAuth(result.user, result.token);
+      toast.success('Welcome to PU-ALRMS!');
     } catch (err: any) {
       setError('Demo login failed. Please try again.');
     } finally {
