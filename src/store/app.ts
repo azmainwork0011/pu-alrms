@@ -34,8 +34,7 @@ export type PageView =
   | 'announcements'
   | 'quiz'
   | 'code-quest'
-  | 'books'
-  | 'deploy-guide';
+  | 'books';
 
 interface AppState {
   // Auth
