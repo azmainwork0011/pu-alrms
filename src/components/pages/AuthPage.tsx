@@ -1,18 +1,17 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { useAppStore } from '@/store/app';
 import { authApi } from '@/lib/api';
 import {
-  GraduationCap, BookOpen, Mail, Lock, Eye, EyeOff, ArrowRight, Sparkles, UserPlus,
-  Shield, Check, X, AlertCircle, Loader2, ChevronLeft,
+  Mail, Lock, Eye, EyeOff, ArrowRight,
+  UserPlus, AlertCircle, Loader2, ChevronLeft, Sparkles,
 } from 'lucide-react';
 import {
   getPasswordStrength, isValidEmail,
@@ -24,26 +23,26 @@ function AnimatedBackground() {
     <div className="fixed inset-0 overflow-hidden pointer-events-none bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950">
       <motion.div
         className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%)' }}
+        style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.05) 0%, transparent 70%)' }}
         animate={{ x: [0, 60, 0], y: [0, -40, 0], scale: [1, 1.15, 1] }}
         transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
       />
       <motion.div
         className="absolute -bottom-40 -right-40 w-[600px] h-[600px] rounded-full"
-        style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.05) 0%, transparent 70%)' }}
+        style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.03) 0%, transparent 70%)' }}
         animate={{ x: [0, -50, 0], y: [0, 50, 0], scale: [1, 1.1, 1] }}
         transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
       />
       {/* Subtle grid */}
       <div
-        className="absolute inset-0 opacity-[0.03]"
+        className="absolute inset-0 opacity-[0.02]"
         style={{
           backgroundImage: 'radial-gradient(circle, rgba(16,185,129,0.5) 1px, transparent 1px)',
           backgroundSize: '40px 40px',
         }}
       />
       {/* Top edge glow */}
-      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent" />
+      <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent" />
     </div>
   );
 }
@@ -62,15 +61,6 @@ function isNetworkError(err: unknown): boolean {
   );
 }
 
-// ─── Role Configurations ──────────────────────────────────
-const roleConfig = {
-  STUDENT: { label: 'Student', icon: GraduationCap, color: 'emerald' },
-  TEACHER: { label: 'Teacher', icon: BookOpen, color: 'blue' },
-  ADMIN: { label: 'Admin', icon: Shield, color: 'rose' },
-};
-
-type RoleKey = keyof typeof roleConfig;
-
 // ─── Main Auth Page ───────────────────────────────────────
 function AuthPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -80,9 +70,7 @@ function AuthPage() {
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'STUDENT' });
   const { setAuth } = useAppStore();
 
-  const [selectedRole, setSelectedRole] = useState<RoleKey>('STUDENT');
-
-  // Restore saved email
+  // Restore saved email & seed database
   useEffect(() => {
     try {
       const savedEmail = localStorage.getItem('login-email');
@@ -90,11 +78,9 @@ function AuthPage() {
         setFormData(prev => ({ ...prev, email: savedEmail }));
       }
     } catch { /* ignore */ }
-    // Seed database
     fetch('/api/auth/seed', { method: 'POST' }).catch(() => {});
   }, []);
 
-  const currentRole = roleConfig[selectedRole];
   const pwStrength = getPasswordStrength(formData.password);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -127,17 +113,12 @@ function AuthPage() {
     }
   };
 
-  // Demo accounts for quick access
-  const demoAccounts = [
-    { label: 'Guest Student', email: 'alice@stu.pu.edu', password: 'student123', role: 'STUDENT' as const },
-  ];
-
-  const quickLogin = async (email: string, password: string) => {
+  const quickDemoLogin = async () => {
     if (loading) return;
     setLoading(true);
     setError(null);
     try {
-      const result = await authApi.login(email, password);
+      const result = await authApi.login('alice@stu.pu.edu', 'student123');
       setAuth(result.user, result.token, true);
       toast.success('Welcome! You are in demo mode.');
     } catch (err: any) {
@@ -174,7 +155,7 @@ function AuthPage() {
             <div className="relative inline-flex items-center justify-center mb-5">
               <motion.div
                 className="absolute w-28 h-28 rounded-3xl"
-                style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.12) 0%, transparent 70%)' }}
+                style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.10) 0%, transparent 70%)' }}
                 animate={{ scale: [1, 1.15, 1], opacity: [0.5, 0.8, 0.5] }}
                 transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
               />
@@ -237,50 +218,6 @@ function AuthPage() {
                 </div>
               </div>
 
-              {/* Role Selector (Login) */}
-              {mode === 'login' && (
-                <motion.div
-                  initial={{ opacity: 0, y: -6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="grid grid-cols-3 gap-2 mb-6"
-                >
-                  {(Object.keys(roleConfig) as RoleKey[]).map((role) => {
-                    const config = roleConfig[role];
-                    const Icon = config.icon;
-                    const isActive = selectedRole === role;
-
-                    return (
-                      <motion.button
-                        key={role}
-                        type="button"
-                        onClick={() => setSelectedRole(role)}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className={`
-                          flex flex-col items-center gap-2 py-3 px-2 rounded-xl border transition-all duration-200
-                          ${isActive
-                            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-                            : 'border-white/[0.06] text-gray-500 hover:border-white/[0.12] hover:text-gray-300'
-                          }
-                        `}
-                      >
-                        <Icon className="w-4 h-4" />
-                        <span className="text-xs font-medium">{config.label}</span>
-                        {isActive && (
-                          <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
-                            className="absolute -top-1 -right-1 w-4 h-4 rounded-full flex items-center justify-center bg-emerald-500"
-                          >
-                            <Check className="w-2.5 h-2.5 text-black" strokeWidth={3} />
-                          </motion.div>
-                        )}
-                      </motion.button>
-                    );
-                  })}
-                </motion.div>
-              )}
-
               {/* ─── Form ─────────────────────────────────── */}
               <form onSubmit={handleSubmit} className="space-y-4">
                 {/* Name (Register only) */}
@@ -317,7 +254,7 @@ function AuthPage() {
                     <Input
                       type="email"
                       autoComplete="email"
-                      placeholder={mode === 'login' ? `you@${selectedRole === 'STUDENT' ? 'stu.pu.edu' : 'pu.edu'}` : 'you@pu.edu'}
+                      placeholder="Enter your email"
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       required
@@ -326,7 +263,7 @@ function AuthPage() {
                   </div>
                   {formData.email && !isValidEmail(formData.email) && (
                     <p className="text-[11px] text-red-400/80 flex items-center gap-1">
-                      <X className="w-3 h-3" /> Please enter a valid email address
+                      <AlertCircle className="w-3 h-3" /> Please enter a valid email address
                     </p>
                   )}
                 </div>
@@ -376,7 +313,7 @@ function AuthPage() {
                   )}
                 </div>
 
-                {/* Role Select (Register) */}
+                {/* Role Select (Register only) */}
                 <AnimatePresence>
                   {mode === 'register' && (
                     <motion.div
@@ -400,7 +337,7 @@ function AuthPage() {
                   )}
                 </AnimatePresence>
 
-                {/* Forgot Password (Login) */}
+                {/* Forgot Password (Login only) */}
                 {mode === 'login' && (
                   <div className="flex justify-end">
                     <button
@@ -429,7 +366,7 @@ function AuthPage() {
                         className="text-red-400/50 hover:text-red-300 transition-colors p-0.5"
                         onClick={() => setError(null)}
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <EyeOff className="w-3.5 h-3.5" />
                       </button>
                     </motion.div>
                   )}
@@ -456,7 +393,7 @@ function AuthPage() {
                     </span>
                   ) : mode === 'login' ? (
                     <span className="flex items-center justify-center gap-2">
-                      Sign In as {currentRole.label}
+                      Sign In
                       <ArrowRight className="w-4 h-4" />
                     </span>
                   ) : (
@@ -479,33 +416,24 @@ function AuthPage() {
                   >
                     <div className="flex items-center gap-3 mb-4">
                       <div className="flex-1 h-px bg-white/[0.06]" />
-                      <span className="text-[10px] text-gray-600 uppercase tracking-wider font-medium">Quick Access</span>
+                      <span className="text-[10px] text-gray-600 uppercase tracking-wider font-medium">or</span>
                       <div className="flex-1 h-px bg-white/[0.06]" />
                     </div>
 
-                    <div className="flex justify-center">
-                      {demoAccounts.map((acc) => (
-                        <motion.button
-                          key={acc.email}
-                          type="button"
-                          initial={{ opacity: 0, y: 12 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.3, duration: 0.4 }}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          onClick={() => quickLogin(acc.email, acc.password)}
-                          disabled={loading}
-                          className="flex items-center gap-3 py-3 px-5 rounded-xl border border-emerald-500/20 hover:border-emerald-400/40 bg-white/[0.02] hover:bg-emerald-500/[0.04] transition-all duration-200 w-full max-w-xs"
-                        >
-                          <GraduationCap className="w-4 h-4 text-emerald-400" />
-                          <div className="flex-1 min-w-0 text-left">
-                            <span className="text-xs font-semibold text-emerald-300 block">{acc.label}</span>
-                            <span className="text-[10px] text-gray-600 truncate block">Explore as guest student</span>
-                          </div>
-                          <ArrowRight className="w-3.5 h-3.5 text-gray-600" />
-                        </motion.button>
-                      ))}
-                    </div>
+                    <motion.button
+                      type="button"
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.3, duration: 0.4 }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={quickDemoLogin}
+                      disabled={loading}
+                      className="flex items-center justify-center gap-2.5 py-3 px-5 rounded-xl border border-white/[0.06] hover:border-emerald-500/30 bg-white/[0.02] hover:bg-emerald-500/[0.04] transition-all duration-200 w-full text-gray-400 hover:text-emerald-300"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span className="text-sm font-medium">Try Demo</span>
+                    </motion.button>
                   </motion.div>
                 </AnimatePresence>
               )}
