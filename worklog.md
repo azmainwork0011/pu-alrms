@@ -1,132 +1,130 @@
-# PU-ALRMS Production Overhaul Worklog
 ---
-Task ID: 0
-Agent: Main Orchestrator
-Task: Full production overhaul - remove guides, revamp UI, fix login, enhance admin
+Task ID: 1
+Agent: Main Agent
+Task: Fix all critical bugs and optimize performance for PU-ALRMS
 
 Work Log:
-- Audited entire codebase (40+ pages, 43+ API routes)
-- Identified files to remove: DeployGuidePage, FirebaseGuidePage, setup-firebase scripts, firebase provider/lib
-- Identified UI issues: inconsistent styling, deploy guide in sidebar
-- Login flow works but has unnecessary options (Google, temp email)
-- Admin panel functional but needs enhancement
-- Plan: Execute parallel subagent tasks for efficiency
+- Analyzed entire codebase structure, 17 DB models, 43+ API routes
+- Identified 5 critical bugs and 3 performance issues
 
 Stage Summary:
-- Project uses Next.js 16, Prisma/SQLite, Zustand, shadcn/ui
-- Zero-dependency auth with hardcoded accounts
-- Major cleanup and overhaul needed
+- Comprehensive codebase analysis completed, identified all issues
 
 ---
-Task ID: 5a
-Agent: fullstack-developer
-Task: Redesign AuthPage for cleaner, simpler login
+Task ID: 2
+Agent: Main Agent
+Task: Fix Role-Based Login & Account Bug
 
 Work Log:
-- Read existing AuthPage.tsx
-- Removed role selector from login mode (auto-detect from account)
-- Simplified login form to email + password only
-- Kept register form with role selector
-- Simplified demo login to single "Try Demo" button
-- Reduced animated background opacity
-- Maintained all error handling and toast notifications
+- Fixed login route: When DB user exists with same email but different password, system NO LONGER falls through to hardcoded demo accounts
+- This prevents the same email from accessing two different accounts
+- Added clear separation: DB-first strategy returns "Invalid email or password" if DB user found but password mismatch
 
 Stage Summary:
-- AuthPage redesigned with cleaner UX
-- Login flow simplified: email + password only
-- No role selection needed on login
+- File: src/app/api/auth/login/route.ts — Critical duplicate account bug fixed
 
 ---
-Task ID: 5b
-Agent: fullstack-developer
-Task: Redesign AdminPanel SystemSettingsTab
+Task ID: 3
+Agent: Main Agent
+Task: Fix Register Route - Name Validation & Role Check
 
 Work Log:
-- Removed all instructional/deployment content from SystemSettingsTab
-- Added Database Actions section with Reseed Demo Data button
-- Added Announcement Management section with creation form
-- Added Quick Stats section
-- Simplified SystemStatus card
+- Added server-side name validation regex: only alphanumeric, spaces, hyphens, apostrophes, dots allowed
+- Fixed role check: ADMIN, SUPER_ADMIN, and DEVELOPER can now create TEACHER and CR accounts
+- Prevented creation of ADMIN/SUPER_ADMIN/DEVELOPER accounts via registration endpoint
 
 Stage Summary:
-- SystemSettingsTab now shows admin management tools instead of instructional content
-- Announcement creation is functional
-- No deployment guides visible in admin panel
+- File: src/app/api/auth/register/route.ts — Name validation + role check fixed
 
 ---
-Task ID: 5c
-Agent: fullstack-developer
-Task: Simplify loading overlay and clean up layout
+Task ID: 4
+Agent: Main Agent
+Task: Fix AuthPage Frontend - Name Validation
 
 Work Log:
-- Replaced complex loading overlay script in layout.tsx with minimal spinner
-- Updated globals.css with simplified loading overlay styles
-- Removed DevCredit from AppLayout sidebar and mobile sidebar
+- Added real-time name validation in register form
+- Shows red border and error message for invalid characters
+- Submit button disabled when name has validation errors
 
 Stage Summary:
-- Loading overlay simplified to minimal spinner
-- AppLayout cleaned up - no more developer credits in sidebar
-- Layout is cleaner and more professional
-
+- File: src/components/pages/AuthPage.tsx — Frontend name validation added
 
 ---
-Task ID: 1-6
-Agent: main
-Task: Production-ready directive — Full implementation
+Task ID: 5
+Agent: Main Agent
+Task: Fix Profile Photo Upload - Broken isDemoUser() Reference
 
 Work Log:
-- Audited full codebase: 20+ pages, 43+ API routes, 15+ lib files
-- Fixed login route: Added DB-first authentication (bcrypt) with hardcoded fallback
-- Fixed role consistency: admin@pu.edu now SUPER_ADMIN in both login route and seed
-- Removed 15+ unnecessary files: firebase auth, google auth, temp-email, setup route,
-  diagnostic route, demo-guard, security validators, openai lib, sound files, etc.
-- Created stub files for 8 deleted modules that were still imported by components
-- Cleaned api.ts: removed googleAuth and tempEmailAuth client methods
-- Fixed lint error: mutable variable reassignment in AppLayout sidebar
-- Fixed AppLayout: refactored sidebar nav to use immutable section grouping
-- Delegated 3 subagent tasks:
-  - 5a: Redesigned AuthPage (removed role selector from login, simplified form)
-  - 5b: Redesigned AdminPanel SystemSettingsTab (removed instructional content)
-  - 5c: Simplified loading overlay, removed DevCredit from layout
-- Verified: homepage loads (200), login API works, seed works, SUPER_ADMIN role correct
-- Lint passes cleanly
+- Removed broken `isDemoUser()` function call in api.ts that would crash at runtime
+- `isDemoUser` was a Zustand store property, not a standalone function
+- Profile photo uploads now work correctly
 
 Stage Summary:
-- Login flow: DB-first (bcrypt) → hardcoded fallback. Supports registered + demo accounts.
-- No deployment guides visible anywhere in the app
-- UI cleaned: minimal loading spinner, no dev credits in sidebar
-- Admin panel: shows management tools instead of instructional content
-- All compilation errors resolved, lint clean
-- Ready for user testing in Preview Panel
+- File: src/lib/api.ts — Removed broken isDemoUser() reference
+- File: src/app/api/auth/profile/route.ts — Added name validation to profile update
 
 ---
-Task ID: 10
-Agent: Main
-Task: Performance optimization — fast loading for Dashboard, Assignments, Submissions, Announcements, Quiz, Battle, AI
+Task ID: 6
+Agent: Main Agent
+Task: Fix Notifications - Error Handling & Mark All Read
 
 Work Log:
-- Analyzed all API routes and frontend query hooks for performance bottlenecks
-- Dashboard API: Found N+1 query pattern in subjectPerf (was making individual DB call per subject)
-- Dashboard API: Flattened from 11 sequential + N parallel queries to 11 parallel + 1 batch query
-- Dashboard API: Moved submittedAssignmentIds and weeklySubs into the main Promise.all block
-- Assignments API: Added pagination support (limit/offset), returns {assignments, total}
-- Submissions API: Added pagination support (limit/offset), returns {submissions, total}
-- API Client (api.ts): Updated assignmentApi.list and submissionApi.list to handle both paginated object and legacy array formats
-- API Client: Reduced MAX_RETRIES from 2 to 1, RETRY_DELAY from 1000ms to 500ms
-- QueryClient: staleTime 30s→60s, retry 2→1, retryDelay exponential→500ms fixed
-- QueryClient: Disabled refetchOnWindowFocus and refetchOnMount (use cached data!)
-- useAssignments: Added staleTime 30s
-- useSubmissions: Added staleTime 30s
-- useAnnouncements: Added staleTime 30s
-- useQuizProfile: Added staleTime 30s
-- useSavedBooks: Added staleTime 30s
-- All query hooks: Consistent caching strategy with appropriate gcTime
-- Lint passes clean
-- Pushed to GitHub and deployed to Vercel (https://prime-alrms.vercel.app)
+- Added DB error handling to notifications GET route (returns empty instead of crashing)
+- Added pagination support (page, limit params, hasMore flag)
+- Added POST endpoint for mark-all-as-read
+- Added DB error handling to notification read route
+- Updated NotificationsPage to handle new paginated response format
+- Added "Mark all read" button in UI
 
 Stage Summary:
-- Eliminated N+1 DB queries in Dashboard (biggest win for student role)
-- All API endpoints now support pagination
-- Frontend caching prevents unnecessary refetches (page switches now instant)
-- API retry reduced from 2× to 1× with 500ms delay for faster failover
-- Total expected improvement: 60-80% faster page loads
+- File: src/app/api/notifications/route.ts — Error handling, pagination, mark-all-as-read
+- File: src/app/api/notifications/[id]/read/route.ts — Error handling
+- File: src/components/pages/NotificationsPage.tsx — Updated UI with mark all read
+
+---
+Task ID: 7
+Agent: Main Agent
+Task: Optimize API Performance - In-Memory Caching
+
+Work Log:
+- Created api-cache.ts utility with TTL-based in-memory cache
+- Added caching to dashboard route (30s TTL)
+- Added caching to assignments route (20s TTL)
+- Added caching to announcements route (30s TTL)
+- Added caching to subjects route (60s TTL)
+- Added cache invalidation on assignment creation
+
+Stage Summary:
+- File: src/lib/api-cache.ts — New caching utility
+- File: src/app/api/dashboard/route.ts — Cached (30s)
+- File: src/app/api/assignments/route.ts — Cached (20s) + invalidation
+- File: src/app/api/announcements/route.ts — Cached (30s)
+- File: src/app/api/subjects/route.ts — Cached (60s)
+
+---
+Task ID: 8
+Agent: Main Agent
+Task: AI Chat Route - Already Optimized
+
+Stage Summary:
+- AI chat route was already optimized per user's previous request:
+  - Single AI call (no retries)
+  - No auto web search
+  - Concise system prompt
+  - Uses role: 'assistant' for system prompts
+  - Graceful fallback messages (Bangla + English)
+  - Proper rate limiting with {allowed, retryAfterMs} format
+
+---
+Task ID: 9
+Agent: Main Agent
+Task: Push to GitHub and Deploy to Vercel
+
+Work Log:
+- Committed all changes with descriptive commit message
+- Pushed to GitHub: azmainwork0011/pu-alrms (main branch)
+- Deployed to Vercel: https://prime-alrms.vercel.app
+
+Stage Summary:
+- GitHub push: SUCCESS
+- Vercel deploy: SUCCESS (https://prime-alrms.vercel.app)
