@@ -33,6 +33,7 @@ import QuizPage from '@/components/pages/QuizPage';
 import LearnWithGame from '@/components/pages/LearnWithGame';
 import BooksPage from '@/components/pages/BooksPage';
 import AdminPanelPage from '@/components/pages/AdminPanelPage';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 // ─── Navigation Items ────────────────────────────────────
 const navItems: {
@@ -241,7 +242,7 @@ export default function AppLayout() {
       case 'student-community': return <StudentCommunityPage />;
       case 'announcements': return <AnnouncementsPage />;
       case 'quiz': return <QuizPage />;
-      case 'code-quest': return <LearnWithGame />;
+      case 'code-quest': return <ErrorBoundary fallbackTitle="Learn with Games encountered an error"><LearnWithGame /></ErrorBoundary>;
       case 'books': return <BooksPage />;
       case 'admin-panel': return <AdminPanelPage />;
       default: return <DashboardPage />;

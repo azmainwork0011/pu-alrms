@@ -128,3 +128,38 @@ Work Log:
 Stage Summary:
 - GitHub push: SUCCESS
 - Vercel deploy: SUCCESS (https://prime-alrms.vercel.app)
+
+---
+Task ID: 10
+Agent: Main Agent
+Task: Fix Learn With Games Integration — Crashes, Error Boundary, AI Stability
+
+Work Log:
+- Diagnosed root cause: `cq-data.ts` was a stub with types that didn't match `LearnWithGame.tsx` expectations
+- Found 8+ critical type mismatches causing runtime crashes:
+  1. `getLevelForXP()` returned `number` but component expected `{ level, title, badge, xpRequired }` object
+  2. `getNextLevel()` returned `{ currentLevel, nextLevel, xpNeeded, xpProgress }` but component expected `{ level, xpRequired }`
+  3. `Question.correctAnswer` was `number` (index) but component compared with string letters ("A", "B", "C")
+  4. `SyntaxMatchPair` had `language`/`description` fields but component used `languageId`/`concept`
+  5. `DailyChallenge` was missing `questions`, `title`, `description`, `languageId` fields → `.length` crash
+  6. `CodePuzzleData` was missing `correctOrder: string[]` field → shuffleArray crash
+  7. `Difficulty` type was lowercase ('Easy') but component used uppercase ('EASY')
+  8. `ProgrammingLanguage` was missing `gradient` field
+- Rewrote `cq-data.ts` with complete data layer:
+  - 55+ MCQ/Output questions across 5 languages (Python, JS, Java, C++, TypeScript)
+  - 30 syntax match pairs with correct `languageId`/`concept` fields
+  - 4 bug finder challenges, 4 code puzzles with `correctOrder`
+  - Daily challenge with `questions` array
+  - `getLevelForXP()` returns `LevelInfo` object with `badge`, `level`, `title`, `xpRequired`
+  - `getNextLevel()` returns `LevelInfo` object with `level`, `xpRequired`
+  - Proper uppercase Difficulty types and gradient fields on languages
+- Created `ErrorBoundary.tsx` component with retry + go-to-dashboard buttons
+- Wrapped `LearnWithGame` in ErrorBoundary in `AppLayout.tsx`
+- All fixes pass lint and TypeScript checks
+
+Stage Summary:
+- File: src/lib/cq-data.ts — Complete rewrite matching component expectations
+- File: src/components/ErrorBoundary.tsx — New reusable ErrorBoundary component
+- File: src/components/layout/AppLayout.tsx — Added ErrorBoundary around LearnWithGame
+- LearnWithGame page now loads without crashes, quizzes work correctly, answer comparison is fixed
+- Syntax Match mini-game now works with proper data filtering by languageId/concept
