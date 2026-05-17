@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/jwt';
+import { apiCache, CACHE_TTL } from '@/lib/api-cache';
 
 function getTokenPayload(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
@@ -22,6 +23,11 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get('status');
     const limit = Math.min(parseInt(searchParams.get('limit') || '50'), 100);
     const offset = parseInt(searchParams.get('offset') || '0');
+
+    // Check cache
+    const cacheKey = `assignments:${payload.userId}:${payload.role}:${type || ''}:${subjectId || ''}:${status || ''}:${limit}:${offset}`;
+    const cached = apiCache.get(cacheKey);
+    if (cached) return NextResponse.json(cached);
 
     const where: Record<string, unknown> = {};
 
@@ -69,7 +75,9 @@ export async function GET(req: NextRequest) {
       db.assignment.count({ where }),
     ]);
 
-    return NextResponse.json({ assignments, total });
+    const result = { assignments, total };
+    apiCache.set(cacheKey, result, CACHE_TTL.ASSIGNMENTS);
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Get assignments error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
@@ -100,6 +108,10 @@ export async function POST(req: NextRequest) {
     if (!subject) {
       return NextResponse.json({ error: 'Subject not found' }, { status: 404 });
     }
+
+    // Invalidate assignment cache for this user
+    apiCache.deleteByPrefix('assignments:');
+    apiCache.deleteByPrefix('dashboard:');
 
     const assignment = await db.assignment.create({
       data: {

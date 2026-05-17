@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/jwt';
+import { apiCache, CACHE_TTL } from '@/lib/api-cache';
 
 export async function GET(req: NextRequest) {
   try {
@@ -9,6 +10,11 @@ export async function GET(req: NextRequest) {
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const payload = verifyToken(token);
     if (!payload) return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+
+    // Check cache
+    const cacheKey = `subjects:${payload.userId}`;
+    const cached = apiCache.get(cacheKey);
+    if (cached) return NextResponse.json(cached);
 
     const subjects = await db.subject.findMany({
       include: {
@@ -22,6 +28,7 @@ export async function GET(req: NextRequest) {
       orderBy: { name: 'asc' },
     });
 
+    apiCache.set(cacheKey, subjects, CACHE_TTL.SUBJECTS);
     return NextResponse.json(subjects);
   } catch (error) {
     console.error('Get subjects error:', error);

@@ -290,7 +290,6 @@ export const authApi = {
       method: 'PUT',
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(isDemoUser() ? { 'X-Demo-Mode': 'true' } : {}),
       },
       body: formData,
     }, UPLOAD_TIMEOUT).then(async (res) => {

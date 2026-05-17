@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/jwt';
+import { apiCache, CACHE_TTL } from '@/lib/api-cache';
 
 function getTokenPayload(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
@@ -20,6 +21,11 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const limit = parseInt(searchParams.get('limit') || '50');
     const offset = parseInt(searchParams.get('offset') || '0');
+
+    // Check cache
+    const cacheKey = `announcements:${payload.userId}:${limit}:${offset}`;
+    const cached = apiCache.get(cacheKey);
+    if (cached) return NextResponse.json(cached);
 
     // Build the where clause based on user role
     let whereClause: Record<string, unknown> = {};
@@ -41,6 +47,7 @@ export async function GET(req: NextRequest) {
       },
     });
 
+    apiCache.set(cacheKey, announcements, CACHE_TTL.ANNOUNCEMENTS);
     return NextResponse.json(announcements);
   } catch (error) {
     console.error('Get announcements error:', error);
