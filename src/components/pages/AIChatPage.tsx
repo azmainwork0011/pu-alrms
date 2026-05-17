@@ -127,16 +127,30 @@ function AIChatPage() {
     setInput(''); setLoading(true); scroll();
     try {
       const r = await aiApi.chat(msg, 'single', selectedModel.id);
+      // Defensive check: ensure response is a valid object
+      if (!r || typeof r !== 'object') {
+        console.warn('[AIChat] Invalid API response:', r);
+        setMessages(p => [...p, { id: gid(), role: 'assistant', content: '⚠️ Received an invalid response from the server. Please try again.', timestamp: Date.now(), modelName: selectedModel.name }]);
+        return;
+      }
       if (r.error) {
         // Backend returned a meaningful error message — show it in chat
+        console.warn('[AIChat] Backend error:', r.error);
         setMessages(p => [...p, { id: gid(), role: 'assistant', content: r.error, timestamp: Date.now(), modelName: selectedModel.name }]);
         if (r.retryAfterMs) {
           toast.info(`Please wait ${Math.ceil(r.retryAfterMs / 1000)}s before trying again.`);
         }
       } else {
-        setMessages(p => [...p, { id: gid(), role: 'assistant', content: r.response || 'No response.', timestamp: Date.now(), modelName: r.modelName || selectedModel.name, modelId: r.modelId || selectedModel.id }]);
+        const responseContent = r.response?.trim();
+        if (!responseContent) {
+          console.warn('[AIChat] Empty AI response for message:', msg.slice(0, 100));
+          setMessages(p => [...p, { id: gid(), role: 'assistant', content: "I couldn't generate a response just now. Please try rephrasing your question!", timestamp: Date.now(), modelName: selectedModel.name }]);
+        } else {
+          setMessages(p => [...p, { id: gid(), role: 'assistant', content: responseContent, timestamp: Date.now(), modelName: r.modelName || selectedModel.name, modelId: r.modelId || selectedModel.id }]);
+        }
       }
     } catch (e: any) {
+      console.error('[AIChat] Exception:', e?.message || e);
       const errMsg = e?.message || 'Connection issue';
       if (errMsg.includes('HTTP') || errMsg.includes('401')) {
         toast.error('Session expired. Please sign in again.');
@@ -157,8 +171,16 @@ function AIChatPage() {
     setInput(''); setLoading(true); scroll();
     try {
       const r = await aiApi.chat(msg, 'battle', undefined, battleModels);
-      setMessages(p => [...p, { id: gid(), role: 'assistant', content: '', timestamp: Date.now(), battleResponses: r.responses || [], battleId: r.battleId }]);
+      // Defensive check: ensure battle response is valid
+      if (!r || typeof r !== 'object' || !r.responses?.length) {
+        console.warn('[AIChat Battle] Invalid or empty battle response:', r);
+        setMessages(p => [...p, { id: gid(), role: 'assistant', content: '⚠️ Battle could not start. Not enough models responded. Please try again.', timestamp: Date.now(), battleResponses: [], battleId: undefined }]);
+        return;
+      }
+      console.log('[AIChat Battle] Received responses from', r.responses.length, 'models');
+      setMessages(p => [...p, { id: gid(), role: 'assistant', content: '', timestamp: Date.now(), battleResponses: r.responses, battleId: r.battleId }]);
     } catch (e: any) {
+      console.error('[AIChat Battle] Exception:', e?.message || e);
       const errMsg = e?.message || 'Connection issue';
       if (errMsg.includes('HTTP') || errMsg.includes('401')) {
         toast.error('Session expired. Please sign in again.');

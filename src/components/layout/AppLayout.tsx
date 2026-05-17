@@ -235,7 +235,7 @@ export default function AppLayout() {
       case 'assignment-detail': return <AssignmentDetailPage />;
       case 'create-assignment': return <CreateAssignmentPage />;
       case 'submissions': return <SubmissionsPage />;
-      case 'ai-chat': return <AIChatPage />;
+      case 'ai-chat': return <ErrorBoundary fallbackTitle="AI Assistant encountered an error"><AIChatPage /></ErrorBoundary>;
       case 'leaderboard': return <LeaderboardPage />;
       case 'notifications': return <NotificationsPage />;
       case 'profile': return <ProfilePage />;

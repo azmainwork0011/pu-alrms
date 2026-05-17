@@ -102,8 +102,11 @@ async function callAI(messages: { role: string; content: string }[]): Promise<st
       messages,
       thinking: { type: 'disabled' },
     });
+    // Debug logging — helps diagnose empty AI responses
+    console.log('[AI] Raw response:', JSON.stringify(completion?.choices?.[0]?.message ?? 'null').slice(0, 300));
     const text = completion?.choices?.[0]?.message?.content;
     if (text && text.trim().length > 0) return text;
+    console.warn('[AI] Empty or missing content in response');
     return null;
   } catch (err: any) {
     console.error('[AI] Call failed:', err?.message || err);
@@ -162,8 +165,11 @@ export async function POST(req: NextRequest) {
       );
 
       const responses = results.filter(Boolean) as { modelId: string; text: string }[];
+      const failedCount = results.filter(r => !r).length;
+      if (failedCount > 0) console.warn(`[AI Battle] ${failedCount}/${models.length} models failed to respond`);
 
       if (responses.length < 2) {
+        console.error('[AI Battle] Not enough responses:', responses.length);
         return NextResponse.json({ error: 'Could not generate enough responses. Try again.' }, { status: 503 });
       }
 
@@ -196,8 +202,10 @@ export async function POST(req: NextRequest) {
 
     if (raw) {
       response = anonymize(raw);
+      console.log('[AI] Response length:', response.length);
     } else {
       // Fallback — short, human-like, not robotic
+      console.warn('[AI] No response generated for message:', trimmedMessage.slice(0, 80));
       response = isBangla(trimmedMessage)
         ? 'হুম, এই মুহূর্তে আমার সার্ভারে সমস্যা হচ্ছে। অনুগ্রহ করে আবার চেষ্টা করুন — আমি দ্রুতই উত্তর দেব!'
         : "Hmm, I'm having trouble connecting right now. Please try again — I'll respond as fast as I can!";

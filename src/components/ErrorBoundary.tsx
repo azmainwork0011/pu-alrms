@@ -3,6 +3,7 @@
 import React, { Component, ReactNode } from 'react';
 import { AlertTriangle, RotateCcw, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAppStore } from '@/store/app';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -33,10 +34,17 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   };
 
   handleGoHome = () => {
-    // Force page reload to recover from error
-    window.location.hash = '#dashboard';
+    // Use Zustand store for reliable page navigation instead of window.location.hash
+    try {
+      const store = useAppStore.getState();
+      store.setPage('dashboard');
+    } catch {
+      // Fallback: force page reload
+      window.location.href = '/';
+      return;
+    }
+    // Clear error state so the dashboard renders
     this.setState({ hasError: false, error: null });
-    window.location.reload();
   };
 
   render() {

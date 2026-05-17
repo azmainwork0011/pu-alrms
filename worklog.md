@@ -163,3 +163,30 @@ Stage Summary:
 - File: src/components/layout/AppLayout.tsx — Added ErrorBoundary around LearnWithGame
 - LearnWithGame page now loads without crashes, quizzes work correctly, answer comparison is fixed
 - Syntax Match mini-game now works with proper data filtering by languageId/concept
+
+---
+Task ID: 11
+Agent: Main Agent
+Task: Fix Crashes, AI Stability, Error Handling — Learn With Games & Chat Z AI
+
+Work Log:
+- Verified LearnWithGame component imports and rendering — all correct from Task 10
+- Verified ErrorBoundary already wraps LearnWithGame in AppLayout.tsx
+- Verified cq-data.ts types match component expectations (correctAnswer as "A"/"B"/"C"/"D", LevelInfo objects, etc.)
+- Added ErrorBoundary wrapper around AIChatPage in AppLayout.tsx
+- Improved ErrorBoundary: replaced fragile window.location.hash with useAppStore.getState().setPage('dashboard')
+- Added console.log debug logging to AI backend callAI() for diagnosing empty responses
+- Added console.warn for empty/missing AI content responses
+- Added battle mode logging — warns when models fail to respond, logs response count
+- Added defensive checks in AIChatPage sendSingle(): validates response object, handles null/undefined response content
+- Added defensive checks in AIChatPage sendBattle(): validates battle response, handles empty responses array
+- Added console.error logging in all catch blocks for easier debugging
+- All changes pass ESLint with zero errors
+
+Stage Summary:
+- File: src/app/api/ai/chat/route.ts — Debug logging for AI responses, battle mode logging
+- File: src/components/ErrorBoundary.tsx — Improved handleGoHome using Zustand store
+- File: src/components/layout/AppLayout.tsx — Added ErrorBoundary around AIChatPage
+- File: src/components/pages/AIChatPage.tsx — Defensive response validation, console logging
+- Both LearnWithGame and AIChatPage are now wrapped in ErrorBoundary
+- AI response debugging: check dev server console for [AI], [AIChat], [AIChat Battle] prefixed logs
