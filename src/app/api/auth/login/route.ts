@@ -3,11 +3,11 @@ import { NextRequest, NextResponse } from 'next/server';
 // ═══════════════════════════════════════════════════════════════════
 // PRODUCTION LOGIN — DB-first with hardcoded fallback
 // 1. Checks the database (bcrypt) for any registered user
-// 2. Falls back to hardcoded demo accounts (plain text)
+// 2. Falls back to hardcoded demo accounts ONLY if email NOT in DB
 // 3. Returns JWT + full user object
 // ═══════════════════════════════════════════════════════════════════
 
-// Hardcoded demo accounts — fallback if DB is unavailable
+// Hardcoded demo accounts — fallback if DB is unavailable or user not in DB
 const DEMO_ACCOUNTS: Record<string, { password: string; name: string; role: string; verified: boolean; avatar: string }> = {
   'admin@pu.edu': {
     password: 'admin123',
@@ -159,7 +159,7 @@ export async function POST(req: NextRequest) {
       });
 
       if (dbUser) {
-        // Check if user is banned
+        // User exists in DB — check status first
         if (dbUser.status === 'BANNED') {
           return NextResponse.json({ error: 'Account has been banned. Contact support.' }, { status: 403 });
         }
@@ -202,14 +202,17 @@ export async function POST(req: NextRequest) {
             }),
           });
         }
-        // Password didn't match — fall through to check hardcoded accounts
-        // (unlikely but handles edge case where same email exists in both)
+
+        // User exists in DB but password doesn't match — DON'T fall through to hardcoded.
+        // This prevents the same email from accessing two different accounts.
+        return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
       }
     } catch {
-      // DB unavailable — fall through to hardcoded accounts
+      // DB unavailable — fall through to hardcoded accounts below
     }
 
     // ── Strategy 2: Hardcoded demo accounts (fallback) ──
+    // Only reached if: (a) DB unavailable, or (b) email not found in DB
     const demo = DEMO_ACCOUNTS[normalizedEmail];
 
     if (!demo) {

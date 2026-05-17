@@ -21,22 +21,27 @@ export async function PUT(
 
     const { id } = await params;
 
-    // Check if notification exists and belongs to user
-    const notification = await db.notification.findUnique({ where: { id } });
-    if (!notification) {
-      return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
+    try {
+      // Check if notification exists and belongs to user
+      const notification = await db.notification.findUnique({ where: { id } });
+      if (!notification) {
+        return NextResponse.json({ error: 'Notification not found' }, { status: 404 });
+      }
+
+      if (notification.userId !== payload.userId) {
+        return NextResponse.json({ error: 'You can only mark your own notifications' }, { status: 403 });
+      }
+
+      const updated = await db.notification.update({
+        where: { id },
+        data: { isRead: true },
+      });
+
+      return NextResponse.json({ notification: updated });
+    } catch (dbError) {
+      console.error('[Notifications] Database error on mark-read:', dbError);
+      return NextResponse.json({ error: 'Failed to update notification' }, { status: 500 });
     }
-
-    if (notification.userId !== payload.userId) {
-      return NextResponse.json({ error: 'You can only mark your own notifications' }, { status: 403 });
-    }
-
-    const updated = await db.notification.update({
-      where: { id },
-      data: { isRead: true },
-    });
-
-    return NextResponse.json({ notification: updated });
   } catch (error) {
     console.error('Mark notification read error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

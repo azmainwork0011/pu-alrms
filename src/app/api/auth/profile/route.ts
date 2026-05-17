@@ -111,7 +111,16 @@ export async function PUT(req: NextRequest) {
       const body = await req.json();
       const { name, rollNumber, batch, department, phone, bio } = body;
       const updateData: Record<string, string> = {};
-      if (name !== undefined) updateData.name = name;
+      if (name !== undefined) {
+        // Validate name — only alphanumeric, spaces, hyphens, apostrophes, dots
+        if (!/^[a-zA-Z0-9\s\-'.]+$/.test(name)) {
+          return NextResponse.json({ error: 'Name can only contain letters, numbers, spaces, hyphens, apostrophes, and dots.' }, { status: 400 });
+        }
+        if (name.trim().length < 2) {
+          return NextResponse.json({ error: 'Name must be at least 2 characters long.' }, { status: 400 });
+        }
+        updateData.name = name;
+      }
       if (rollNumber !== undefined) updateData.rollNumber = rollNumber;
       if (batch !== undefined) updateData.batch = batch;
       if (department !== undefined) updateData.department = department;

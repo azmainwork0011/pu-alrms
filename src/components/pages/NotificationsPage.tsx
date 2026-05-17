@@ -3,18 +3,27 @@
 import React, { useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAppStore } from '@/store/app';
 import { useNotifications, useMarkNotificationRead } from '@/lib/hooks/use-queries';
-import { Bell, Clock, MessageSquare, ClipboardList } from 'lucide-react';
+import { Bell, Clock, MessageSquare, ClipboardList, CheckCheck } from 'lucide-react';
 import { timeAgo, playNotificationSound } from '@/components/pu-helpers';
+import { toast } from 'sonner';
 
 function NotificationsPage() {
-  const { data: notifications, isLoading: loading } = useNotifications();
+  const { data: notificationsData, isLoading: loading, refetch } = useNotifications();
   const markRead = useMarkNotificationRead();
   const { setNotificationCount } = useAppStore();
 
-  const notificationList = Array.isArray(notifications) ? notifications : [];
+  // Handle both old format (array) and new paginated format (object)
+  const notificationList = Array.isArray(notificationsData)
+    ? notificationsData
+    : notificationsData?.notifications || [];
+
+  const unreadCount = Array.isArray(notificationsData)
+    ? notificationList.filter(n => !n.isRead).length
+    : notificationsData?.unreadCount || 0;
 
   const initialLoad = useRef(true);
 
@@ -31,11 +40,26 @@ function NotificationsPage() {
 
   // Sync unread count to store whenever notification data changes
   useEffect(() => {
-    setNotificationCount(notificationList.filter(n => !n.isRead).length);
-  }, [notificationList, setNotificationCount]);
+    setNotificationCount(unreadCount);
+  }, [unreadCount, setNotificationCount]);
 
   const markAsRead = (id: string) => {
     markRead.mutate(id);
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      const { apiFetch } = await import('@/lib/api');
+      const result = await apiFetch<{ success: boolean; markedCount: number }>('/api/notifications', {
+        method: 'POST',
+      });
+      if (result.success) {
+        toast.success(`${result.markedCount} notification${result.markedCount !== 1 ? 's' : ''} marked as read`);
+        refetch();
+      }
+    } catch {
+      toast.error('Failed to mark all as read');
+    }
   };
 
   const getNotifIcon = (type: string) => {
@@ -49,9 +73,22 @@ function NotificationsPage() {
 
   return (
     <div className="space-y-6 min-w-0 overflow-x-hidden">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Notifications</h1>
-        <p className="text-gray-500 dark:text-gray-400 mt-1">{notificationList.filter(n => !n.isRead).length} unread</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Notifications</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">{unreadCount} unread</p>
+        </div>
+        {unreadCount > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={markAllAsRead}
+            className="gap-2 text-xs font-medium"
+          >
+            <CheckCheck className="w-3.5 h-3.5" />
+            Mark all read
+          </Button>
+        )}
       </div>
 
       {loading ? (

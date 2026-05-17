@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { signToken, verifyToken } from '@/lib/jwt';
 
+// Name validation: only alphanumeric, spaces, hyphens, apostrophes, dots, and commas
+const NAME_REGEX = /^[a-zA-Z0-9\s\-'.]+$/;
+const MIN_NAME_LENGTH = 2;
+const MAX_NAME_LENGTH = 100;
+
+function validateName(name: string): string | null {
+  if (!name || name.trim().length < MIN_NAME_LENGTH) {
+    return `Name must be at least ${MIN_NAME_LENGTH} characters long`;
+  }
+  if (name.length > MAX_NAME_LENGTH) {
+    return `Name must be less than ${MAX_NAME_LENGTH} characters`;
+  }
+  if (!NAME_REGEX.test(name)) {
+    return 'Name can only contain letters, numbers, spaces, hyphens, apostrophes, and dots. Special characters like !@#$%^&*() are not allowed.';
+  }
+  return null;
+}
+
 function stableId(seed: string): string {
   let h = 0;
   for (let i = 0; i < seed.length; i++) { h = ((h << 5) - h) + seed.charCodeAt(i); h |= 0; }
@@ -22,12 +40,21 @@ function makeToken(payload: object): string {
   return header + '.' + body + '.' + btoa(String(Math.abs(sig)));
 }
 
+// Roles that can create teacher accounts
+const ADMIN_ROLES = ['ADMIN', 'SUPER_ADMIN', 'DEVELOPER'];
+
 export async function POST(req: NextRequest) {
   try {
     const { name, email, password, role } = await req.json();
 
     if (!name || !email || !password) {
       return NextResponse.json({ error: 'Name, email, and password are required' }, { status: 400 });
+    }
+
+    // ── Server-side name validation ──
+    const nameError = validateName(name);
+    if (nameError) {
+      return NextResponse.json({ error: nameError }, { status: 400 });
     }
 
     const normalizedEmail = email.trim().toLowerCase();
@@ -39,10 +66,21 @@ export async function POST(req: NextRequest) {
         const token = authHeader?.replace('Bearer ', '');
         if (!token) return NextResponse.json({ error: 'Only admins can create teacher accounts' }, { status: 403 });
         const payload = verifyToken(token);
-        if (!payload || payload.role !== 'ADMIN') return NextResponse.json({ error: 'Only admins can create teacher accounts' }, { status: 403 });
+        if (!payload || !ADMIN_ROLES.includes(payload.role)) {
+          return NextResponse.json({ error: 'Only admins can create teacher accounts' }, { status: 403 });
+        }
         userRole = 'TEACHER';
-      } else if (role === 'ADMIN') {
-        return NextResponse.json({ error: 'Cannot create admin accounts directly' }, { status: 403 });
+      } else if (role === 'CR') {
+        const authHeader = req.headers.get('authorization');
+        const token = authHeader?.replace('Bearer ', '');
+        if (!token) return NextResponse.json({ error: 'Only admins can create CR accounts' }, { status: 403 });
+        const payload = verifyToken(token);
+        if (!payload || !ADMIN_ROLES.includes(payload.role)) {
+          return NextResponse.json({ error: 'Only admins can create CR accounts' }, { status: 403 });
+        }
+        userRole = 'CR';
+      } else if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'DEVELOPER') {
+        return NextResponse.json({ error: 'Cannot create admin/developer accounts directly. Contact Super Admin.' }, { status: 403 });
       }
     }
 
@@ -62,7 +100,7 @@ export async function POST(req: NextRequest) {
       // DB unavailable
     }
 
-    // Fallback: create in-memory user
+    // Fallback: create in-memory user (only if DB is down)
     const userId = stableId(normalizedEmail + '-' + Date.now());
     const jwtToken = makeToken({ userId, email: normalizedEmail, role: userRole, name });
     const iso = new Date().toISOString();

@@ -83,11 +83,25 @@ function AuthPage() {
 
   const pwStrength = getPasswordStrength(formData.password);
 
+  // Name validation for register mode
+  const nameError = formData.name && !/^[a-zA-Z0-9\s\-'.]+$/.test(formData.name)
+    ? 'Only letters, numbers, spaces, hyphens, and apostrophes allowed'
+    : formData.name && formData.name.trim().length < 2
+    ? 'Name must be at least 2 characters'
+    : null;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
     setLoading(true);
     setError(null);
+
+    // Validate name on register
+    if (mode === 'register' && nameError) {
+      setError(nameError);
+      setLoading(false);
+      return;
+    }
     try {
       const result = mode === 'login'
         ? await authApi.login(formData.email, formData.password)
@@ -238,9 +252,14 @@ function AuthPage() {
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                             required
-                            className="h-11 pl-10 bg-white/[0.04] border-white/[0.08] rounded-xl text-sm text-gray-100 placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                            className={`h-11 pl-10 bg-white/[0.04] rounded-xl text-sm text-gray-100 placeholder:text-gray-600 focus:ring-emerald-500/20 ${nameError ? 'border-red-500/50 focus:border-red-500/50' : 'border-white/[0.08] focus:border-emerald-500/50'}`}
                           />
                         </div>
+                        {nameError && (
+                          <p className="text-[11px] text-red-400/80 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> {nameError}
+                          </p>
+                        )}
                       </div>
                     </motion.div>
                   )}
@@ -384,7 +403,7 @@ function AuthPage() {
                     background: loading ? undefined : 'linear-gradient(135deg, #059669 0%, #0d9488 50%, #0891b2 100%)',
                     boxShadow: loading ? undefined : '0 4px 24px rgba(16,185,129,0.2)',
                   }}
-                  disabled={loading || (mode === 'register' && formData.email && !isValidEmail(formData.email))}
+                  disabled={loading || (mode === 'register' && formData.email && !isValidEmail(formData.email)) || (mode === 'register' && !!nameError)}
                 >
                   {loading ? (
                     <span className="flex items-center gap-2">
