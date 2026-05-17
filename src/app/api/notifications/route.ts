@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
 
     try {
-      const [notifications, total] = await Promise.all([
+      const [notifications, total, unreadCount] = await Promise.all([
         db.notification.findMany({
           where: { userId: payload.userId },
           orderBy: { createdAt: 'desc' },
@@ -33,9 +33,10 @@ export async function GET(req: NextRequest) {
         db.notification.count({
           where: { userId: payload.userId },
         }),
+        db.notification.count({
+          where: { userId: payload.userId, isRead: false },
+        }),
       ]);
-
-      const unreadCount = notifications.filter(n => !n.isRead).length;
 
       return NextResponse.json({
         notifications,

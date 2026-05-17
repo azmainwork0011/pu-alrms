@@ -119,9 +119,10 @@ function SimpleChart({ data, maxValue, label, subLabel, color }: {
 // ═══════════════════════════════════════════════════════════
 
 function DeadlineRow({ a, index }: { a: any; index: number }) {
-  const daysLeft = differenceInDays(new Date(a.deadline), new Date());
-  const isUrgent = daysLeft <= 2 && daysLeft >= 0;
-  const isPast = daysLeft < 0;
+  const deadlineDate = a.deadline ? new Date(a.deadline) : null;
+  const daysLeft = deadlineDate ? differenceInDays(deadlineDate, new Date()) : null;
+  const isUrgent = daysLeft !== null && daysLeft <= 2 && daysLeft >= 0;
+  const isPast = daysLeft !== null && daysLeft < 0;
   return (
     <motion.div
       initial={{ opacity: 0, x: -16 }} animate={{ opacity: 1, x: 0 }}
@@ -134,7 +135,7 @@ function DeadlineRow({ a, index }: { a: any; index: number }) {
         isUrgent ? 'bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400' :
         'bg-amber-100 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400'
       }`}>
-        {isPast ? <CheckCircle2 className="w-5 h-5" /> : daysLeft}
+        {isPast ? <CheckCircle2 className="w-5 h-5" /> : daysLeft !== null ? daysLeft : '—'}
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium truncate text-gray-900 dark:text-gray-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">{a.title}</p>
@@ -145,7 +146,7 @@ function DeadlineRow({ a, index }: { a: any; index: number }) {
       </div>
       <div className="text-right shrink-0">
         <p className={`text-xs font-medium ${isUrgent ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`}>
-          {safeFormat(new Date(a.deadline), 'MMM d, yyyy')}
+          {deadlineDate ? safeFormat(deadlineDate, 'MMM d, yyyy') : 'No deadline'}
         </p>
         {!isPast && (
           <p className={`text-[10px] ${isUrgent ? 'text-red-500' : 'text-gray-400 dark:text-gray-500'}`}>

@@ -56,9 +56,9 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/quiz/profile — Update quiz profile after completing a quiz
+// PUT /api/quiz/profile — Update quiz profile after completing a quiz
 // Body: { xpGained: number, correctCount: number, totalQuestions: number }
-export async function POST(req: NextRequest) {
+export async function PUT(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
     const token = authHeader?.replace('Bearer ', '');

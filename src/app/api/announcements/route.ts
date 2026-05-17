@@ -63,8 +63,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    if (payload.role !== 'TEACHER' && payload.role !== 'ADMIN') {
-      return NextResponse.json({ error: 'Only teachers or admins can create announcements' }, { status: 403 });
+    if (!['TEACHER', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(payload.role)) {
+      return NextResponse.json({ error: 'Only teachers, admins, super admins, and developers can create announcements' }, { status: 403 });
     }
 
     const body = await req.json();

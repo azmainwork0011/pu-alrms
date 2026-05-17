@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
       const { db } = await import('@/lib/db');
       const user = await db.user.findUnique({
         where: { id: payload.userId },
-        select: { id: true, name: true, email: true, role: true, avatar: true, coverPhoto: true, rollNumber: true, batch: true, department: true, phone: true, bio: true, createdAt: true, updatedAt: true },
+        select: { id: true, name: true, email: true, role: true, verified: true, status: true, avatar: true, coverPhoto: true, rollNumber: true, batch: true, department: true, phone: true, bio: true, createdAt: true, updatedAt: true },
       });
       if (user) return NextResponse.json({ user });
     } catch {
@@ -47,6 +47,8 @@ export async function GET(req: NextRequest) {
       name: known?.name || payload.name,
       email: payload.email,
       role: known?.role || payload.role,
+      verified: known?.verified ?? false,
+      status: 'ACTIVE' as const,
       avatar: known?.avatar || null,
       coverPhoto: null,
       rollNumber: null,

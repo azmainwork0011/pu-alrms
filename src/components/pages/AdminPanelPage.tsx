@@ -319,7 +319,7 @@ function UserManagementTab() {
       setUsers(data.users || []);
       setTotal(data.pagination?.total || 0);
     } catch {
-      // Silently handle — will show empty state
+      toast.error('Failed to load users');
     } finally {
       setLoading(false);
     }
@@ -336,7 +336,7 @@ function UserManagementTab() {
       });
       await fetchUsers();
     } catch {
-      // Error handled silently
+      toast.error('Action failed. Please try again.');
     } finally {
       setActionLoading(null);
     }
@@ -354,7 +354,7 @@ function UserManagementTab() {
       setSelectedUserForRole(null);
       await fetchUsers();
     } catch {
-      // Error handled silently
+      toast.error('Role change failed. Please try again.');
     } finally {
       setRoleChangeLoading(false);
     }
@@ -559,7 +559,7 @@ function DeveloperAccessTab() {
       const data = await apiFetch<{ users: AdminUser[]; pagination: { total: number } }>('/api/admin/users?role=DEVELOPER&limit=50');
       setDevs(data.users || []);
     } catch {
-      // Silently handle
+      toast.error('Failed to load developer accounts');
     } finally {
       setLoading(false);
     }
@@ -577,7 +577,7 @@ function DeveloperAccessTab() {
       });
       await fetchDevs();
     } catch {
-      // Silently handle
+      toast.error('Action failed. Please try again.');
     } finally {
       setActionLoading(null);
     }

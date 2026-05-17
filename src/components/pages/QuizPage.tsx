@@ -649,6 +649,7 @@ function QuizPage() {
   // ─── Submit Answer ─────────────────────────────────────────────────
   const submitAnswer = useCallback((option: string) => {
     if (isAnswered) return;
+    if (!questions[currentQ]) return;
     setSelectedOption(option);
     setIsAnswered(true);
     playSound(playOptionSelect);

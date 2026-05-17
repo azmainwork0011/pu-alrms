@@ -227,7 +227,7 @@ function ProfilePage() {
         phone: formPhone.trim() || undefined,
         bio: formBio.trim() || undefined,
       });
-      updateUser(r.user);
+      if (r.user) updateUser(r.user);
       setEditMode(false);
       toast.success('Profile updated!');
     } catch (e: any) { toast.error(e.message || 'Failed to update'); }

@@ -134,7 +134,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Create notifications for relevant students
-    const studentWhere: Record<string, unknown> = { role: 'STUDENT' };
+    const studentWhere: Record<string, unknown> = { role: { in: ['STUDENT', 'CR'] } };
     if (batch) {
       studentWhere.batch = batch;
     }

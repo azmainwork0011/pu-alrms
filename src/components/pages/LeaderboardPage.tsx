@@ -71,7 +71,7 @@ function LeaderboardPage() {
                         </Avatar>
                         <p className={`font-semibold truncate dark:text-gray-100 ${style.nameSize}`}>{e.name}</p>
                         <p className={`font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 sm:mt-1 ${style.markSize}`}>
-                          {e.averageMarks?.toFixed(1)}%
+                          {Number(e.averageMarks)?.toFixed(1)}%
                         </p>
                         <p className="text-[10px] sm:text-xs text-gray-400 dark:text-gray-500">{e.totalSubmissions} submissions</p>
                       </CardContent>
@@ -111,11 +111,11 @@ function LeaderboardPage() {
                         </div>
                       </TableCell>
                       <TableCell className="hidden sm:table-cell dark:text-gray-300 text-sm">{e.totalSubmissions}</TableCell>
-                      <TableCell className="font-bold text-emerald-700 dark:text-emerald-400 text-sm">{e.averageMarks?.toFixed(1)}%</TableCell>
+                      <TableCell className="font-bold text-emerald-700 dark:text-emerald-400 text-sm">{Number(e.averageMarks)?.toFixed(1)}%</TableCell>
                       <TableCell className="hidden sm:table-cell">
                         <div className="flex items-center gap-2 min-w-0">
                           <Progress value={e.averageMarks} className="h-2 flex-1 min-w-0" />
-                          <span className="text-[10px] text-gray-400 w-8 text-right shrink-0">{e.averageMarks?.toFixed(0)}%</span>
+                          <span className="text-[10px] text-gray-400 w-8 text-right shrink-0">{Number(e.averageMarks)?.toFixed(0)}%</span>
                         </div>
                       </TableCell>
                     </TableRow>

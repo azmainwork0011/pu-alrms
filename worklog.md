@@ -190,3 +190,50 @@ Stage Summary:
 - File: src/components/pages/AIChatPage.tsx — Defensive response validation, console logging
 - Both LearnWithGame and AIChatPage are now wrapped in ErrorBoundary
 - AI response debugging: check dev server console for [AI], [AIChat], [AIChat Battle] prefixed logs
+
+---
+Task ID: 13
+Agent: Frontend Bug Fix Agent
+Task: Fix Quiz Null Check, Dashboard Deadline, Admin Errors, Leaderboard, Profile, Notification Count
+
+Work Log:
+- Read worklog and all 6 affected files
+- Bug H3 (QuizPage): Added `if (!questions[currentQ]) return;` guard at top of `submitAnswer` function to prevent crash when currentQ is out of bounds or questions is empty
+- Bug H4 (DashboardPage): Rewrote `DeadlineRow` to use `deadlineDate = a.deadline ? new Date(a.deadline) : null` with null-safe `daysLeft`, `isUrgent`, `isPast` calculations and fallback display ('—', 'No deadline')
+- Bug H5 (AdminPanelPage): Replaced 5 silent empty catch blocks with `toast.error()` calls: fetchUsers, performAction, handleRoleChange, fetchDevs, toggleDevStatus. `toast` was already imported from 'sonner'
+- Bug M2 (LeaderboardPage): Wrapped all `.toFixed()` calls with `Number()`: 2 instances of `Number(e.averageMarks)?.toFixed(1)` and 1 instance of `Number(e.averageMarks)?.toFixed(0)`
+- Bug M3 (ProfilePage): Added null check `if (r.user) updateUser(r.user)` in saveProfile to prevent crash when response has no user object
+- Bug M4 (Notification route): Replaced paginated filter count with dedicated `db.notification.count({ where: { userId: payload.userId, isRead: false } })` query in the Promise.all for accurate total unread count
+- Ran `bun run lint` — zero errors
+
+Stage Summary:
+- File: src/components/pages/QuizPage.tsx — Null guard on submitAnswer
+- File: src/components/pages/DashboardPage.tsx — Null-safe deadline handling in DeadlineRow
+- File: src/components/pages/AdminPanelPage.tsx — 5 silent catches now show toast errors
+- File: src/components/pages/LeaderboardPage.tsx — Number() wrapper on all toFixed calls
+- File: src/components/pages/ProfilePage.tsx — Null check on updateUser(r.user)
+- File: src/app/api/notifications/route.ts — Accurate unreadCount via DB count query
+- All 6 bugs fixed, lint passes clean
+
+---
+Task ID: 12
+Agent: API Bug Fix Agent
+Task: Fix Quiz API, Announcements, Assignment Notifications, Profile Fields
+
+Work Log:
+- Read worklog.md for context on prior changes
+- Bug H-01 (Quiz Profile API): Client calls PUT /api/quiz/profile but server only had GET and POST. Renamed POST handler to PUT to match client. No other callers used POST.
+- Bug H-01 (Missing Attempt Routes): Client references /api/quiz/attempt (POST submit) and /api/quiz/attempts (GET list) but neither route existed. Created both: src/app/api/quiz/attempt/route.ts (POST) and src/app/api/quiz/attempts/route.ts (GET) with auth, validation, and QuizAttempt CRUD.
+- Bug H-03 (Announcement Roles): Line 66 only allowed TEACHER and ADMIN. Added SUPER_ADMIN and DEVELOPER to the allowed roles array.
+- Bug H-04 (Assignment Notification): Line 137 targeted only STUDENT role for notifications. Changed to `{ role: { in: ['STUDENT', 'CR'] } }` so CR also receives assignment notifications.
+- Bug H-05 (Profile Fields): DB query select and fallback user object both missing `verified` and `status` fields. Added `verified: true, status: true` to DB select. Added `verified: known?.verified ?? false, status: 'ACTIVE' as const` to fallback path.
+- Ran `bun run lint` — zero errors
+
+Stage Summary:
+- File: src/app/api/quiz/profile/route.ts — Renamed POST to PUT for quiz profile update
+- File: src/app/api/quiz/attempt/route.ts — NEW: POST handler to submit quiz attempts
+- File: src/app/api/quiz/attempts/route.ts — NEW: GET handler to list quiz attempts with optional category filter
+- File: src/app/api/announcements/route.ts — SUPER_ADMIN and DEVELOPER now allowed to create announcements
+- File: src/app/api/assignments/route.ts — CR role now receives assignment notifications
+- File: src/app/api/auth/profile/route.ts — Added verified and status fields to GET response (DB + fallback paths)
+- All 5 bugs fixed, lint passes clean with zero errors
