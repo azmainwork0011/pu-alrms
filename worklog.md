@@ -237,3 +237,82 @@ Stage Summary:
 - File: src/app/api/assignments/route.ts — CR role now receives assignment notifications
 - File: src/app/api/auth/profile/route.ts — Added verified and status fields to GET response (DB + fallback paths)
 - All 5 bugs fixed, lint passes clean with zero errors
+
+---
+Task ID: 14
+Agent: Data Layer Agent
+Task: Expand cq-data.ts with new game types, catalog, memory cards, code fill, patterns, typing snippets, speed quiz sets
+
+Work Log:
+- Read existing cq-data.ts (479 lines) — preserved all existing types, data, and utility functions
+- Added 6 new TypeScript interfaces:
+  1. `GameCatalog` — full game metadata (id, name, description, icon, image, category, difficulty, players, xpReward, color, tags, rating, playsCount, isPremium, isNew)
+  2. `MemoryMatchCard` — paired cards for memory game (id, pairId, content, matchContent, category)
+  3. `CodeFillChallenge` — fill-in-the-blank code exercises (codeTemplate with ___BLANK___ markers, options, correctAnswers)
+  4. `PatternChallenge` — number sequence recognition (sequence, nextOptions, correctIndex, explanation)
+  5. `TypingSnippet` — code typing practice (language, difficulty, code, title, points)
+  6. `SpeedQuizSet` — timed quiz sets with embedded Question arrays (title, category, difficulty, timePerQuestion)
+- Added GAME_CATALOG array with 12 games matching images in /games/ (bug-finder, code-puzzle, code-battle, memory-match, typing-race, syntax-match, speed-quiz, output-predictor, code-fill, pattern-master, learn-quiz, daily-challenge) — each with unique gradient colors, categories, tags, ratings, and play counts
+- Added MEMORY_MATCH_CARDS array with 16 cards (8 pairs) covering Python (4), JavaScript (4), Java (4), and CS Fundamentals (4)
+- Added CODE_FILL_CHALLENGES array with 8 challenges across Python (4), JavaScript (3), Java (2) at Easy/Medium/Hard difficulties
+- Added PATTERN_CHALLENGES array with 10 challenges: arithmetic, geometric, Fibonacci, squares, cubes, primes, triangular number sequences
+- Added TYPING_SNIPPETS array with 10 snippets across Python (4), JavaScript (4), Java (2) from Easy to Hard
+- Added SPEED_QUIZ_SETS array with 4 sets: Python Basics Blitz (Easy), JavaScript Essentials (Easy), Mixed Language Medium (Medium), Algorithm Speed Run (Hard) — each with 10 timed questions
+- All exports are properly typed and exported
+- File organized with clear section comments (─── headers)
+- Ran `bun run lint` — zero errors
+
+Stage Summary:
+- File: src/lib/cq-data.ts — Expanded from ~479 lines to ~1100+ lines
+- 6 new interfaces, 6 new data arrays, all existing data preserved
+- All exports correct, lint passes clean
+
+## [2025-05-20] LearnWithGame.tsx Complete Rewrite
+
+### Task
+Complete rewrite of the `LearnWithGame.tsx` component implementing all 12 games with full game logic, navigation structure, and responsive design.
+
+### What Was Done
+- **File**: `/home/z/my-project/src/components/pages/LearnWithGame.tsx` (1,350 lines)
+- Wrote a complete, production-ready component from scratch with all 12 functional games
+
+### Architecture
+- **Navigation**: 5 views (Home, Games Hub, Individual Games, Leaderboard, Profile) with bottom nav bar
+- **12 Fully Functional Games**:
+  1. **Bug Detective** - Click buggy code lines, reveal correct line with explanation, 60s timer
+  2. **Code Puzzle** - Drag code lines up/down with arrow buttons, check order, 90s timer
+  3. **Code Battle** - AI bot battle with HP bars, damage animations, shake/glow effects, 12s per question
+  4. **Memory Match** - 4x4 card grid, flip 2 cards at a time, match coding concepts, track moves
+  5. **Typing Race** - Real-time character-by-character comparison, WPM counter, accuracy tracking
+  6. **Syntax Match** - Two-column concept/syntax matching with wrong-answer flash
+  7. **Speed Quiz** - Rapid-fire with per-question timer, streak counter, auto-advance
+  8. **Output Predictor** - Code tracing with MCQ options, correct/total tracking
+  9. **Code Fill** - Fill-in-the-blank with dropdown selects, per-blank scoring
+  10. **Pattern Master** - Number sequences with 4 answer options, streak tracking
+  11. **Learn Quiz** - Language → Topic → 5 MCQ questions flow
+  12. **Daily Challenge** - Uses getTodayChallenge(), bonus XP for high scores
+
+### Design Features
+- Mobile-first responsive design with sm/md/lg breakpoints
+- Dark mode support with dark: Tailwind variants
+- Framer Motion animations (fade, scale, shake, glow, confetti particles)
+- Gradient accents from game catalog colors (no indigo/blue unless data specifies)
+- Sticky bottom navigation bar
+- XP accumulation across games with level system
+- Confetti celebrations on high-scoring games
+
+### Data Integration
+- Imports from `@/lib/cq-data`: GAME_CATALOG, LANGUAGES, LEVEL_THRESHOLDS, BUG_FINDER_CHALLENGES, CODE_PUZZLES, SYNTAX_MATCH_PAIRS, MEMORY_MATCH_CARDS, CODE_FILL_CHALLENGES, PATTERN_CHALLENGES, TYPING_SNIPPETS, SPEED_QUIZ_SETS, MOCK_LEADERBOARD
+- Utility functions: getTodayChallenge, getRandomQuestions, getLevelForXP, getNextLevel, shuffleArray, getLanguageById
+- All proper TypeScript types imported
+
+### Components Used
+- shadcn/ui: Card, Button, Badge, Progress, Avatar, ScrollArea, Separator
+- Next.js Image with width/height props for game thumbnails
+- AnimatedCounter from @/components/pu-helpers
+- useAppStore from @/store/app
+- Lucide icons throughout
+
+### Lint Status
+- ✅ ESLint passes with 0 errors, 0 warnings
+- Fixed React hooks ordering issue in ConfettiParticles component
