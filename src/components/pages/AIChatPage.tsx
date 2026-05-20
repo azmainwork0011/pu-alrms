@@ -119,49 +119,97 @@ function AIChatPage() {
     setMessages([]);
   }, []);
 
-  // ─── Send Single ──────────────────────────────────────
+  // ─── Send Single (STREAMING) ──────────────────────────
   const sendSingle = useCallback(async (text?: string) => {
     const msg = text || input.trim();
     if (!msg || loading) return;
-    setMessages(p => [...p, { id: gid(), role: 'user', content: msg, timestamp: Date.now() }]);
+    const userMsgId = gid();
+    const aiMsgId = gid();
+    setMessages(p => [...p, { id: userMsgId, role: 'user', content: msg, timestamp: Date.now() }]);
+    // Add empty assistant placeholder for streaming into
+    setMessages(p => [...p, { id: aiMsgId, role: 'assistant', content: '', timestamp: Date.now(), modelName: selectedModel.name, modelId: selectedModel.id }]);
     setInput(''); setLoading(true); scroll();
+
+    // Build conversation history for context (last 10 exchanges)
+    const history = messages
+      .filter(m => m.role === 'user' || (m.role === 'assistant' && m.content))
+      .slice(-20)
+      .map(m => ({ role: m.role, content: m.content }));
+
     try {
-      const r = await aiApi.chat(msg, 'single', selectedModel.id);
-      // Defensive check: ensure response is a valid object
-      if (!r || typeof r !== 'object') {
-        console.warn('[AIChat] Invalid API response:', r);
-        setMessages(p => [...p, { id: gid(), role: 'assistant', content: '⚠️ Received an invalid response from the server. Please try again.', timestamp: Date.now(), modelName: selectedModel.name }]);
+      const response = await aiApi.chatStream(msg, selectedModel.id, history);
+
+      // Handle non-SSE error responses
+      if (!response.ok || !response.body) {
+        let errorMsg = "I couldn't connect to my AI engine just now. Please try again!";
+        if (response.status === 429) {
+          errorMsg = 'Too many requests. Please wait a moment and try again.';
+        } else if (response.status === 401) {
+          errorMsg = '⚠️ Your session has expired. Please sign in again to continue chatting.';
+          toast.error('Session expired. Please sign in again.');
+        }
+        setMessages(p => p.map(m => m.id === aiMsgId ? { ...m, content: errorMsg } : m));
+        setLoading(false);
         return;
       }
-      if (r.error) {
-        // Backend returned a meaningful error message — show it in chat
-        console.warn('[AIChat] Backend error:', r.error);
-        setMessages(p => [...p, { id: gid(), role: 'assistant', content: r.error, timestamp: Date.now(), modelName: selectedModel.name }]);
-        if (r.retryAfterMs) {
-          toast.info(`Please wait ${Math.ceil(r.retryAfterMs / 1000)}s before trying again.`);
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let accumulated = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || !trimmed.startsWith('data:')) continue;
+
+          const data = trimmed.slice(5).trim();
+          if (data === '[DONE]') continue;
+
+          try {
+            const parsed = JSON.parse(data);
+            if (parsed.error) {
+              setMessages(p => p.map(m => m.id === aiMsgId ? { ...m, content: parsed.error } : m));
+              setLoading(false);
+              return;
+            }
+            if (parsed.content) {
+              accumulated += parsed.content;
+              setMessages(p => p.map(m => m.id === aiMsgId ? { ...m, content: accumulated } : m));
+            }
+          } catch {
+            // Skip malformed chunks
+          }
         }
-      } else {
-        const responseContent = r.response?.trim();
-        if (!responseContent) {
-          console.warn('[AIChat] Empty AI response for message:', msg.slice(0, 100));
-          setMessages(p => [...p, { id: gid(), role: 'assistant', content: "I couldn't generate a response just now. Please try rephrasing your question!", timestamp: Date.now(), modelName: selectedModel.name }]);
-        } else {
-          setMessages(p => [...p, { id: gid(), role: 'assistant', content: responseContent, timestamp: Date.now(), modelName: r.modelName || selectedModel.name, modelId: r.modelId || selectedModel.id }]);
-        }
+        scroll();
+      }
+
+      // If no content was streamed, show fallback
+      if (!accumulated.trim()) {
+        console.warn('[AIChat Stream] Empty streamed response');
+        const fallbackMsg = /[\u0980-\u09FF]/.test(msg)
+          ? 'হুম, এই মুহূর্তে আমার সার্ভারে সমস্যা হচ্ছে। অনুগ্রহ করে আবার চেষ্টা করুন!'
+          : "I couldn't generate a response just now. Please try rephrasing your question!";
+        setMessages(p => p.map(m => m.id === aiMsgId ? { ...m, content: fallbackMsg } : m));
       }
     } catch (e: any) {
-      console.error('[AIChat] Exception:', e?.message || e);
+      console.error('[AIChat Stream] Exception:', e?.message || e);
       const errMsg = e?.message || 'Connection issue';
       if (errMsg.includes('HTTP') || errMsg.includes('401')) {
         toast.error('Session expired. Please sign in again.');
-        setMessages(p => [...p, { id: gid(), role: 'assistant', content: '⚠️ Your session has expired. Please sign in again to continue chatting with me.', timestamp: Date.now(), modelName: 'System' }]);
+        setMessages(p => p.map(m => m.id === aiMsgId ? { ...m, content: '⚠️ Your session has expired. Please sign in again to continue chatting.' } : m));
       } else {
         toast.error('Connection issue. Retrying...');
-        setMessages(p => [...p, { id: gid(), role: 'assistant', content: "I couldn't connect to my AI engine just now. Please try rephrasing your question — I'll respond as soon as possible!", timestamp: Date.now(), modelName: selectedModel.name }]);
+        setMessages(p => p.map(m => m.id === aiMsgId ? { ...m, content: "I couldn't connect to my AI engine just now. Please try rephrasing your question — I'll respond as soon as possible!" } : m));
       }
     }
     finally { setLoading(false); scroll(); }
-  }, [input, loading, selectedModel, scroll]);
+  }, [input, loading, selectedModel, messages, scroll]);
 
   // ─── Send Battle ──────────────────────────────────────
   const sendBattle = useCallback(async (text?: string) => {
@@ -357,8 +405,8 @@ function AIChatPage() {
             <ImageMessages messages={messages} copiedId={copiedId} onCopy={copyMsg} loading={imageLoading} />
           )}
 
-          {/* Loading indicator (any mode) */}
-          {(loading || imageLoading) && (chatPhase === 'chatting' || battlePhase === 'compare' || tab === 'image') && hasMsgs && (
+          {/* Loading indicator — only for battle & image mode (single chat streams progressively) */}
+          {(loading || imageLoading) && (chatPhase === 'chatting' || battlePhase === 'compare' || tab === 'image') && hasMsgs && !(tab === 'chat' && chatPhase === 'chatting') && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex gap-2.5 p-3 sm:p-4">
               <Avatar className="w-7 h-7"><AvatarFallback className="bg-gradient-to-br from-emerald-100 to-purple-100 text-purple-700 text-[10px] font-bold dark:from-emerald-900/30 dark:to-purple-900/30 dark:text-purple-300">AI</AvatarFallback></Avatar>
               <div className="bg-gray-100 dark:bg-gray-800 rounded-2xl rounded-tl-md px-3.5 py-3 flex items-center gap-2">
@@ -503,11 +551,23 @@ function ChatWelcome({ model, onPrompt }: { model: typeof AI_MODELS[0]; onPrompt
   );
 }
 
+// ─── Streaming Cursor Component ──────────────────────────
+function StreamingCursor() {
+  return (
+    <span className="inline-block w-1.5 h-4 ml-0.5 bg-emerald-500 rounded-sm animate-pulse align-text-bottom" />
+  );
+}
+
 // ─── Chat Messages ─────────────────────────────────────────
 function ChatMessages({ messages, curModel, copiedId, onCopy, onRegen, loading }: any) {
   const { user } = useAppStore();
   const ft = (ts: number) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const MIcon = curModel.icon;
+
+  // Determine if the last assistant message is still streaming (empty or just started)
+  const lastMsg = messages[messages.length - 1];
+  const isStreaming = loading && lastMsg?.role === 'assistant' && lastMsg.content.length < 20;
+
   return (
     <div className="p-3 sm:p-4 space-y-4">
       <AnimatePresence mode="popLayout">
@@ -531,18 +591,37 @@ function ChatMessages({ messages, curModel, copiedId, onCopy, onRegen, loading }
                   <span className="text-[10px] text-gray-400 dark:text-gray-500 mb-1 block ml-1">{ft(msg.timestamp)}</span>
                   <div className="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 rounded-2xl rounded-tl-md px-3.5 py-2.5 text-sm shadow-sm">
                     {msg.generatedImage && (<div className="mb-3"><img src={msg.generatedImage} alt="" className="max-w-full rounded-lg shadow-md max-h-[350px] object-contain" /><a href={msg.generatedImage} download="lucky-strick.png" className="inline-flex items-center gap-1.5 mt-2 text-xs text-purple-600 dark:text-purple-400 hover:underline font-medium"><Download className="w-3 h-3" />Download</a></div>)}
-                    <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-headings:my-2.5 dark:prose-invert text-sm"><ReactMarkdown>{msg.content}</ReactMarkdown></div>
+                    {msg.content ? (
+                      <>
+                        <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-headings:my-2.5 dark:prose-invert text-sm"><ReactMarkdown>{msg.content}</ReactMarkdown></div>
+                        {/* Show cursor during streaming */}
+                        {isStreaming && msg.id === lastMsg.id && <StreamingCursor />}
+                      </>
+                    ) : (
+                      /* Empty content while waiting for first stream chunk */
+                      loading && msg.id === lastMsg.id ? (
+                        <div className="flex items-center gap-2 py-1">
+                          <div className="flex gap-1">{[0, 1, 2].map(i => <motion.div key={i} className="w-1.5 h-1.5 rounded-full bg-emerald-500" animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }} transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }} />)}</div>
+                          <span className="text-xs text-gray-400">Thinking...</span>
+                        </div>
+                      ) : null
+                    )}
                   </div>
-                  {msg.modelName && (
-                    <div className="flex items-center gap-1.5 mt-1.5 ml-1">
-                      <div className={`w-3.5 h-3.5 rounded bg-gradient-to-br ${curModel.gradient} flex items-center justify-center`}><Cpu className="w-2 h-2 text-white" /></div>
-                      <span className="text-[10px] text-gray-400 dark:text-gray-500">{msg.modelName}</span>
-                    </div>
+                  {/* Only show action buttons when message is complete (not streaming) */}
+                  {msg.content && !(loading && msg.id === lastMsg.id) && (
+                    <>
+                      {msg.modelName && (
+                        <div className="flex items-center gap-1.5 mt-1.5 ml-1">
+                          <div className={`w-3.5 h-3.5 rounded bg-gradient-to-br ${curModel.gradient} flex items-center justify-center`}><Cpu className="w-2 h-2 text-white" /></div>
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500">{msg.modelName}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-0.5 mt-1 ml-1">
+                        <button onClick={() => onCopy(msg.id, msg.content)} className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">{copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}</button>
+                        <button onClick={() => { const last = [...messages].reverse().find((m: ChatMessage) => m.role === 'user'); if (last) { onRegen(last.content); } }} className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" disabled={loading}><RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /></button>
+                      </div>
+                    </>
                   )}
-                  <div className="flex items-center gap-0.5 mt-1 ml-1">
-                    <button onClick={() => onCopy(msg.id, msg.content)} className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">{copiedId === msg.id ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}</button>
-                    <button onClick={() => { const last = [...messages].reverse().find((m: ChatMessage) => m.role === 'user'); if (last) { onRegen(last.content); } }} className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors" disabled={loading}><RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /></button>
-                  </div>
                 </div>
               </>
             )}

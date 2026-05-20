@@ -637,13 +637,13 @@ All in `src/components/ui/`: accordion, alert, alert-dialog, avatar, badge, butt
 ## 14. Deployment Configuration
 
 ### 14.1 Vercel
-- **Token:** `(set in Vercel project settings)`
+- **Token:** (set in Vercel project settings)
 - **Build:** `prisma generate && next build`
 - **Framework:** Next.js (auto-detected)
 
 ### 14.2 GitHub
 - **Repo:** `azmainwork0011/pu-alrms`
-- **Token:** `(set in GitHub account settings)` (Classic)
+- **Token:** (set in GitHub account settings)
 
 ### 14.3 Environment Variables
 ```

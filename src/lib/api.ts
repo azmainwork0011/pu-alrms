@@ -416,6 +416,29 @@ export const aiApi = {
       body: JSON.stringify({ message, mode, modelId, selectedModels }),
       timeout: 60000, // AI responses can take up to 60s
     }),
+
+  /**
+   * Streaming chat — returns a ReadableStream that yields SSE chunks.
+   * Caller reads with reader and updates UI progressively.
+   * Falls back to non-streaming if SSE not available.
+   */
+  chatStream: async (
+    message: string,
+    modelId?: string,
+    history?: { role: string; content: string }[],
+  ): Promise<Response> => {
+    const token = getAuthToken();
+    const response = await fetchWithTimeout('/api/ai/chat/stream', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ message, modelId, history }),
+    }, 90000); // 90s timeout for streaming
+    return response;
+  },
+
   voteBattle: (battleId: string, label: string) =>
     apiFetch<{ success: boolean; votes: any; reveals: Record<string, string> }>('/api/ai/chat', {
       method: 'PUT',

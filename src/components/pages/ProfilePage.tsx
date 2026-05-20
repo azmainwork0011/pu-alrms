@@ -227,7 +227,17 @@ function ProfilePage() {
         phone: formPhone.trim() || undefined,
         bio: formBio.trim() || undefined,
       });
-      if (r.user) updateUser(r.user);
+      // Only update text fields — preserve avatar/coverPhoto from local state
+      if (r.user) {
+        updateUser({
+          name: r.user.name,
+          rollNumber: r.user.rollNumber,
+          batch: r.user.batch,
+          department: r.user.department,
+          phone: r.user.phone,
+          bio: r.user.bio,
+        });
+      }
       setEditMode(false);
       toast.success('Profile updated!');
     } catch (e: any) { toast.error(e.message || 'Failed to update'); }
@@ -272,8 +282,18 @@ function ProfilePage() {
     try {
       const file = new File([blob], `profile-${uploadType}-${Date.now()}.png`, { type: 'image/png' });
       const r = await authApi.uploadProfilePhoto(file, uploadType);
-      if (uploadType === 'avatar') { updateUser({ avatar: r.url }); setAvatarPreview(null); }
-      else { updateUser({ coverPhoto: r.url }); setCoverPreview(null); }
+      // Apply immediately to UI
+      if (uploadType === 'avatar') { setAvatarPreview(null); }
+      else { setCoverPreview(null); }
+      // Persist to Zustand store + localStorage
+      try {
+        updateUser(uploadType === 'avatar' ? { avatar: r.url } : { coverPhoto: r.url });
+      } catch (storageErr: any) {
+        // localStorage might be full — photo saved to server but not cached locally
+        console.warn('[Profile] Could not cache photo locally:', storageErr?.message);
+        toast.success(`${uploadType === 'avatar' ? 'Profile' : 'Cover'} photo saved to server!`, { description: 'Photo may reset on next login if browser storage is full.' });
+        return;
+      }
       toast.success(`${uploadType === 'avatar' ? 'Profile' : 'Cover'} photo updated!`);
     } catch (e: any) { toast.error(e.message || 'Upload failed'); }
     finally { setUploading(null); }
