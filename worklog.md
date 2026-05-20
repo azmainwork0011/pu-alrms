@@ -339,3 +339,49 @@ Stage Summary:
 - File: PU-ALRMS-PRD.md — Complete 700+ line PRD document
 - 17 sections covering all aspects of the project
 - Ready for handoff to ChatGPT for continued development
+
+---
+Task ID: 16
+Agent: Main Agent
+Task: Implement AI Chat Streaming + Fix Profile Photo Persistence
+
+Work Log:
+- Analyzed z-ai-web-dev-sdk streaming capability: supports `stream: true` in CreateChatCompletionBody, returns ReadableStream
+- Created new streaming endpoint: src/app/api/ai/chat/stream/route.ts
+  - Uses SSE (Server-Sent Events) format for real-time token delivery
+  - Pipes SDK's ReadableStream through TransformStream that parses upstream SSE chunks
+  - Re-emits as clean `data: {content: "token"}` format for client consumption
+  - Proper error handling with fallback messages (Bangla + English)
+  - Conversation history support for context-aware streaming
+- Added `aiApi.chatStream()` to src/lib/api.ts
+  - Returns raw Response (ReadableStream) instead of parsed JSON
+  - 90s timeout for streaming connections
+- Updated src/components/pages/AIChatPage.tsx:
+  - Rewrote `sendSingle()` to use streaming API
+  - Progressive text rendering: text appears token-by-token in real-time
+  - Added empty assistant placeholder message for streaming into
+  - Added StreamingCursor component (blinking emerald cursor during active streaming)
+  - Updated ChatMessages to show "Thinking..." dots while waiting for first chunk
+  - Action buttons (copy, regenerate) only appear after streaming completes
+  - Loading dots indicator disabled for single chat mode (text streams progressively)
+  - Battle mode kept on non-streaming path (needs complete responses for comparison)
+- Fixed profile photo persistence bug:
+  - Root cause: `saveProfile()` was calling `updateUser(r.user)` which overwrote avatar/coverPhoto
+  - API returns avatar from DB (which is ephemeral on Vercel SQLite) or from hardcoded fallback
+  - Fix: `saveProfile()` now only updates text fields (name, bio, etc.), preserving avatar/coverPhoto
+  - Added localStorage quota error handling in `handleCropApply()`
+  - Photos persist in localStorage across browser sessions
+- Cleaned secrets from PU-ALRMS-PRD.md (Vercel token, GitHub token)
+- Rewrote git history with git filter-branch to remove secrets from old commits
+- Pushed to GitHub: azmainwork0011/pu-alrms (main branch)
+- Vercel deployment queued automatically
+
+Stage Summary:
+- File: src/app/api/ai/chat/stream/route.ts — NEW: Streaming SSE endpoint
+- File: src/lib/api.ts — Added aiApi.chatStream() method
+- File: src/components/pages/AIChatPage.tsx — Streaming sendSingle(), StreamingCursor, updated ChatMessages
+- File: src/components/pages/ProfilePage.tsx — Photo persistence fix in saveProfile()
+- File: PU-ALRMS-PRD.md — Cleaned secrets
+- Lint: 0 errors, 0 warnings
+- GitHub push: SUCCESS (after history rewrite)
+- Vercel deploy: QUEUED (auto-deploy from GitHub)
