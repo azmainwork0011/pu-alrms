@@ -86,6 +86,20 @@ const DEMO_ACCOUNTS: Record<string, { password: string; name: string; role: stri
     verified: false,
     avatar: 'https://api.dicebear.com/9.x/initials/svg?seed=DB&backgroundColor=9b59b6',
   },
+  'cr@stu.pu.edu': {
+    password: 'cr123',
+    name: 'Rafiq Ahmed',
+    role: 'CR',
+    verified: true,
+    avatar: 'https://api.dicebear.com/9.x/initials/svg?seed=RA&backgroundColor=e74c3c',
+  },
+  'super@pu.edu': {
+    password: 'super123',
+    name: 'Super Admin',
+    role: 'SUPER_ADMIN',
+    verified: true,
+    avatar: 'https://api.dicebear.com/9.x/initials/svg?seed=SUP&backgroundColor=e74c3c',
+  },
 };
 
 // Stable ID generator — same email always gets same ID

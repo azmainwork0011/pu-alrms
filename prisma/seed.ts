@@ -42,6 +42,35 @@ async function main() {
     },
   });
 
+  // CR user
+  const crPass = await hash('cr123', 12);
+  const cr = await db.user.upsert({
+    where: { email: 'cr@stu.pu.edu' },
+    update: {},
+    create: {
+      name: 'Rafiq Ahmed',
+      email: 'cr@stu.pu.edu',
+      password: crPass,
+      role: 'CR',
+      batch: 'CSE-2024',
+      avatar: 'https://api.dicebear.com/9.x/initials/svg?seed=RA&backgroundColor=e74c3c',
+    },
+  });
+
+  // Super Admin (separate from the regular admin)
+  const superAdminPass = await hash('super123', 12);
+  const superAdmin = await db.user.upsert({
+    where: { email: 'super@pu.edu' },
+    update: {},
+    create: {
+      name: 'Super Admin',
+      email: 'super@pu.edu',
+      password: superAdminPass,
+      role: 'SUPER_ADMIN',
+      avatar: 'https://api.dicebear.com/9.x/initials/svg?seed=SUP&backgroundColor=e74c3c',
+    },
+  });
+
   const students = [];
   const studentData = [
     { name: 'Alice Chen', email: 'alice@stu.pu.edu', seed: 'AC', color: '8e44ad' },
@@ -57,12 +86,13 @@ async function main() {
   for (const s of studentData) {
     const student = await db.user.upsert({
       where: { email: s.email },
-      update: {},
+      update: { batch: 'CSE-2024' },
       create: {
         name: s.name,
         email: s.email,
         password: studentPass,
         role: 'STUDENT',
+        batch: 'CSE-2024',
         avatar: `https://api.dicebear.com/9.x/initials/svg?seed=${s.seed}&backgroundColor=${s.color}`,
       },
     });
@@ -252,11 +282,88 @@ async function main() {
     });
   }
 
+  // Sample submission tasks for CR
+  const now2 = new Date();
+  const taskData = [
+    {
+      subjectName: 'Data Structures & Algorithms',
+      subjectCode: 'CS201',
+      batch: 'CSE-2024',
+      type: 'ASSIGNMENT',
+      description: 'Implement AVL Tree with all rotations. Submit code with proper comments.',
+      dueDate: new Date(now2.getTime() + 5 * 24 * 60 * 60 * 1000),
+      status: 'ACTIVE',
+      createdBy: cr.id,
+    },
+    {
+      subjectName: 'Database Management Systems',
+      subjectCode: 'CS301',
+      batch: 'CSE-2024',
+      type: 'LAB_REPORT',
+      description: 'Complete ER Diagram and Relational Schema for Library Management System.',
+      dueDate: new Date(now2.getTime() + 3 * 24 * 60 * 60 * 1000),
+      status: 'ACTIVE',
+      createdBy: cr.id,
+    },
+    {
+      subjectName: 'Operating Systems',
+      subjectCode: 'CS302',
+      batch: 'CSE-2024',
+      type: 'PRESENTATION',
+      description: 'Group presentation on Process Scheduling Algorithms (10 min per group).',
+      dueDate: new Date(now2.getTime() + 10 * 24 * 60 * 60 * 1000),
+      status: 'ACTIVE',
+      createdBy: cr.id,
+    },
+  ];
+
+  const createdTasks = [];
+  for (const t of taskData) {
+    const task = await db.submissionTask.create({ data: t });
+    createdTasks.push(task);
+
+    // Create batch notifications
+    await db.batchNotification.create({
+      data: {
+        taskId: task.id,
+        batch: t.batch,
+        title: `New ${t.type.replace('_', ' ')}: ${t.subjectName}`,
+        message: `A new ${t.type.replace('_', ' ').toLowerCase()} for ${t.subjectName} (${t.subjectCode}). Due: ${t.dueDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}.`,
+        type: 'SUBMISSION',
+        sentBy: cr.id,
+      },
+    });
+  }
+
+  // Sample student responses
+  await db.taskResponse.create({
+    data: {
+      taskId: createdTasks[0].id,
+      studentId: students[0].id,
+      status: 'SUBMITTED',
+      fileName: 'avl_tree_implementation.pdf',
+      fileUrl: '/uploads/avl_tree_alice.pdf',
+      submittedAt: new Date(now2.getTime() - 1 * 24 * 60 * 60 * 1000),
+    },
+  });
+  await db.taskResponse.create({
+    data: {
+      taskId: createdTasks[0].id,
+      studentId: students[1].id,
+      status: 'SUBMITTED',
+      fileName: 'avl_tree_bob.pdf',
+      fileUrl: '/uploads/avl_tree_bob.pdf',
+      submittedAt: new Date(now2.getTime() - 12 * 60 * 60 * 1000),
+    },
+  });
+
   console.log('Seed completed successfully!');
   console.log('--- Accounts ---');
   console.log('Admin: admin@pu.edu / admin123');
+  console.log('Super Admin: super@pu.edu / super123');
   console.log('Teacher: dr.smith@pu.edu / teacher123');
   console.log('Teacher: prof.johnson@pu.edu / teacher123');
+  console.log('CR: cr@stu.pu.edu / cr123');
   console.log('Student: alice@stu.pu.edu / student123');
   console.log('Student: bob@stu.pu.edu / student123');
   console.log('Student: carol@stu.pu.edu / student123');
