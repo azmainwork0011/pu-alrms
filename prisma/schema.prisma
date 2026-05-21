@@ -339,3 +339,35 @@ model CQBattleSession {
   player1 User @relation("CQBattleP1", fields: [player1Id], references: [id])
   player2 User? @relation("CQBattleP2", fields: [player2Id], references: [id])
 }
+
+// ─── Digital Library ───────────────────────────────────────
+model LibraryBook {
+  id          Int      @id @default(autoincrement())
+  title       String
+  author      String
+  description String   @default("")
+  category    String   // CS, EE, BA, LLB, GEN
+  subcategory String?  // e.g., "Programming", "Circuit Analysis"
+  fileUrl     String   @default("")   // PDF/EPUB download link
+  coverUrl    String   @default("")   // Cover image URL
+  isbn        String?  @unique
+  language    String   @default("en")
+  pages       Int?
+  year        Int?
+  publisher   String?
+  fileSize    String?  // e.g., "12.5 MB"
+  fileType    String   @default("PDF")
+  featured    Boolean  @default(false)
+  downloads   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model BookDownload {
+  id        String      @id @default(cuid())
+  bookId    Int
+  userId    String?
+  bookTitle String
+  createdAt DateTime    @default(now())
+}
