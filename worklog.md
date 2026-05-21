@@ -108,3 +108,44 @@ Stage Summary:
 - 30 university textbooks seeded across 5 categories with featured flags
 - Category color coding system (CS=cyan, EE=amber, BA=emerald, LLB=rose, GEN=stone)
 - Download tracking with count display and BookDownload records
+---
+Task ID: 3
+Agent: Main Agent
+Task: Upgrade AuthPage login module with multi-color background, step indicator, section field, colored buttons, and enhanced profile setup
+
+Work Log:
+- Read full AuthPage.tsx (924 lines) to understand existing structure
+- Added `BookOpen` to lucide-react imports
+- Added `DEPARTMENT_ICONS` constant mapping department codes to emoji icons (CSE: 🖥️, EEE: ⚡, BBA: 💼, LLB: ⚖️)
+- Added `SECTIONS_MAP` constant mapping departments to section/course options (4 sections each)
+- Upgraded `AnimatedBackground` with 4 colorful gradient orbs:
+  - Emerald orb (top-left, 15s duration)
+  - Purple/violet orb (top-right, 18s duration)
+  - Orange/amber orb (bottom-left, 22s duration)
+  - Blue/cyan orb (center-right, 25s duration)
+  - Kept original emerald orb (bottom-right, 20s duration)
+- Added Step Progress Indicator below gradient line showing 3 steps:
+  - Step 1: "Choose Method" (login-methods mode)
+  - Step 2: "Verify" (phone-otp, phone-verify, email-login, email-register, google-verify)
+  - Step 3: "Setup Profile" (profile-setup mode)
+  - Active/completed steps emerald colored, future steps gray, with connecting lines
+- Added colored left-border accents to login method buttons:
+  - Google: blue (#4285F4) left border
+  - Phone: emerald (#10b981) left border
+  - Email: purple (#8b5cf6) left border
+  - Demo: kept as-is (emerald accent)
+- Updated `setupData` state to include `section: ''` field
+- Updated all 3 `setSetupData` calls (Google GIS, Google dev, Phone verify) to include `section: ''`
+- Updated `handleProfileSetup` to send `section` field to API
+- Added Section/Course dropdown in profile-setup form with BookOpen icon, dynamically showing options based on selected department
+- Department select now resets section on change
+- Added department badge pills below department select showing all 4 departments with emoji icons
+- Enhanced department dropdown to show emoji icons next to department names
+
+Stage Summary:
+- AnimatedBackground: 5 colorful orbs with distinct animation timings (15s/18s/20s/22s/25s)
+- Step Progress Indicator: 3-step visual indicator with emerald active state
+- Profile Setup: section field with department-specific options (4 sections per department)
+- Login Buttons: distinctive colored left-border accents (blue/emerald/purple)
+- Department Badges: clickable pills with emoji icons for quick switching
+- All lint checks pass clean (0 errors)

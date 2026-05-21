@@ -14,7 +14,7 @@ import {
   Mail, Lock, Eye, EyeOff, ArrowRight,
   UserPlus, AlertCircle, Loader2, ChevronLeft, Sparkles,
   Phone, Smartphone, Chrome, CheckCircle2, Shield, User, GraduationCap,
-  Building2, Hash,
+  Building2, Hash, BookOpen,
 } from 'lucide-react';
 import {
   getPasswordStrength, isValidEmail,
@@ -36,16 +36,53 @@ const BATCHES = [
   { value: '2025', label: '2025' },
 ];
 
+const DEPARTMENT_ICONS: Record<string, string> = {
+  CSE: '🖥️',
+  EEE: '⚡',
+  BBA: '💼',
+  LLB: '⚖️',
+};
+
+const SECTIONS_MAP: Record<string, string[]> = {
+  CSE: ['Programming Fundamentals', 'Data Structures', 'Web Development', 'AI & ML'],
+  EEE: ['Circuit Analysis', 'Power Systems', 'Electronics', 'Signal Processing'],
+  BBA: ['Marketing', 'Finance', 'Management', 'Economics'],
+  LLB: ['Constitutional Law', 'Criminal Law', 'Contract Law', 'International Law'],
+};
+
 // ─── Animated Background ──────────────────────────────────────
 function AnimatedBackground() {
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950">
+      {/* Emerald orb - top-left */}
       <motion.div
         className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full"
         style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.05) 0%, transparent 70%)' }}
         animate={{ x: [0, 60, 0], y: [0, -40, 0], scale: [1, 1.15, 1] }}
-        transition={{ duration: 16, repeat: Infinity, ease: 'easeInOut' }}
+        transition={{ duration: 15, repeat: Infinity, ease: 'easeInOut' }}
       />
+      {/* Purple/violet orb - top-right */}
+      <motion.div
+        className="absolute -top-20 -right-20 w-[550px] h-[550px] rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(139,92,246,0.05) 0%, transparent 70%)' }}
+        animate={{ x: [0, -40, 0], y: [0, 50, 0], scale: [1, 1.12, 1] }}
+        transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      {/* Orange/amber orb - bottom-left */}
+      <motion.div
+        className="absolute -bottom-20 -left-20 w-[480px] h-[480px] rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.04) 0%, transparent 70%)' }}
+        animate={{ x: [0, 50, 0], y: [0, -30, 0], scale: [1, 1.1, 1] }}
+        transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      {/* Blue/cyan orb - center-right */}
+      <motion.div
+        className="absolute top-1/3 -right-10 w-[520px] h-[520px] rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.04) 0%, transparent 70%)' }}
+        animate={{ x: [0, -30, 0], y: [0, 40, 0], scale: [1, 1.08, 1] }}
+        transition={{ duration: 25, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      {/* Second emerald orb - bottom-right */}
       <motion.div
         className="absolute -bottom-40 -right-40 w-[600px] h-[600px] rounded-full"
         style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.03) 0%, transparent 70%)' }}
@@ -121,7 +158,7 @@ function AuthPage() {
 
   // Profile setup state
   const [pendingSetup, setPendingSetup] = useState<PendingSetup | null>(null);
-  const [setupData, setSetupData] = useState({ name: '', rollNumber: '', batch: '', department: '' });
+  const [setupData, setSetupData] = useState({ name: '', rollNumber: '', batch: '', department: '', section: '' });
   const googleScriptRef = useRef<boolean>(false);
 
   const { setAuth, updateUser } = useAppStore();
@@ -193,7 +230,7 @@ function AuthPage() {
       });
       if (result.isNewUser) {
         setPendingSetup({ token: result.token, user: result.user, provider: 'GOOGLE' });
-        setSetupData({ name: result.user.name || '', rollNumber: '', batch: '', department: '' });
+        setSetupData({ name: result.user.name || '', rollNumber: '', batch: '', department: '', section: '' });
         setMode('profile-setup');
       } else {
         handleAuthSuccess(result);
@@ -294,7 +331,7 @@ function AuthPage() {
 
       if (result.isNewUser) {
         setPendingSetup({ token: result.token, user: result.user, provider: 'GOOGLE' });
-        setSetupData({ name: result.user.name || '', rollNumber: '', batch: '', department: '' });
+        setSetupData({ name: result.user.name || '', rollNumber: '', batch: '', department: '', section: '' });
         setMode('profile-setup');
       } else {
         handleAuthSuccess(result);
@@ -350,7 +387,7 @@ function AuthPage() {
 
       if (result.isNewUser) {
         setPendingSetup({ token: result.token, user: result.user, provider: 'PHONE' });
-        setSetupData({ name: result.user.name !== 'New User' ? result.user.name : (phoneName || ''), rollNumber: '', batch: '', department: '' });
+        setSetupData({ name: result.user.name !== 'New User' ? result.user.name : (phoneName || ''), rollNumber: '', batch: '', department: '', section: '' });
         setMode('profile-setup');
       } else {
         handleAuthSuccess(result);
@@ -400,6 +437,7 @@ function AuthPage() {
           rollNumber: setupData.rollNumber,
           batch: setupData.batch,
           department: setupData.department,
+          section: setupData.section || undefined,
         }),
         headers: { Authorization: `Bearer ${pendingSetup.token}` },
         timeout: 15000,
@@ -497,6 +535,35 @@ function AuthPage() {
             <div className="h-0.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500" />
             <div className="p-6 sm:p-8">
 
+              {/* Step Progress Indicator */}
+              <div className="flex items-center justify-center gap-1 mb-5">
+                {(['login-methods', 'verify', 'profile-setup'] as const).map((step, i) => {
+                  const stepModes: Record<number, string[]> = {
+                    0: ['login-methods'],
+                    1: ['phone-otp', 'phone-verify', 'email-login', 'email-register', 'google-verify'],
+                    2: ['profile-setup'],
+                  };
+                  const currentStep = Object.entries(stepModes).find(([_, modes]) => modes.includes(mode))?.[0];
+                  const stepNum = Number(currentStep);
+                  const isActive = i === stepNum;
+                  const isCompleted = i < stepNum;
+                  const stepLabels = ['Choose Method', 'Verify', 'Setup Profile'];
+                  return (
+                    <React.Fragment key={step}>
+                      {i > 0 && (
+                        <div className={`w-8 h-px mx-1 transition-colors duration-300 ${isCompleted || isActive ? 'bg-emerald-500/40' : 'bg-white/[0.06]'}`} />
+                      )}
+                      <div className="flex flex-col items-center gap-1.5">
+                        <div className={`w-2 h-2 rounded-full transition-all duration-300 ${isCompleted ? 'bg-emerald-400 ring-2 ring-emerald-400/30' : isActive ? 'bg-emerald-400 ring-2 ring-emerald-400/20 scale-110' : 'bg-gray-600'}`} />
+                        <span className={`text-[9px] font-medium transition-colors duration-300 ${isActive || isCompleted ? 'text-emerald-400/80' : 'text-gray-600'}`}>
+                          {stepLabels[i]}
+                        </span>
+                      </div>
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+
               {/* Back Button */}
               {mode !== 'login-methods' && (
                 <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2 mb-4" onClick={goBack}>
@@ -520,7 +587,7 @@ function AuthPage() {
                         whileTap={{ scale: 0.98 }}
                         onClick={() => { loadGoogleGIS(); handleGoogleLogin(); }}
                         disabled={googleLoading}
-                        className="flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl border border-white/[0.08] hover:border-white/[0.15] bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-200 text-gray-200 hover:text-white"
+                        className="flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl border border-white/[0.08] hover:border-white/[0.15] border-l-[3px] border-l-[#4285F4] bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-200 text-gray-200 hover:text-white"
                       >
                         {googleLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <GoogleIcon />}
                         <span className="text-sm font-medium">{googleLoading ? 'Connecting...' : 'Continue with Google'}</span>
@@ -532,7 +599,7 @@ function AuthPage() {
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => setMode('phone-otp')}
-                        className="flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl border border-white/[0.08] hover:border-white/[0.15] bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-200 text-gray-200 hover:text-white"
+                        className="flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl border border-white/[0.08] hover:border-white/[0.15] border-l-[3px] border-l-[#10b981] bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-200 text-gray-200 hover:text-white"
                       >
                         <Phone className="w-5 h-5 text-emerald-400" />
                         <span className="text-sm font-medium">Continue with Phone</span>
@@ -551,7 +618,7 @@ function AuthPage() {
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
                         onClick={() => setMode('email-login')}
-                        className="flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl border border-white/[0.08] hover:border-white/[0.15] bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-200 text-gray-200 hover:text-white"
+                        className="flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl border border-white/[0.08] hover:border-white/[0.15] border-l-[3px] border-l-[#8b5cf6] bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-200 text-gray-200 hover:text-white"
                       >
                         <Mail className="w-5 h-5 text-blue-400" />
                         <span className="text-sm font-medium">Continue with Email</span>
@@ -828,18 +895,56 @@ function AuthPage() {
                       {/* Department */}
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-gray-400">Department <span className="text-red-400">*</span></Label>
-                        <Select value={setupData.department} onValueChange={(val) => setSetupData({ ...setupData, department: val })} required>
+                        <Select value={setupData.department} onValueChange={(val) => setSetupData({ ...setupData, department: val, section: '' })} required>
                           <SelectTrigger className="h-11 rounded-xl text-sm border-white/[0.08] bg-white/[0.04] text-gray-300 focus:ring-emerald-500/20">
                             <Building2 className="w-4 h-4 mr-2 text-gray-500" />
                             <SelectValue placeholder="Select your department" />
                           </SelectTrigger>
                           <SelectContent className="border-white/[0.08] bg-gray-900">
                             {DEPARTMENTS.map(dept => (
-                              <SelectItem key={dept.value} value={dept.value} className="text-gray-300">{dept.label}</SelectItem>
+                              <SelectItem key={dept.value} value={dept.value} className="text-gray-300">
+                                <span className="flex items-center gap-2">
+                                  <span>{DEPARTMENT_ICONS[dept.value] || ''}</span>
+                                  {dept.label}
+                                </span>
+                              </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                        {/* Department badge pills */}
+                        {setupData.department && (
+                          <div className="flex items-center gap-2 mt-1">
+                            {DEPARTMENTS.map(dept => (
+                              <button
+                                key={dept.value}
+                                type="button"
+                                onClick={() => setSetupData({ ...setupData, department: dept.value, section: '' })}
+                                className={`text-[10px] px-2 py-0.5 rounded-full transition-all duration-200 ${setupData.department === dept.value ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30' : 'bg-white/[0.03] text-gray-500 border border-white/[0.06] hover:border-white/[0.12]'}`}
+                              >
+                                {DEPARTMENT_ICONS[dept.value]} {dept.value}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
+
+                      {/* Section */}
+                      {setupData.department && SECTIONS_MAP[setupData.department] && (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium text-gray-400">Section / Course <span className="text-gray-600">(optional)</span></Label>
+                          <Select value={setupData.section} onValueChange={(val) => setSetupData({ ...setupData, section: val })}>
+                            <SelectTrigger className="h-11 rounded-xl text-sm border-white/[0.08] bg-white/[0.04] text-gray-300 focus:ring-emerald-500/20">
+                              <BookOpen className="w-4 h-4 mr-2 text-gray-500" />
+                              <SelectValue placeholder={`Select ${setupData.department} section`} />
+                            </SelectTrigger>
+                            <SelectContent className="border-white/[0.08] bg-gray-900">
+                              {SECTIONS_MAP[setupData.department].map(sec => (
+                                <SelectItem key={sec} value={sec} className="text-gray-300">{sec}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
 
                       {/* Batch */}
                       <div className="space-y-1.5">
