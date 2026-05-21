@@ -36,11 +36,13 @@ export async function GET(req: NextRequest) {
         const safeQuestions = questions.map(q => ({
           id: q.id,
           question: q.question,
+          questionType: q.questionType || 'MCQ',
           optionA: q.optionA,
           optionB: q.optionB,
           optionC: q.optionC,
           optionD: q.optionD,
           correctOption: q.correctOption,
+          explanation: q.explanation,
           difficulty: q.difficulty,
           points: q.points,
         }));
@@ -59,11 +61,13 @@ export async function GET(req: NextRequest) {
     const safeQuestions = questions.map(q => ({
       id: q.id,
       question: q.question,
+      questionType: q.questionType || 'MCQ',
       optionA: q.optionA,
       optionB: q.optionB,
       optionC: q.optionC,
       optionD: q.optionD,
       correctOption: q.correctOption,
+      explanation: q.explanation,
       difficulty: q.difficulty,
       points: q.points,
     }));
@@ -111,7 +115,7 @@ export async function POST(req: NextRequest) {
 
       for (const a of answers) {
         const q = questionMap.get(a.questionId);
-        if (q && a.selectedOption === q.correctOption) {
+        if (q && a.selectedOption.toLowerCase().trim() === q.correctOption.toLowerCase().trim()) {
           correctCount++;
           totalPoints += q.points || 10;
         }

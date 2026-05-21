@@ -1,48 +1,45 @@
 ---
 Task ID: 1
 Agent: Main Agent
-Task: Login page upgrade + Auth backend
+Task: Upgrade Quick Quiz function in PU-ALRMS with full logic, professional UI, and subject-wise tracking
 
 Work Log:
-- Read and analyzed current project architecture (Zustand SPA, Prisma SQLite, Next.js 16)
-- Updated prisma/schema.prisma: added googleId (unique), authProvider, phoneVerified, otpCode, otpExpiry fields
-- Ran db:push to sync schema
-- Created /api/auth/google/route.ts - Google OAuth login endpoint
-- Created /api/auth/otp/send/route.ts - Send OTP endpoint (generates 6-digit code, 5min expiry)
-- Created /api/auth/otp/verify/route.ts - Verify OTP endpoint (validates, clears, returns JWT)
-- Completely rewrote AuthPage.tsx with 3 login methods: Google OAuth, Phone OTP, Email/Password
-- Added Google icon SVG, InputOTP integration, OTP cooldown timer, dev mode OTP display
-- Updated src/lib/api.ts with googleLogin, sendOtp, verifyOtp methods
-- Dev server verified working (HTTP 200)
+- Explored full codebase structure: AppLayout (Zustand setPage routing), QuizPage (KBC-style), Prisma schema (18 models), API routes (50+), Zustand store, quiz-sounds.ts (stubs)
+- Updated Prisma schema: added `questionType` (MCQ, FILL_BLANK, TRUE_FALSE) and `explanation` fields to QuizQuestion model
+- Ran `bun run db:push` to sync schema changes
+- Replaced stub quiz-sounds.ts with real Web Audio API synthesized sound effects (20 sounds: correct/wrong/timer/heart lost/game over/win fanfare/perfect score/streak fire/XP gain/button press/etc.)
+- Completely rewrote QuizPage.tsx (1400+ lines) with:
+  - Screen 1: Subject Selection (CS, EE, BA) with profile stats and navigation to leaderboard/history
+  - Screen 2: Category Selection (fetched from API by department)
+  - Screen 3: Question Count Selection (5/10/15 with estimated time)
+  - Screen 4: Active Quiz Session with Duolingo-style UI (MCQ, Fill-in-Blank, True/False)
+  - Screen 5: Feedback screen (correct/wrong with explanation and XP gain)
+  - Screen 6: Results screen (grade badge, stats grid, detail stats, play again)
+  - Screen 7: Leaderboard (per-subject tabs, top-3 podium, full list)
+  - Screen 8: Attempt History (stats summary, scrollable attempt list)
+- Features implemented:
+  - Time-based scoring (base points + time bonus for fast answers)
+  - Combo multiplier (up to x5 for consecutive correct answers)
+  - XP system with animated counters
+  - Hearts system (5 lives, game over at 0)
+  - Streak tracking with fire animation at 3+
+  - Sound effects toggle
+  - Confetti on correct answers
+  - Progress bar + timer bar with color changes
+  - Animated grade badges (S+, A, B, C, D)
+  - Responsive design (mobile-first)
+- Created comprehensive seed-quiz.ts with 86+ questions across 9 categories (3 per subject):
+  - CS: Programming Fundamentals (9), Data Structures & Algorithms (10), Advanced CS Concepts (9)
+  - EE: Circuit Analysis (9), Electronics & Signals (10), Power Systems & Machines (9)
+  - BA: Management & Marketing (9), Accounting & Finance (10), Economics & Strategy (9)
+- Updated API route /api/quiz/questions to include questionType and explanation in responses
+- Updated answer comparison to be case-insensitive for fill-in-the-blank questions
+- All lint checks pass clean
 
 Stage Summary:
-- Login page now shows 3 login method options: Google, Phone OTP, Email/Password
-- Backend supports all 3 auth methods with proper JWT generation
-- DB schema supports multi-provider auth (EMAIL, GOOGLE, PHONE)
-- Dev OTP shown on screen for testing (simulated SMS)
-
----
-Task ID: 5
-Agent: Main Agent
-Task: Restructure Learn with Games with 100+ games and fix navigation
-
-Work Log:
-- Created src/lib/games-data.ts: 108 game definitions across 12 categories (Quiz, Memory, Typing, Puzzle, Battle, Reaction, Math, Logic, Word, Pattern, Creative, Music)
-- Created src/lib/games/game-banks.ts: Question banks, memory pairs, typing snippets, reaction challenges, word puzzles, pattern sequences for all game types
-- Created src/lib/games/sounds.ts: Web Audio API sound effects (correct, wrong, click, victory, tick, levelUp) - no external files needed
-- Completely rewrote src/components/pages/LearnWithGame.tsx as a clean container with:
-  - GameHub: catalog page with search, category filter tabs, featured games, responsive grid
-  - GamePlayerWrapper: routes to correct engine based on game.engine type
-  - 7 game engines: QuizEngine, MemoryEngine, TypingEngine, ReactionEngine, MathEngine, WordEngine, PatternEngine
-  - Each engine has: timer, score tracking, sound toggle, animations, play again, XP rewards
-  - Navigation: Hub back → Dashboard (Zustand setPage), Game back → Hub (internal state)
-- Fixed all lint errors (setState-in-effect, variable-before-declaration, removed unused old engine files)
-- Verified dev server working (HTTP 200, lint clean)
-
-Stage Summary:
-- 108 mini-games across 12 categories with full game definitions
-- 7 reusable game engines with sound effects, timers, scoring
-- Modern game hub with search and category filters
-- Proper back button navigation: Game → Hub → Dashboard
-- All games have: animated UI, sound effects, score tracking, XP rewards
-- Games are: responsive, dark-mode compatible, mobile-friendly
+- Complete Quick Quiz system built with 3 subjects, 9 categories, 86+ questions
+- Duolingo-style UX with hearts, XP, combos, streaks, timer, progress
+- Web Audio API sound effects (no external audio files)
+- Leaderboard per subject with podium display
+- Attempt history with grade badges
+- Schema updated, API routes updated, all clean lint

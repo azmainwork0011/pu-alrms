@@ -190,12 +190,14 @@ model QuizQuestion {
   id           String   @id @default(cuid())
   categoryId   String
   question     String
-  optionA      String
-  optionB      String
-  optionC      String
-  optionD      String
+  questionType String   @default("MCQ")     // MCQ, FILL_BLANK, TRUE_FALSE
+  optionA      String   @default("")
+  optionB      String   @default("")
+  optionC      String   @default("")
+  optionD      String   @default("")
   correctOption String
-  difficulty   String   @default("MEDIUM")
+  explanation  String?  // Explanation shown after answering
+  difficulty   String   @default("MEDIUM")   // EASY, MEDIUM, HARD
   points       Int      @default(10)
   isActive     Boolean  @default(true)
   createdAt    DateTime @default(now())
