@@ -1,17 +1,19 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from '@/components/ui/input-otp';
 import { useAppStore } from '@/store/app';
-import { authApi } from '@/lib/api';
+import { authApi, apiFetch } from '@/lib/api';
 import {
   Mail, Lock, Eye, EyeOff, ArrowRight,
   UserPlus, AlertCircle, Loader2, ChevronLeft, Sparkles,
+  Phone, Smartphone, Chrome, CheckCircle2, Shield,
 } from 'lucide-react';
 import {
   getPasswordStrength, isValidEmail,
@@ -61,13 +63,41 @@ function isNetworkError(err: unknown): boolean {
   );
 }
 
+// ─── Google Icon ──────────────────────────────────────────
+function GoogleIcon({ className = "w-5 h-5" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24">
+      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
+      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+    </svg>
+  );
+}
+
 // ─── Main Auth Page ───────────────────────────────────────
+type AuthMode = 'login-methods' | 'email-login' | 'email-register' | 'phone-otp' | 'phone-verify' | 'google-verify';
+
 function AuthPage() {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<AuthMode>('login-methods');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Email form state
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'STUDENT' });
+
+  // Phone OTP state
+  const [phone, setPhone] = useState('');
+  const [phoneName, setPhoneName] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const [devOtp, setDevOtp] = useState<string | null>(null);
+
+  // Google state
+  const [googleLoading, setGoogleLoading] = useState(false);
+
   const { setAuth } = useAppStore();
 
   // Restore saved email & seed database
@@ -81,73 +111,190 @@ function AuthPage() {
     fetch('/api/auth/seed', { method: 'POST' }).catch(() => {});
   }, []);
 
+  // OTP cooldown timer
+  useEffect(() => {
+    if (otpCooldown <= 0) return;
+    const t = setTimeout(() => setOtpCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [otpCooldown]);
+
   const pwStrength = getPasswordStrength(formData.password);
 
-  // Name validation for register mode
   const nameError = formData.name && !/^[a-zA-Z0-9\s\-'.]+$/.test(formData.name)
     ? 'Only letters, numbers, spaces, hyphens, and apostrophes allowed'
     : formData.name && formData.name.trim().length < 2
     ? 'Name must be at least 2 characters'
     : null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleAuthSuccess = useCallback((result: { user: any; token: string }) => {
+    setAuth(result.user, result.token);
+    try { localStorage.removeItem('login-email'); } catch { /* ignore */ }
+    toast.success('Welcome to PU-ALRMS!');
+  }, [setAuth]);
+
+  // ── Email Login ──
+  const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
-    setLoading(true);
-    setError(null);
-
-    // Validate name on register
-    if (mode === 'register' && nameError) {
-      setError(nameError);
-      setLoading(false);
-      return;
-    }
+    setLoading(true); setError(null);
     try {
-      const result = mode === 'login'
-        ? await authApi.login(formData.email, formData.password)
-        : await authApi.register(formData);
-      setAuth(result.user, result.token);
-      try { localStorage.removeItem('login-email'); } catch { /* ignore */ }
-      toast.success(mode === 'login' ? 'Welcome back!' : 'Account created successfully!');
+      const result = await authApi.login(formData.email, formData.password);
+      handleAuthSuccess(result);
     } catch (err: any) {
       const msg = err instanceof Error ? err.message : String(err);
-      if (isNetworkError(err)) {
-        setError('Network error. Please check your internet connection.');
-      } else if (msg.includes('Invalid email or password')) {
-        setError('Invalid email or password. Please check your credentials.');
-      } else if (msg.includes('Email already registered')) {
-        setError('This email is already registered. Try signing in instead.');
-      } else if (msg.includes('Email and password are required')) {
-        setError('Please enter both email and password.');
-      } else {
-        setError(msg || 'Authentication failed. Please try again.');
-      }
-    } finally {
-      setLoading(false);
-    }
+      if (isNetworkError(err)) setError('Network error. Please check your internet connection.');
+      else if (msg.includes('Invalid email or password')) setError('Invalid email or password. Please check your credentials.');
+      else if (msg.includes('Email and password are required')) setError('Please enter both email and password.');
+      else setError(msg || 'Authentication failed. Please try again.');
+    } finally { setLoading(false); }
   };
 
+  // ── Email Register ──
+  const handleEmailRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loading) return;
+    if (nameError) { setError(nameError); return; }
+    setLoading(true); setError(null);
+    try {
+      const result = await authApi.register(formData);
+      handleAuthSuccess(result);
+      toast.success('Account created successfully!');
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (isNetworkError(err)) setError('Network error. Please check your internet connection.');
+      else if (msg.includes('Email already registered')) setError('This email is already registered. Try signing in instead.');
+      else setError(msg || 'Registration failed. Please try again.');
+    } finally { setLoading(false); }
+  };
+
+  // ── Google Login (Simulated) ──
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true); setError(null);
+    try {
+      // Simulate Google OAuth flow
+      // In production, this would use @react-oauth/google or next-auth GoogleProvider
+      // For now, we simulate with a Google-style popup
+      const mockGoogleUser = {
+        googleId: `google_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        email: `user${Math.floor(Math.random() * 10000)}@gmail.com`,
+        name: 'Google User',
+        picture: null,
+      };
+
+      const result = await apiFetch<{ token: string; user: any }>('/api/auth/google', {
+        method: 'POST',
+        body: JSON.stringify(mockGoogleUser),
+        timeout: 20000,
+      });
+      handleAuthSuccess(result);
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('ACCOUNT_EXISTS')) {
+        setError('An account with this email already exists. Please sign in with your password.');
+      } else if (isNetworkError(err)) {
+        setError('Network error. Please check your internet connection.');
+      } else {
+        setError(msg || 'Google login failed. Please try again.');
+      }
+    } finally { setGoogleLoading(false); }
+  };
+
+  // ── Phone OTP Send ──
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loading || otpCooldown > 0) return;
+    setLoading(true); setError(null);
+    try {
+      const result = await apiFetch<{ success: boolean; message: string; devOtp?: string }>('/api/auth/otp/send', {
+        method: 'POST',
+        body: JSON.stringify({ phone, name: phoneName || undefined }),
+        timeout: 20000,
+      });
+      setOtpSent(true);
+      setMode('phone-verify');
+      setDevOtp(result.devOtp || null);
+      toast.success(result.message);
+      setOtpCooldown(60);
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (isNetworkError(err)) setError('Network error. Please check your internet connection.');
+      else setError(msg || 'Failed to send OTP. Please try again.');
+    } finally { setLoading(false); }
+  };
+
+  // ── Phone OTP Verify ──
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loading || otp.length !== 6) return;
+    setLoading(true); setError(null);
+    try {
+      const result = await apiFetch<{ token: string; user: any }>('/api/auth/otp/verify', {
+        method: 'POST',
+        body: JSON.stringify({ phone, otp, name: phoneName || undefined }),
+        timeout: 20000,
+      });
+      handleAuthSuccess(result);
+      toast.success('Phone verified successfully!');
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (isNetworkError(err)) setError('Network error. Please check your internet connection.');
+      else setError(msg || 'OTP verification failed.');
+    } finally { setLoading(false); }
+  };
+
+  // ── Resend OTP ──
+  const handleResendOtp = async () => {
+    if (otpCooldown > 0) return;
+    setLoading(true);
+    try {
+      const result = await apiFetch<{ success: boolean; devOtp?: string }>('/api/auth/otp/send', {
+        method: 'POST',
+        body: JSON.stringify({ phone }),
+        timeout: 20000,
+      });
+      setDevOtp(result.devOtp || null);
+      setOtp('');
+      toast.success('New OTP sent!');
+      setOtpCooldown(60);
+    } catch (err: any) {
+      setError(err instanceof Error ? err.message : 'Failed to resend OTP.');
+    } finally { setLoading(false); }
+  };
+
+  // ── Demo Login ──
   const quickDemoLogin = async () => {
     if (loading) return;
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     try {
       const result = await authApi.login('alice@stu.pu.edu', 'student123');
-      setAuth(result.user, result.token);
-      toast.success('Welcome to PU-ALRMS!');
+      handleAuthSuccess(result);
     } catch (err: any) {
       setError('Demo login failed. Please try again.');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); }
   };
 
+  // ── Animation Variants ──
   const fadeUp = {
     hidden: { opacity: 0, y: 20 },
     visible: (i: number) => ({
       opacity: 1, y: 0,
       transition: { duration: 0.5, delay: i * 0.08, ease: [0.25, 0.46, 0.45, 0.94] },
     }),
+  };
+
+  const slideIn = {
+    initial: { opacity: 0, x: 20 },
+    animate: { opacity: 1, x: 0 },
+    exit: { opacity: 0, x: -20 },
+  };
+
+  // ── Helper to go back ──
+  const goBack = () => {
+    setError(null);
+    setOtp(''); setOtpSent(false);
+    if (mode === 'email-register' || mode === 'email-login') setMode('login-methods');
+    else if (mode === 'phone-verify') setMode('phone-otp');
+    else setMode('login-methods');
   };
 
   return (
@@ -161,11 +308,7 @@ function AuthPage() {
           animate="visible"
         >
           {/* ─── Logo & Branding ─────────────────────────── */}
-          <motion.div
-            className="text-center mb-8"
-            variants={fadeUp}
-            custom={0}
-          >
+          <motion.div className="text-center mb-8" variants={fadeUp} custom={0}>
             <div className="relative inline-flex items-center justify-center mb-5">
               <motion.div
                 className="absolute w-28 h-28 rounded-3xl"
@@ -197,275 +340,291 @@ function AuthPage() {
             className="rounded-2xl overflow-hidden border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl"
             style={{ boxShadow: '0 24px 48px -12px rgba(0,0,0,0.4)' }}
           >
-            {/* Top accent */}
             <div className="h-0.5 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500" />
-
             <div className="p-6 sm:p-8">
-              {/* Mode Tabs */}
-              <div className="flex items-center justify-between mb-6">
-                {mode === 'register' && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-gray-400 hover:text-white -ml-2"
-                    onClick={() => setMode('login')}
-                  >
-                    <ChevronLeft className="w-4 h-4 mr-1" />
-                    Back
-                  </Button>
-                )}
-                <div className="flex items-center gap-1 p-1 rounded-lg bg-white/[0.05] ml-auto">
-                  <button
-                    type="button"
-                    onClick={() => setMode('login')}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${mode === 'login' ? 'bg-emerald-500/20 text-emerald-300' : 'text-gray-500 hover:text-gray-300'}`}
-                  >
-                    Sign In
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setMode('register')}
-                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 ${mode === 'register' ? 'bg-emerald-500/20 text-emerald-300' : 'text-gray-500 hover:text-gray-300'}`}
-                  >
-                    Register
-                  </button>
-                </div>
-              </div>
 
-              {/* ─── Form ─────────────────────────────────── */}
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Name (Register only) */}
-                <AnimatePresence>
-                  {mode === 'register' && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
+              {/* Back Button */}
+              {mode !== 'login-methods' && (
+                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white -ml-2 mb-4" onClick={goBack}>
+                  <ChevronLeft className="w-4 h-4 mr-1" />Back
+                </Button>
+              )}
+
+              <AnimatePresence mode="wait">
+                {/* ═══ LOGIN METHOD SELECTION ═══ */}
+                {mode === 'login-methods' && (
+                  <motion.div key="methods" {...slideIn} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.25 }}>
+                    <h2 className="text-xl font-bold text-white mb-1">Welcome Back</h2>
+                    <p className="text-sm text-gray-500 mb-6">Choose your preferred sign-in method</p>
+
+                    <div className="space-y-3">
+                      {/* Google Sign In */}
+                      <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleGoogleLogin}
+                        disabled={googleLoading}
+                        className="flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl border border-white/[0.08] hover:border-white/[0.15] bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-200 text-gray-200 hover:text-white"
+                      >
+                        {googleLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <GoogleIcon />}
+                        <span className="text-sm font-medium">{googleLoading ? 'Connecting...' : 'Continue with Google'}</span>
+                      </motion.button>
+
+                      {/* Phone Number */}
+                      <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setMode('phone-otp')}
+                        className="flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl border border-white/[0.08] hover:border-white/[0.15] bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-200 text-gray-200 hover:text-white"
+                      >
+                        <Phone className="w-5 h-5 text-emerald-400" />
+                        <span className="text-sm font-medium">Continue with Phone</span>
+                      </motion.button>
+
+                      {/* Divider */}
+                      <div className="flex items-center gap-3 py-1">
+                        <div className="flex-1 h-px bg-white/[0.06]" />
+                        <span className="text-[10px] text-gray-600 uppercase tracking-wider font-medium">or</span>
+                        <div className="flex-1 h-px bg-white/[0.06]" />
+                      </div>
+
+                      {/* Email/Password */}
+                      <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => setMode('email-login')}
+                        className="flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl border border-white/[0.08] hover:border-white/[0.15] bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-200 text-gray-200 hover:text-white"
+                      >
+                        <Mail className="w-5 h-5 text-blue-400" />
+                        <span className="text-sm font-medium">Continue with Email</span>
+                      </motion.button>
+                    </div>
+
+                    {/* Demo Access */}
+                    <div className="mt-6">
+                      <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={quickDemoLogin}
+                        disabled={loading}
+                        className="flex items-center justify-center gap-2.5 py-3 px-5 rounded-xl border border-white/[0.06] hover:border-emerald-500/30 bg-white/[0.02] hover:bg-emerald-500/[0.04] transition-all duration-200 w-full text-gray-400 hover:text-emerald-300"
+                      >
+                        <Sparkles className="w-4 h-4" />
+                        <span className="text-sm font-medium">Try Demo</span>
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {/* ═══ EMAIL LOGIN ═══ */}
+                {mode === 'email-login' && (
+                  <motion.div key="email-login" {...slideIn} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.25 }}>
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h2 className="text-xl font-bold text-white">Sign In</h2>
+                        <p className="text-xs text-gray-500 mt-0.5">Use your email and password</p>
+                      </div>
+                      <Button variant="ghost" size="sm" className="text-emerald-400 hover:text-emerald-300 text-xs" onClick={() => setMode('email-register')}>
+                        Create Account
+                      </Button>
+                    </div>
+                    <form onSubmit={handleEmailLogin} className="space-y-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-gray-400">Email Address</Label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                          <Input type="email" autoComplete="email" placeholder="Enter your email"
+                            value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            required
+                            className="h-11 pl-10 bg-white/[0.04] border-white/[0.08] rounded-xl text-sm text-gray-100 placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                          />
+                        </div>
+                        {formData.email && !isValidEmail(formData.email) && (
+                          <p className="text-[11px] text-red-400/80 flex items-center gap-1">
+                            <AlertCircle className="w-3 h-3" /> Please enter a valid email address
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-gray-400">Password</Label>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                          <Input type={showPassword ? 'text' : 'password'} autoComplete="current-password" placeholder="Enter password"
+                            value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                            required
+                            className="h-11 pl-10 pr-10 bg-white/[0.04] border-white/[0.08] rounded-xl text-sm text-gray-100 placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                          />
+                          <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'}>
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex justify-end">
+                        <button type="button" className="text-xs text-emerald-400/70 hover:text-emerald-400" onClick={() => toast.info('Password reset coming soon.')}>
+                          Forgot password?
+                        </button>
+                      </div>
+                      <ErrorDisplay error={error} onDismiss={() => setError(null)} />
+                      <SubmitButton loading={loading} label="Sign In" />
+                    </form>
+                  </motion.div>
+                )}
+
+                {/* ═══ EMAIL REGISTER ═══ */}
+                {mode === 'email-register' && (
+                  <motion.div key="email-register" {...slideIn} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.25 }}>
+                    <h2 className="text-xl font-bold text-white mb-1">Create Account</h2>
+                    <p className="text-xs text-gray-500 mb-6">Fill in your details to get started</p>
+                    <form onSubmit={handleEmailRegister} className="space-y-4">
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium text-gray-400">Full Name</Label>
                         <div className="relative">
                           <UserPlus className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                          <Input
-                            placeholder="Enter your name"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            required
-                            className={`h-11 pl-10 bg-white/[0.04] rounded-xl text-sm text-gray-100 placeholder:text-gray-600 focus:ring-emerald-500/20 ${nameError ? 'border-red-500/50 focus:border-red-500/50' : 'border-white/[0.08] focus:border-emerald-500/50'}`}
+                          <Input placeholder="Enter your name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} required
+                            className={`h-11 pl-10 bg-white/[0.04] rounded-xl text-sm text-gray-100 placeholder:text-gray-600 focus:ring-emerald-500/20 ${nameError ? 'border-red-500/50' : 'border-white/[0.08] focus:border-emerald-500/50'}`}
                           />
                         </div>
-                        {nameError && (
-                          <p className="text-[11px] text-red-400/80 flex items-center gap-1">
-                            <AlertCircle className="w-3 h-3" /> {nameError}
-                          </p>
+                        {nameError && <p className="text-[11px] text-red-400/80 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{nameError}</p>}
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-gray-400">Email Address</Label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                          <Input type="email" autoComplete="email" placeholder="Enter your email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} required
+                            className="h-11 pl-10 bg-white/[0.04] border-white/[0.08] rounded-xl text-sm text-gray-100 placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-gray-400">Password</Label>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                          <Input type={showPassword ? 'text' : 'password'} autoComplete="new-password" placeholder="Create a password" value={formData.password} onChange={(e) => setFormData({ ...formData, password: e.target.value })} required
+                            className="h-11 pl-10 pr-10 bg-white/[0.04] border-white/[0.08] rounded-xl text-sm text-gray-100 placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                          />
+                          <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300" onClick={() => setShowPassword(!showPassword)}>
+                            {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                          </button>
+                        </div>
+                        {formData.password && (
+                          <div className="space-y-1">
+                            <div className="flex justify-between items-center">
+                              <span className="text-[10px] text-gray-500">Strength</span>
+                              <span className={`text-[10px] font-semibold ${pwStrength.score >= 4 ? 'text-emerald-400' : pwStrength.score >= 2 ? 'text-amber-400' : 'text-red-400'}`}>{pwStrength.label}</span>
+                            </div>
+                            <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">
+                              <motion.div className="h-full rounded-full" style={{ background: pwStrength.score >= 4 ? '#34d399' : pwStrength.score >= 2 ? '#fbbf24' : '#f87171' }} initial={{ width: 0 }} animate={{ width: pwStrength.width }} transition={{ duration: 0.3 }} />
+                            </div>
+                          </div>
                         )}
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Email */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-gray-400">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                    <Input
-                      type="email"
-                      autoComplete="email"
-                      placeholder="Enter your email"
-                      value={formData.email}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      required
-                      className="h-11 pl-10 bg-white/[0.04] border-white/[0.08] rounded-xl text-sm text-gray-100 placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
-                    />
-                  </div>
-                  {formData.email && !isValidEmail(formData.email) && (
-                    <p className="text-[11px] text-red-400/80 flex items-center gap-1">
-                      <AlertCircle className="w-3 h-3" /> Please enter a valid email address
-                    </p>
-                  )}
-                </div>
-
-                {/* Password */}
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-medium text-gray-400">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                    <Input
-                      type={showPassword ? 'text' : 'password'}
-                      autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
-                      placeholder="Enter password"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      required
-                      className="h-11 pl-10 pr-10 bg-white/[0.04] border-white/[0.08] rounded-xl text-sm text-gray-100 placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
-                    />
-                    <button
-                      type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
-                      onClick={() => setShowPassword(!showPassword)}
-                      aria-label={showPassword ? 'Hide password' : 'Show password'}
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  {/* Password strength for register */}
-                  {mode === 'register' && formData.password && (
-                    <div className="space-y-1">
-                      <div className="flex justify-between items-center">
-                        <span className="text-[10px] text-gray-500">Strength</span>
-                        <span className={`text-[10px] font-semibold ${pwStrength.score >= 4 ? 'text-emerald-400' : pwStrength.score >= 2 ? 'text-amber-400' : 'text-red-400'}`}>
-                          {pwStrength.label}
-                        </span>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-gray-400">Role</Label>
+                        <Select value={formData.role} onValueChange={(role) => setFormData({ ...formData, role })}>
+                          <SelectTrigger className="h-11 rounded-xl text-sm border-white/[0.08] bg-white/[0.04] text-gray-300 focus:ring-emerald-500/20">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent className="border-white/[0.08] bg-gray-900">
+                            <SelectItem value="STUDENT" className="text-gray-300">Student</SelectItem>
+                            <SelectItem value="TEACHER" className="text-gray-300">Teacher</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <div className="h-1 bg-white/[0.06] rounded-full overflow-hidden">
-                        <motion.div
-                          className="h-full rounded-full"
-                          style={{ background: pwStrength.score >= 4 ? '#34d399' : pwStrength.score >= 2 ? '#fbbf24' : '#f87171' }}
-                          initial={{ width: 0 }}
-                          animate={{ width: pwStrength.width }}
-                          transition={{ duration: 0.3 }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                {/* Role Select (Register only) */}
-                <AnimatePresence>
-                  {mode === 'register' && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.3 }}
-                      className="space-y-1.5"
-                    >
-                      <Label className="text-xs font-medium text-gray-400">Role</Label>
-                      <Select value={formData.role} onValueChange={(role) => setFormData({ ...formData, role })}>
-                        <SelectTrigger className="h-11 rounded-xl text-sm border-white/[0.08] bg-white/[0.04] text-gray-300 focus:ring-emerald-500/20">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="border-white/[0.08] bg-gray-900">
-                          <SelectItem value="STUDENT" className="text-gray-300 focus:bg-white/[0.06] focus:text-gray-100">Student</SelectItem>
-                          <SelectItem value="TEACHER" className="text-gray-300 focus:bg-white/[0.06] focus:text-gray-100">Teacher</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-
-                {/* Forgot Password (Login only) */}
-                {mode === 'login' && (
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      className="text-xs text-emerald-400/70 hover:text-emerald-400 transition-colors"
-                      onClick={() => toast.info('Password reset coming soon.')}
-                    >
-                      Forgot password?
-                    </button>
-                  </div>
+                      <ErrorDisplay error={error} onDismiss={() => setError(null)} />
+                      <SubmitButton loading={loading} label="Create Account" />
+                    </form>
+                  </motion.div>
                 )}
 
-                {/* Error Display */}
-                <AnimatePresence>
-                  {error && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -6, height: 0 }}
-                      animate={{ opacity: 1, y: 0, height: 'auto' }}
-                      exit={{ opacity: 0, y: -6, height: 0 }}
-                      className="flex items-start gap-2.5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20"
-                    >
-                      <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                      <p className="text-xs text-red-300/80 flex-1 leading-relaxed">{error}</p>
-                      <button
-                        type="button"
-                        className="text-red-400/50 hover:text-red-300 transition-colors p-0.5"
-                        onClick={() => setError(null)}
-                      >
-                        <EyeOff className="w-3.5 h-3.5" />
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                {/* ═══ PHONE OTP ═══ */}
+                {mode === 'phone-otp' && (
+                  <motion.div key="phone-otp" {...slideIn} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.25 }}>
+                    <h2 className="text-xl font-bold text-white mb-1">Phone Sign In</h2>
+                    <p className="text-xs text-gray-500 mb-6">We&apos;ll send you a verification code via SMS</p>
+                    <form onSubmit={handleSendOtp} className="space-y-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-gray-400">Phone Number</Label>
+                        <div className="relative">
+                          <Smartphone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                          <Input type="tel" placeholder="+880 1XXX XXXXXX" value={phone} onChange={(e) => setPhone(e.target.value)} required
+                            className="h-11 pl-10 bg-white/[0.04] border-white/[0.08] rounded-xl text-sm text-gray-100 placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-gray-400">Your Name <span className="text-gray-600">(optional)</span></Label>
+                        <Input placeholder="Enter your name" value={phoneName} onChange={(e) => setPhoneName(e.target.value)}
+                          className="h-11 bg-white/[0.04] border-white/[0.08] rounded-xl text-sm text-gray-100 placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                        />
+                      </div>
+                      <div className="flex items-start gap-2 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                        <Shield className="w-4 h-4 text-emerald-400 mt-0.5 shrink-0" />
+                        <p className="text-[11px] text-emerald-300/70 leading-relaxed">Your phone number is kept secure and only used for login verification.</p>
+                      </div>
+                      <ErrorDisplay error={error} onDismiss={() => setError(null)} />
+                      <SubmitButton loading={loading} label="Send Verification Code" />
+                    </form>
+                  </motion.div>
+                )}
 
-                {/* Submit Button */}
-                <Button
-                  type="submit"
-                  className={`
-                    w-full h-12 rounded-xl text-sm font-semibold text-white border-0
-                    transition-all duration-300 relative overflow-hidden
-                    ${loading ? 'opacity-80 cursor-wait' : 'hover:shadow-lg active:scale-[0.98]'}
-                  `}
-                  style={{
-                    background: loading ? undefined : 'linear-gradient(135deg, #059669 0%, #0d9488 50%, #0891b2 100%)',
-                    boxShadow: loading ? undefined : '0 4px 24px rgba(16,185,129,0.2)',
-                  }}
-                  disabled={loading || (mode === 'register' && formData.email && !isValidEmail(formData.email)) || (mode === 'register' && !!nameError)}
-                >
-                  {loading ? (
-                    <span className="flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Processing...
-                    </span>
-                  ) : mode === 'login' ? (
-                    <span className="flex items-center justify-center gap-2">
-                      Sign In
-                      <ArrowRight className="w-4 h-4" />
-                    </span>
-                  ) : (
-                    <span className="flex items-center justify-center gap-2">
-                      Create Account
-                      <ArrowRight className="w-4 h-4" />
-                    </span>
-                  )}
-                </Button>
-              </form>
-
-              {/* Demo Access (Login only) */}
-              {mode === 'login' && (
-                <AnimatePresence>
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2, duration: 0.4 }}
-                    className="mt-6"
-                  >
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="flex-1 h-px bg-white/[0.06]" />
-                      <span className="text-[10px] text-gray-600 uppercase tracking-wider font-medium">or</span>
-                      <div className="flex-1 h-px bg-white/[0.06]" />
+                {/* ═══ OTP VERIFICATION ═══ */}
+                {mode === 'phone-verify' && (
+                  <motion.div key="phone-verify" {...slideIn} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.25 }}>
+                    <div className="text-center mb-6">
+                      <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                        <Smartphone className="w-6 h-6 text-emerald-400" />
+                      </div>
+                      <h2 className="text-xl font-bold text-white">Verify Your Phone</h2>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Enter the 6-digit code sent to <span className="text-gray-300 font-medium">{phone}</span>
+                      </p>
                     </div>
 
-                    <motion.button
-                      type="button"
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.3, duration: 0.4 }}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      onClick={quickDemoLogin}
-                      disabled={loading}
-                      className="flex items-center justify-center gap-2.5 py-3 px-5 rounded-xl border border-white/[0.06] hover:border-emerald-500/30 bg-white/[0.02] hover:bg-emerald-500/[0.04] transition-all duration-200 w-full text-gray-400 hover:text-emerald-300"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      <span className="text-sm font-medium">Try Demo</span>
-                    </motion.button>
+                    {devOtp && (
+                      <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
+                        <p className="text-[10px] text-amber-400/60 uppercase tracking-wider font-semibold mb-1">Dev Mode - OTP</p>
+                        <p className="text-2xl font-bold text-amber-300 tracking-[0.3em]">{devOtp}</p>
+                      </div>
+                    )}
+
+                    <form onSubmit={handleVerifyOtp} className="space-y-4">
+                      <div className="flex justify-center">
+                        <InputOTP maxLength={6} value={otp} onChange={setOtp} containerClassName="justify-center gap-2">
+                          <InputOTPGroup>
+                            <InputOTPSlot index={0} className="w-11 h-12 text-lg rounded-lg bg-white/[0.04] border-white/[0.08] text-white" />
+                            <InputOTPSlot index={1} className="w-11 h-12 text-lg rounded-lg bg-white/[0.04] border-white/[0.08] text-white" />
+                            <InputOTPSlot index={2} className="w-11 h-12 text-lg rounded-lg bg-white/[0.04] border-white/[0.08] text-white" />
+                          </InputOTPGroup>
+                          <InputOTPSeparator className="text-gray-600" />
+                          <InputOTPGroup>
+                            <InputOTPSlot index={3} className="w-11 h-12 text-lg rounded-lg bg-white/[0.04] border-white/[0.08] text-white" />
+                            <InputOTPSlot index={4} className="w-11 h-12 text-lg rounded-lg bg-white/[0.04] border-white/[0.08] text-white" />
+                            <InputOTPSlot index={5} className="w-11 h-12 text-lg rounded-lg bg-white/[0.04] border-white/[0.08] text-white" />
+                          </InputOTPGroup>
+                        </InputOTP>
+                      </div>
+                      <ErrorDisplay error={error} onDismiss={() => setError(null)} />
+                      <SubmitButton loading={loading} label="Verify & Sign In" disabled={otp.length !== 6} />
+                      <div className="text-center">
+                        <button type="button" onClick={handleResendOtp} disabled={otpCooldown > 0 || loading}
+                          className="text-xs text-emerald-400/70 hover:text-emerald-400 disabled:text-gray-600 disabled:cursor-not-allowed transition-colors"
+                        >
+                          {otpCooldown > 0 ? `Resend in ${otpCooldown}s` : 'Resend Code'}
+                        </button>
+                      </div>
+                    </form>
                   </motion.div>
-                </AnimatePresence>
-              )}
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
 
           {/* ─── Footer ──────────────────────────────────── */}
-          <motion.div
-            className="mt-6 text-center space-y-2"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5, duration: 0.5 }}
-          >
+          <motion.div className="mt-6 text-center space-y-2" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5, duration: 0.5 }}>
             <p className="text-[10px] text-gray-600">
               Prime University &mdash; Academic Learning Resource Management System
             </p>
@@ -473,6 +632,41 @@ function AuthPage() {
         </motion.div>
       </div>
     </div>
+  );
+}
+
+// ─── Reusable Error Display ────────────────────────────────
+function ErrorDisplay({ error, onDismiss }: { error: string | null; onDismiss: () => void }) {
+  return (
+    <AnimatePresence>
+      {error && (
+        <motion.div initial={{ opacity: 0, y: -6, height: 0 }} animate={{ opacity: 1, y: 0, height: 'auto' }} exit={{ opacity: 0, y: -6, height: 0 }}
+          className="flex items-start gap-2.5 p-3.5 rounded-xl bg-red-500/10 border border-red-500/20"
+        >
+          <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+          <p className="text-xs text-red-300/80 flex-1 leading-relaxed">{error}</p>
+          <button type="button" className="text-red-400/50 hover:text-red-300 p-0.5" onClick={onDismiss}>
+            <EyeOff className="w-3.5 h-3.5" />
+          </button>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ─── Reusable Submit Button ────────────────────────────────
+function SubmitButton({ loading, label, disabled }: { loading: boolean; label: string; disabled?: boolean }) {
+  return (
+    <Button type="submit" disabled={loading || disabled}
+      className={`w-full h-12 rounded-xl text-sm font-semibold text-white border-0 transition-all duration-300 relative overflow-hidden ${loading || disabled ? 'opacity-80 cursor-wait' : 'hover:shadow-lg active:scale-[0.98]'}`}
+      style={loading || disabled ? undefined : { background: 'linear-gradient(135deg, #059669 0%, #0d9488 50%, #0891b2 100%)', boxShadow: '0 4px 24px rgba(16,185,129,0.2)' }}
+    >
+      {loading ? (
+        <span className="flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />Processing...</span>
+      ) : (
+        <span className="flex items-center justify-center gap-2">{label}<ArrowRight className="w-4 h-4" /></span>
+      )}
+    </Button>
   );
 }
 

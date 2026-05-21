@@ -272,6 +272,27 @@ export const authApi = {
       timeout: AUTH_TIMEOUT,
     }),
 
+  googleLogin: (data: { googleId: string; email: string; name: string; picture?: string | null; idToken?: string }) =>
+    apiFetch<{ token: string; user: any }>('/api/auth/google', {
+      method: 'POST',
+      body: JSON.stringify(data),
+      timeout: AUTH_TIMEOUT,
+    }),
+
+  sendOtp: (phone: string, name?: string) =>
+    apiFetch<{ success: boolean; message: string; devOtp?: string }>('/api/auth/otp/send', {
+      method: 'POST',
+      body: JSON.stringify({ phone, name }),
+      timeout: AUTH_TIMEOUT,
+    }),
+
+  verifyOtp: (phone: string, otp: string, name?: string) =>
+    apiFetch<{ token: string; user: any }>('/api/auth/otp/verify', {
+      method: 'POST',
+      body: JSON.stringify({ phone, otp, name }),
+      timeout: AUTH_TIMEOUT,
+    }),
+
   getProfile: () =>
     apiFetch<any>('/api/auth/profile'),
 

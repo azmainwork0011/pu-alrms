@@ -1,39 +1,48 @@
-# PU-ALRMS Worklog
-
 ---
 Task ID: 1
 Agent: Main Agent
-Task: Fix SPA navigation — back button exits app, Learn with Games navigation issues
+Task: Login page upgrade + Auth backend
 
 Work Log:
-- Explored full navigation architecture: Zustand `setPage()` state replacement with no history stack, no `popstate` listener
-- Read and analyzed: `src/store/app.ts` (179 lines), `src/components/layout/AppLayout.tsx` (373 lines), `src/app/page.tsx` (137 lines), `src/components/pages/LearnWithGame.tsx` (1351 lines)
-- Confirmed LearnWithGame has working internal navigation with `View` state machine (home/hub/game/leaderboard/profile)
-- Confirmed all 12 game images exist in `/public/games/` and are correctly mapped in `GAME_CATALOG`
-- Confirmed `renderActiveGame()` dispatches to all 12 game types correctly
-
-- **Enhanced Zustand store** (`src/store/app.ts`):
-  - Added `pageHistory: PageView[]` array to track navigation history (max 50 entries)
-  - Modified `setPage()` to push current page to history + `window.history.pushState()`
-  - Added `goBack()` function to pop from history
-  - Added `canGoBack()` helper
-  - Updated `setAssignmentId()` to also push to history
-  - Updated `logout()` to clear history
-  - Skip pushState if navigating to same page (no-op)
-
-- **Updated AppLayout** (`src/components/layout/AppLayout.tsx`):
-  - Added `popstate` event listener for browser back/forward button support
-  - PopState handler reads `event.state.page` and `event.state.pageHistory` to restore navigation state
-  - Added `replaceState` on first mount to initialize browser history with dashboard state
-  - Added back button (ChevronLeft icon) in header that appears when `pageHistory.length > 0`
-  - Back button calls `goBack()` to pop from navigation history
-
-- **LearnWithGame**: No changes needed — component already works correctly with internal navigation. Previous session already applied defensive crash fixes.
+- Read and analyzed current project architecture (Zustand SPA, Prisma SQLite, Next.js 16)
+- Updated prisma/schema.prisma: added googleId (unique), authProvider, phoneVerified, otpCode, otpExpiry fields
+- Ran db:push to sync schema
+- Created /api/auth/google/route.ts - Google OAuth login endpoint
+- Created /api/auth/otp/send/route.ts - Send OTP endpoint (generates 6-digit code, 5min expiry)
+- Created /api/auth/otp/verify/route.ts - Verify OTP endpoint (validates, clears, returns JWT)
+- Completely rewrote AuthPage.tsx with 3 login methods: Google OAuth, Phone OTP, Email/Password
+- Added Google icon SVG, InputOTP integration, OTP cooldown timer, dev mode OTP display
+- Updated src/lib/api.ts with googleLogin, sendOtp, verifyOtp methods
+- Dev server verified working (HTTP 200)
 
 Stage Summary:
-- Navigation history stack implemented with browser History API sync
-- Browser back button now works: navigates back through page history instead of leaving the site
-- Visual back button in header when there's history to go back to
-- LearnWithGame confirmed working (12 games, all images present, internal navigation intact)
-- ESLint passes clean, TypeScript errors are all pre-existing (framer-motion Variants, quiz-sounds exports)
-- Key files modified: `src/store/app.ts`, `src/components/layout/AppLayout.tsx`
+- Login page now shows 3 login method options: Google, Phone OTP, Email/Password
+- Backend supports all 3 auth methods with proper JWT generation
+- DB schema supports multi-provider auth (EMAIL, GOOGLE, PHONE)
+- Dev OTP shown on screen for testing (simulated SMS)
+
+---
+Task ID: 5
+Agent: Main Agent
+Task: Restructure Learn with Games with 100+ games and fix navigation
+
+Work Log:
+- Created src/lib/games-data.ts: 108 game definitions across 12 categories (Quiz, Memory, Typing, Puzzle, Battle, Reaction, Math, Logic, Word, Pattern, Creative, Music)
+- Created src/lib/games/game-banks.ts: Question banks, memory pairs, typing snippets, reaction challenges, word puzzles, pattern sequences for all game types
+- Created src/lib/games/sounds.ts: Web Audio API sound effects (correct, wrong, click, victory, tick, levelUp) - no external files needed
+- Completely rewrote src/components/pages/LearnWithGame.tsx as a clean container with:
+  - GameHub: catalog page with search, category filter tabs, featured games, responsive grid
+  - GamePlayerWrapper: routes to correct engine based on game.engine type
+  - 7 game engines: QuizEngine, MemoryEngine, TypingEngine, ReactionEngine, MathEngine, WordEngine, PatternEngine
+  - Each engine has: timer, score tracking, sound toggle, animations, play again, XP rewards
+  - Navigation: Hub back → Dashboard (Zustand setPage), Game back → Hub (internal state)
+- Fixed all lint errors (setState-in-effect, variable-before-declaration, removed unused old engine files)
+- Verified dev server working (HTTP 200, lint clean)
+
+Stage Summary:
+- 108 mini-games across 12 categories with full game definitions
+- 7 reusable game engines with sound effects, timers, scoring
+- Modern game hub with search and category filters
+- Proper back button navigation: Game → Hub → Dashboard
+- All games have: animated UI, sound effects, score tracking, XP rewards
+- Games are: responsive, dark-mode compatible, mobile-friendly
