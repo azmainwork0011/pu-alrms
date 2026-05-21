@@ -48,6 +48,7 @@ model User {
   cqFriendOf      CQFriend[]  @relation("FriendOf")
   cqBattlesP1     CQBattleSession[] @relation("CQBattleP1")
   cqBattlesP2     CQBattleSession[] @relation("CQBattleP2")
+  aiChatHistory   LuckyStrickChat[]
 }
 
 model Subject {
@@ -370,4 +371,24 @@ model BookDownload {
   userId    String?
   bookTitle String
   createdAt DateTime    @default(now())
+}
+
+// ─── Lucky Strick AI Chat History ──────────────────────────
+model LuckyStrickChat {
+  id          String   @id @default(cuid())
+  userId      String
+  sessionId   String   // Groups messages into a conversation session
+  role        String   // "user" or "assistant"
+  content     String
+  subject     String   @default("general") // math, cs, ee, business, physics, chemistry, general
+  model       String   @default("gpt4o")
+  tokenCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([sessionId])
+  @@index([subject])
+  @@index([createdAt])
 }

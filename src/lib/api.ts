@@ -537,3 +537,67 @@ export const batchApi = {
   list: () =>
     apiFetch<any[]>('/api/batches'),
 };
+
+// ═══════════════════════════════════════════════════════════════
+// Lucky Strick AI Assistant — Academic-focused
+// ═══════════════════════════════════════════════════════════════
+export const luckyStrickApi = {
+  /**
+   * Streaming chat — returns a raw Response (SSE stream).
+   * Caller reads with reader and updates UI progressively.
+   */
+  chatStream: async (
+    message: string,
+    options?: {
+      subject?: string;
+      modelId?: string;
+      history?: { role: string; content: string }[];
+      sessionId?: string;
+    },
+  ): Promise<Response> => {
+    const token = getAuthToken();
+    const response = await fetchWithTimeout('/api/lucky-strick/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        message,
+        subject: options?.subject || 'general',
+        modelId: options?.modelId,
+        history: options?.history,
+        sessionId: options?.sessionId,
+      }),
+    }, 90000); // 90s timeout for streaming
+    return response;
+  },
+
+  /**
+   * Get chat history — sessions list or specific session messages
+   */
+  getHistory: (params?: { sessionId?: string; limit?: number; subject?: string }) => {
+    const query = params
+      ? '?' + new URLSearchParams(
+          Object.entries(params).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)])
+        ).toString()
+      : '';
+    return apiFetch<any>('/api/lucky-strick/history' + query);
+  },
+
+  /**
+   * Delete chat history — specific session or all
+   */
+  deleteHistory: (sessionId?: string) => {
+    const query = sessionId ? `?sessionId=${sessionId}` : '';
+    return apiFetch<{ success: boolean; deleted: string; count?: number }>('/api/lucky-strick/history' + query, {
+      method: 'DELETE',
+    });
+  },
+
+  /**
+   * Get usage analytics and stats
+   */
+  getStats: () =>
+    apiFetch<any>('/api/lucky-strick/stats'),
+};
