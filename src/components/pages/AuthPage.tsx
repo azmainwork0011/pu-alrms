@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -13,13 +13,30 @@ import { authApi, apiFetch } from '@/lib/api';
 import {
   Mail, Lock, Eye, EyeOff, ArrowRight,
   UserPlus, AlertCircle, Loader2, ChevronLeft, Sparkles,
-  Phone, Smartphone, Chrome, CheckCircle2, Shield,
+  Phone, Smartphone, Chrome, CheckCircle2, Shield, User, GraduationCap,
+  Building2, Hash,
 } from 'lucide-react';
 import {
   getPasswordStrength, isValidEmail,
 } from '@/components/pu-helpers';
 
-// ─── Animated Background ──────────────────────────────────
+// ─── Constants ─────────────────────────────────────────────────
+const DEPARTMENTS = [
+  { value: 'CSE', label: 'Computer Science & Engineering' },
+  { value: 'EEE', label: 'Electrical & Electronic Engineering' },
+  { value: 'BBA', label: 'Business Administration' },
+  { value: 'LLB', label: 'Law (LLB)' },
+];
+
+const BATCHES = [
+  { value: '2021', label: '2021' },
+  { value: '2022', label: '2022' },
+  { value: '2023', label: '2023' },
+  { value: '2024', label: '2024' },
+  { value: '2025', label: '2025' },
+];
+
+// ─── Animated Background ──────────────────────────────────────
 function AnimatedBackground() {
   return (
     <div className="fixed inset-0 overflow-hidden pointer-events-none bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950">
@@ -35,7 +52,6 @@ function AnimatedBackground() {
         animate={{ x: [0, -50, 0], y: [0, 50, 0], scale: [1, 1.1, 1] }}
         transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut' }}
       />
-      {/* Subtle grid */}
       <div
         className="absolute inset-0 opacity-[0.02]"
         style={{
@@ -43,13 +59,12 @@ function AnimatedBackground() {
           backgroundSize: '40px 40px',
         }}
       />
-      {/* Top edge glow */}
       <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/10 to-transparent" />
     </div>
   );
 }
 
-// ─── Network Error Detection ──────────────────────────────
+// ─── Network Error Detection ──────────────────────────────────
 function isNetworkError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
   return (
@@ -63,8 +78,8 @@ function isNetworkError(err: unknown): boolean {
   );
 }
 
-// ─── Google Icon ──────────────────────────────────────────
-function GoogleIcon({ className = "w-5 h-5" }: { className?: string }) {
+// ─── Google Icon ──────────────────────────────────────────────
+function GoogleIcon({ className = 'w-5 h-5' }: { className?: string }) {
   return (
     <svg className={className} viewBox="0 0 24 24">
       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
@@ -75,8 +90,14 @@ function GoogleIcon({ className = "w-5 h-5" }: { className?: string }) {
   );
 }
 
-// ─── Main Auth Page ───────────────────────────────────────
-type AuthMode = 'login-methods' | 'email-login' | 'email-register' | 'phone-otp' | 'phone-verify' | 'google-verify';
+// ─── Main Auth Page ───────────────────────────────────────────
+type AuthMode = 'login-methods' | 'email-login' | 'email-register' | 'phone-otp' | 'phone-verify' | 'google-verify' | 'profile-setup';
+
+interface PendingSetup {
+  token: string;
+  user: any;
+  provider: 'GOOGLE' | 'PHONE' | 'EMAIL';
+}
 
 function AuthPage() {
   const [mode, setMode] = useState<AuthMode>('login-methods');
@@ -98,7 +119,12 @@ function AuthPage() {
   // Google state
   const [googleLoading, setGoogleLoading] = useState(false);
 
-  const { setAuth } = useAppStore();
+  // Profile setup state
+  const [pendingSetup, setPendingSetup] = useState<PendingSetup | null>(null);
+  const [setupData, setSetupData] = useState({ name: '', rollNumber: '', batch: '', department: '' });
+  const googleScriptRef = useRef<boolean>(false);
+
+  const { setAuth, updateUser } = useAppStore();
 
   // Restore saved email & seed database
   useEffect(() => {
@@ -125,6 +151,66 @@ function AuthPage() {
     : formData.name && formData.name.trim().length < 2
     ? 'Name must be at least 2 characters'
     : null;
+
+  // ── Load Google Identity Services ──
+  const loadGoogleGIS = useCallback(() => {
+    if (googleScriptRef.current) return;
+    googleScriptRef.current = true;
+
+    // Load the GIS script
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    script.onload = () => {
+      // Initialize Google Identity Services
+      if (typeof window !== 'undefined' && (window as any).google) {
+        try {
+          (window as any).google.accounts.id.initialize({
+            client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
+            callback: handleGoogleCredentialResponse,
+            auto_select: false,
+            cancel_on_tap_outside: true,
+          });
+        } catch (e) {
+          console.log('[GIS] Initialize skipped (no CLIENT_ID)');
+        }
+      }
+    };
+    document.head.appendChild(script);
+  }, []);
+
+  // ── Handle Google Credential Response ──
+  const handleGoogleCredentialResponse = useCallback(async (response: { credential?: string }) => {
+    if (!response.credential) return;
+    setGoogleLoading(true);
+    setError(null);
+    try {
+      const result = await apiFetch<{ token: string; user: any; isNewUser?: boolean }>('/api/auth/google', {
+        method: 'POST',
+        body: JSON.stringify({ idToken: response.credential }),
+        timeout: 20000,
+      });
+      if (result.isNewUser) {
+        setPendingSetup({ token: result.token, user: result.user, provider: 'GOOGLE' });
+        setSetupData({ name: result.user.name || '', rollNumber: '', batch: '', department: '' });
+        setMode('profile-setup');
+      } else {
+        handleAuthSuccess(result);
+      }
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('ACCOUNT_EXISTS')) {
+        setError('An account with this email already exists. Please sign in with your password.');
+      } else if (isNetworkError(err)) {
+        setError('Network error. Please check your internet connection.');
+      } else {
+        setError(msg || 'Google login failed. Please try again.');
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  }, []);
 
   const handleAuthSuccess = useCallback((result: { user: any; token: string }) => {
     setAuth(result.user, result.token);
@@ -167,13 +253,32 @@ function AuthPage() {
     } finally { setLoading(false); }
   };
 
-  // ── Google Login (Simulated) ──
+  // ── Google Login ──
   const handleGoogleLogin = async () => {
     setGoogleLoading(true); setError(null);
+
+    // Try real Google Identity Services first
+    if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
+      try {
+        (window as any).google.accounts.id.prompt((notification: any) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            // Fallback to dev mode
+            handleGoogleDevLogin();
+          }
+        });
+        // Don't set loading false here — wait for callback
+        setTimeout(() => { setGoogleLoading(false); }, 10000); // Safety timeout
+        return;
+      } catch {
+        // Fall through to dev mode
+      }
+    }
+
+    handleGoogleDevLogin();
+  };
+
+  const handleGoogleDevLogin = async () => {
     try {
-      // Simulate Google OAuth flow
-      // In production, this would use @react-oauth/google or next-auth GoogleProvider
-      // For now, we simulate with a Google-style popup
       const mockGoogleUser = {
         googleId: `google_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
         email: `user${Math.floor(Math.random() * 10000)}@gmail.com`,
@@ -181,12 +286,19 @@ function AuthPage() {
         picture: null,
       };
 
-      const result = await apiFetch<{ token: string; user: any }>('/api/auth/google', {
+      const result = await apiFetch<{ token: string; user: any; isNewUser?: boolean }>('/api/auth/google', {
         method: 'POST',
         body: JSON.stringify(mockGoogleUser),
         timeout: 20000,
       });
-      handleAuthSuccess(result);
+
+      if (result.isNewUser) {
+        setPendingSetup({ token: result.token, user: result.user, provider: 'GOOGLE' });
+        setSetupData({ name: result.user.name || '', rollNumber: '', batch: '', department: '' });
+        setMode('profile-setup');
+      } else {
+        handleAuthSuccess(result);
+      }
     } catch (err: any) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('ACCOUNT_EXISTS')) {
@@ -196,7 +308,9 @@ function AuthPage() {
       } else {
         setError(msg || 'Google login failed. Please try again.');
       }
-    } finally { setGoogleLoading(false); }
+    } finally {
+      setGoogleLoading(false);
+    }
   };
 
   // ── Phone OTP Send ──
@@ -205,7 +319,7 @@ function AuthPage() {
     if (loading || otpCooldown > 0) return;
     setLoading(true); setError(null);
     try {
-      const result = await apiFetch<{ success: boolean; message: string; devOtp?: string }>('/api/auth/otp/send', {
+      const result = await apiFetch<{ success: boolean; message: string; devOtp?: string; isNewUser?: boolean }>('/api/auth/otp/send', {
         method: 'POST',
         body: JSON.stringify({ phone, name: phoneName || undefined }),
         timeout: 20000,
@@ -228,13 +342,20 @@ function AuthPage() {
     if (loading || otp.length !== 6) return;
     setLoading(true); setError(null);
     try {
-      const result = await apiFetch<{ token: string; user: any }>('/api/auth/otp/verify', {
+      const result = await apiFetch<{ token: string; user: any; isNewUser?: boolean }>('/api/auth/otp/verify', {
         method: 'POST',
         body: JSON.stringify({ phone, otp, name: phoneName || undefined }),
         timeout: 20000,
       });
-      handleAuthSuccess(result);
-      toast.success('Phone verified successfully!');
+
+      if (result.isNewUser) {
+        setPendingSetup({ token: result.token, user: result.user, provider: 'PHONE' });
+        setSetupData({ name: result.user.name !== 'New User' ? result.user.name : (phoneName || ''), rollNumber: '', batch: '', department: '' });
+        setMode('profile-setup');
+      } else {
+        handleAuthSuccess(result);
+        toast.success('Phone verified successfully!');
+      }
     } catch (err: any) {
       const msg = err instanceof Error ? err.message : String(err);
       if (isNetworkError(err)) setError('Network error. Please check your internet connection.');
@@ -258,6 +379,38 @@ function AuthPage() {
       setOtpCooldown(60);
     } catch (err: any) {
       setError(err instanceof Error ? err.message : 'Failed to resend OTP.');
+    } finally { setLoading(false); }
+  };
+
+  // ── Profile Setup Submit ──
+  const handleProfileSetup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loading || !pendingSetup) return;
+    if (!setupData.batch || !setupData.department) {
+      setError('Please select your batch and department.');
+      return;
+    }
+    setLoading(true); setError(null);
+    try {
+      // Update profile via API
+      const result = await apiFetch<{ user: any }>('/api/auth/profile', {
+        method: 'PUT',
+        body: JSON.stringify({
+          name: setupData.name || pendingSetup.user.name,
+          rollNumber: setupData.rollNumber,
+          batch: setupData.batch,
+          department: setupData.department,
+        }),
+        headers: { Authorization: `Bearer ${pendingSetup.token}` },
+        timeout: 15000,
+      });
+
+      const updatedUser = { ...pendingSetup.user, ...result.user };
+      handleAuthSuccess({ user: updatedUser, token: pendingSetup.token });
+      toast.success('Profile setup complete! Welcome to PU-ALRMS! 🎓');
+    } catch (err: any) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg || 'Failed to save profile. Please try again.');
     } finally { setLoading(false); }
   };
 
@@ -288,11 +441,12 @@ function AuthPage() {
     exit: { opacity: 0, x: -20 },
   };
 
-  // ── Helper to go back ──
+  // ── Back Navigation ──
   const goBack = () => {
     setError(null);
     setOtp(''); setOtpSent(false);
-    if (mode === 'email-register' || mode === 'email-login') setMode('login-methods');
+    if (mode === 'profile-setup') setMode('login-methods');
+    else if (mode === 'email-register' || mode === 'email-login') setMode('login-methods');
     else if (mode === 'phone-verify') setMode('phone-otp');
     else setMode('login-methods');
   };
@@ -351,6 +505,7 @@ function AuthPage() {
               )}
 
               <AnimatePresence mode="wait">
+
                 {/* ═══ LOGIN METHOD SELECTION ═══ */}
                 {mode === 'login-methods' && (
                   <motion.div key="methods" {...slideIn} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.25 }}>
@@ -363,7 +518,7 @@ function AuthPage() {
                         type="button"
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={handleGoogleLogin}
+                        onClick={() => { loadGoogleGIS(); handleGoogleLogin(); }}
                         disabled={googleLoading}
                         className="flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl border border-white/[0.08] hover:border-white/[0.15] bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-200 text-gray-200 hover:text-white"
                       >
@@ -540,7 +695,7 @@ function AuthPage() {
                   </motion.div>
                 )}
 
-                {/* ═══ PHONE OTP ═══ */}
+                {/* ═══ PHONE OTP ENTRY ═══ */}
                 {mode === 'phone-otp' && (
                   <motion.div key="phone-otp" {...slideIn} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.25 }}>
                     <h2 className="text-xl font-bold text-white mb-1">Phone Sign In</h2>
@@ -586,7 +741,7 @@ function AuthPage() {
 
                     {devOtp && (
                       <div className="mb-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-center">
-                        <p className="text-[10px] text-amber-400/60 uppercase tracking-wider font-semibold mb-1">Dev Mode - OTP</p>
+                        <p className="text-[10px] text-amber-400/60 uppercase tracking-wider font-semibold mb-1">Dev Mode — OTP</p>
                         <p className="text-2xl font-bold text-amber-300 tracking-[0.3em]">{devOtp}</p>
                       </div>
                     )}
@@ -619,6 +774,101 @@ function AuthPage() {
                     </form>
                   </motion.div>
                 )}
+
+                {/* ═══ PROFILE SETUP (New Users) ═══ */}
+                {mode === 'profile-setup' && pendingSetup && (
+                  <motion.div key="profile-setup" {...slideIn} initial="initial" animate="animate" exit="exit" transition={{ duration: 0.25 }}>
+                    <div className="text-center mb-6">
+                      <motion.div
+                        initial={{ scale: 0, rotate: -10 }}
+                        animate={{ scale: 1, rotate: 0 }}
+                        transition={{ type: 'spring', damping: 10 }}
+                        className="w-14 h-14 mx-auto mb-3 rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center"
+                      >
+                        <GraduationCap className="w-7 h-7 text-white" />
+                      </motion.div>
+                      <h2 className="text-xl font-bold text-white">Complete Your Profile</h2>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {pendingSetup.provider === 'GOOGLE' && (
+                          <span className="flex items-center justify-center gap-1.5">
+                            <GoogleIcon className="w-3.5 h-3.5" /> Signed in as {pendingSetup.user.email}
+                          </span>
+                        )}
+                        {pendingSetup.provider === 'PHONE' && (
+                          <span className="flex items-center justify-center gap-1.5">
+                            <Smartphone className="w-3.5 h-3.5 text-emerald-400" /> Verified: {pendingSetup.user.phone}
+                          </span>
+                        )}
+                      </p>
+                    </div>
+
+                    <form onSubmit={handleProfileSetup} className="space-y-4">
+                      {/* Name */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-gray-400">Full Name</Label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                          <Input placeholder="Your full name" value={setupData.name} onChange={(e) => setSetupData({ ...setupData, name: e.target.value })} required
+                            className="h-11 pl-10 bg-white/[0.04] border-white/[0.08] rounded-xl text-sm text-gray-100 placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Roll Number */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-gray-400">Roll Number <span className="text-gray-600">(optional)</span></Label>
+                        <div className="relative">
+                          <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                          <Input placeholder="e.g., 2024-CSE-001" value={setupData.rollNumber} onChange={(e) => setSetupData({ ...setupData, rollNumber: e.target.value })}
+                            className="h-11 pl-10 bg-white/[0.04] border-white/[0.08] rounded-xl text-sm text-gray-100 placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Department */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-gray-400">Department <span className="text-red-400">*</span></Label>
+                        <Select value={setupData.department} onValueChange={(val) => setSetupData({ ...setupData, department: val })} required>
+                          <SelectTrigger className="h-11 rounded-xl text-sm border-white/[0.08] bg-white/[0.04] text-gray-300 focus:ring-emerald-500/20">
+                            <Building2 className="w-4 h-4 mr-2 text-gray-500" />
+                            <SelectValue placeholder="Select your department" />
+                          </SelectTrigger>
+                          <SelectContent className="border-white/[0.08] bg-gray-900">
+                            {DEPARTMENTS.map(dept => (
+                              <SelectItem key={dept.value} value={dept.value} className="text-gray-300">{dept.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Batch */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-medium text-gray-400">Batch / Year <span className="text-red-400">*</span></Label>
+                        <Select value={setupData.batch} onValueChange={(val) => setSetupData({ ...setupData, batch: val })} required>
+                          <SelectTrigger className="h-11 rounded-xl text-sm border-white/[0.08] bg-white/[0.04] text-gray-300 focus:ring-emerald-500/20">
+                            <GraduationCap className="w-4 h-4 mr-2 text-gray-500" />
+                            <SelectValue placeholder="Select your batch year" />
+                          </SelectTrigger>
+                          <SelectContent className="border-white/[0.08] bg-gray-900">
+                            {BATCHES.map(b => (
+                              <SelectItem key={b.value} value={b.value} className="text-gray-300">{b.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      {/* Info Box */}
+                      <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-500/5 border border-blue-500/10">
+                        <CheckCircle2 className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
+                        <p className="text-[11px] text-blue-300/70 leading-relaxed">You can update your profile details later from the Profile page.</p>
+                      </div>
+
+                      <ErrorDisplay error={error} onDismiss={() => setError(null)} />
+                      <SubmitButton loading={loading} label="Complete Setup" />
+                    </form>
+                  </motion.div>
+                )}
+
               </AnimatePresence>
             </div>
           </motion.div>

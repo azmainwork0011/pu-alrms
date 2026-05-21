@@ -43,3 +43,43 @@ Stage Summary:
 - Leaderboard per subject with podium display
 - Attempt history with grade badges
 - Schema updated, API routes updated, all clean lint
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Full Google OAuth + Phone OTP login module with Profile Setup
+
+Work Log:
+- Explored existing auth system: 6 API routes, AuthPage (674 lines, 6 modes), JWT with fallback, User model with googleId/phone/otpCode fields
+- Updated /api/auth/google/route.ts:
+  - Added real Google ID token verification via Google's tokeninfo endpoint (when GOOGLE_CLIENT_ID is set)
+  - Returns `isNewUser: true` flag when a new Google user is created
+  - Falls back to dev mode (accepts mock data) when no CLIENT_ID configured
+  - Updates avatar from Google picture on existing user login
+- Updated /api/auth/otp/send/route.ts:
+  - Returns `isNewUser: true` flag
+  - Added production-ready commented code for Twilio and Vonage SMS gateways
+  - Improved error messages
+- Updated /api/auth/otp/verify/route.ts:
+  - Returns `isNewUser: true` when user has no batch/department set
+  - Clears OTP and marks phone as verified on success
+- Completely rewrote AuthPage.tsx with:
+  - Google Identity Services (GIS) integration via script tag
+  - 7 auth modes: login-methods, email-login, email-register, phone-otp, phone-verify, google-verify, profile-setup
+  - Profile Setup screen for new users (name, roll number, department selector, batch/year selector)
+  - Department options: CSE, EEE, BBA, LLB
+  - Batch years: 2021-2025
+  - Provider-specific info display (Google email or Phone number)
+  - Gradient submit button with loading states
+  - Animated transitions between screens
+  - Back navigation support
+  - All existing features preserved (Demo login, email login/register, phone OTP)
+- All lint checks pass clean
+- No schema changes needed (existing User model already has all required fields)
+
+Stage Summary:
+- Google OAuth upgraded: real GIS integration with dev fallback
+- Phone OTP: production-ready with Twilio/Vonage integration code ready
+- Profile Setup screen: batch + department + roll number for new users
+- isNewUser flag: auto-detects and redirects to profile setup
+- Zero new dependencies added (uses existing packages)

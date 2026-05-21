@@ -2,26 +2,50 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * Google OAuth Login
- * Accepts a Google ID token (or simulated Google user data for development).
- * In production, this would verify the Google token server-side.
- * For development/demo, accepts { googleId, email, name, picture } directly.
+ * Accepts a Google ID token for verification.
+ * Falls back to simulated data in development when GOOGLE_CLIENT_ID is not set.
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { googleId, email, name, picture, idToken } = body;
 
-    // Strategy 1: If a real Google ID token is provided, extract user info
-    // In production, you'd verify with Google's public keys or use the google-auth-library
     let userGoogleId = googleId;
     let userEmail = email;
     let userName = name;
     let userAvatar = picture;
+    let isNewUser = false;
 
-    // If idToken is provided (real Google OAuth flow), decode it
-    // For now we accept direct google data for development
+    // ── Strategy 1: Real Google ID Token Verification ──
+    if (idToken && process.env.GOOGLE_CLIENT_ID) {
+      try {
+        // Verify the Google ID token by fetching Google's public certs
+        const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
+        if (response.ok) {
+          const payload = await response.json();
+          // Verify audience matches our client ID
+          if (payload.aud === process.env.GOOGLE_CLIENT_ID || payload.aud?.includes(process.env.GOOGLE_CLIENT_ID)) {
+            userGoogleId = payload.sub;
+            userEmail = payload.email;
+            userName = payload.name || payload.given_name || 'Google User';
+            userAvatar = payload.picture || null;
+          }
+        }
+      } catch (err) {
+        console.error('[Google Auth] Token verification failed, falling back:', err instanceof Error ? err.message : err);
+      }
+    }
+
+    // ── Strategy 2: Development mode (direct data) ──
     if (!userGoogleId || !userEmail || !userName) {
-      return NextResponse.json({ error: 'Google account information is required' }, { status: 400 });
+      if (!process.env.GOOGLE_CLIENT_ID && !idToken) {
+        // Dev mode: accept simulated data
+        if (!userGoogleId || !userEmail || !userName) {
+          return NextResponse.json({ error: 'Google account information is required' }, { status: 400 });
+        }
+      } else {
+        return NextResponse.json({ error: 'Google authentication failed. Please try again.' }, { status: 400 });
+      }
     }
 
     const normalizedEmail = userEmail.trim().toLowerCase();
@@ -32,7 +56,6 @@ export async function POST(req: NextRequest) {
     let user = await db.user.findUnique({ where: { googleId: userGoogleId } });
 
     if (user) {
-      // Existing Google user - update last login
       if (user.status === 'BANNED') {
         return NextResponse.json({ error: 'Account has been banned. Contact support.' }, { status: 403 });
       }
@@ -41,7 +64,7 @@ export async function POST(req: NextRequest) {
       }
       await db.user.update({
         where: { id: user.id },
-        data: { lastLogin: new Date() },
+        data: { lastLogin: new Date(), ...(userAvatar ? { avatar: userAvatar } : {}) },
       });
     } else {
       // Check if email already exists with a different provider
@@ -51,7 +74,7 @@ export async function POST(req: NextRequest) {
           // Same email, link the Google ID
           user = await db.user.update({
             where: { id: existingByEmail.id },
-            data: { googleId: userGoogleId, lastLogin: new Date() },
+            data: { googleId: userGoogleId, lastLogin: new Date(), ...(userAvatar ? { avatar: userAvatar } : {}) },
           });
         } else {
           return NextResponse.json({
@@ -61,6 +84,7 @@ export async function POST(req: NextRequest) {
         }
       } else {
         // Create new user from Google
+        isNewUser = true;
         user = await db.user.create({
           data: {
             email: normalizedEmail,
@@ -87,7 +111,6 @@ export async function POST(req: NextRequest) {
         name: user.name,
       });
     } catch {
-      // Fallback JWT
       const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
       const payload = btoa(JSON.stringify({
         userId: user.id, email: user.email, role: user.role, name: user.name,
@@ -103,6 +126,7 @@ export async function POST(req: NextRequest) {
     const now = new Date().toISOString();
     return NextResponse.json({
       token,
+      isNewUser,
       user: {
         id: user.id,
         name: user.name,

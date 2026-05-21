@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * Verify OTP and complete login
- * Verifies the OTP stored in DB, clears it, and returns JWT + user
+ * Verifies the OTP stored in DB, clears it, and returns JWT + user.
+ * Returns `isNewUser: true` if the user was just created (needs profile setup).
  */
 export async function POST(req: NextRequest) {
   try {
@@ -17,7 +18,6 @@ export async function POST(req: NextRequest) {
 
     const { db } = await import('@/lib/db');
 
-    // Find user by phone
     const user = await db.user.findUnique({ where: { phone: normalizedPhone } });
 
     if (!user) {
@@ -34,6 +34,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Invalid OTP. Please try again.' }, { status: 401 });
     }
 
+    // Determine if this is a new user (no batch/department set yet)
+    const isNewUser = !user.batch && !user.department;
+
     // Clear OTP and mark phone as verified
     await db.user.update({
       where: { id: user.id },
@@ -42,7 +45,6 @@ export async function POST(req: NextRequest) {
         otpExpiry: null,
         phoneVerified: true,
         lastLogin: new Date(),
-        // Update name if provided (for first-time users)
         ...(name && name.trim().length >= 2 ? { name: name.trim() } : {}),
       },
     });
@@ -73,6 +75,7 @@ export async function POST(req: NextRequest) {
     const now = new Date().toISOString();
     return NextResponse.json({
       token,
+      isNewUser,
       user: {
         id: user.id,
         name: user.name,
