@@ -36,6 +36,7 @@ yarn-error.log*
 .env.production
 .env.production.local
 .env.development.local
+.env.vercel
 
 # vercel
 .vercel
@@ -95,3 +96,4 @@ public/uploads/
 
 # Lock files (Vercel uses npm)
 bun.lock
+db/custom.db

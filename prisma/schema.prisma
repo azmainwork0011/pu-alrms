@@ -33,6 +33,7 @@ model User {
   updatedAt   DateTime @updatedAt
 
   subjects          Subject[]
+  accounts          Account[]
   assignments       Assignment[]
   submissions       Submission[]
   submissionTasks   SubmissionTask[]
@@ -54,6 +55,26 @@ model User {
   cqBattlesP1       CQBattleSession[] @relation("CQBattleP1")
   cqBattlesP2       CQBattleSession[] @relation("CQBattleP2")
   aiChatHistory     LuckyStrickChat[]
+}
+
+// ─── NextAuth OAuth Accounts ──────────────────────────────
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
 }
 
 model Subject {

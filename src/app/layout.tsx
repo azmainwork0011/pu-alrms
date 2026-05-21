@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ApiProvider } from "@/providers/api-provider";
+import { NextAuthProvider } from "@/providers/auth-provider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -41,6 +42,7 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <NextAuthProvider>
           <ApiProvider>
           {/*
             Loading Overlay — injected via <script> below, OUTSIDE React's tree.
@@ -57,6 +59,7 @@ export default function RootLayout({
           {children}
           <Toaster />
           </ApiProvider>
+          </NextAuthProvider>
         </ThemeProvider>
       </body>
     </html>

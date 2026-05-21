@@ -13,6 +13,17 @@ const IDLE_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours
 const UPLOAD_DIR = '/tmp/uploads';
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
+// ─── AI Bot Configuration ────────────────────────────────────
+const AI_BOT = {
+  userId: 'ai-bot',
+  name: 'Lucky Strick AI',
+  email: 'ai-bot@pu-alrms.local',
+  role: 'SYSTEM',
+  avatar: 'https://api.dicebear.com/9.x/initials/svg?seed=AI&backgroundColor=8b5cf6',
+} as const;
+const AI_TRIGGER_PATTERN = /^@(ai|lucky)\s+/i;
+const LUCKY_STRICK_API = 'http://localhost:3000/api/lucky-strick/chat';
+
 // Ensure upload directory exists
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -637,6 +648,155 @@ io.on('connection', async (socket) => {
       resetIdleTimer(socket.id, io);
 
       console.log(`[Message] ${connectedUser.username}: ${content?.substring(0, 50)}... [${roomId}]`);
+
+      // ─── AI Bot: respond to @ai or @lucky mentions ───────
+      // Skip if the sender is the AI bot itself (prevent recursion)
+      if (connectedUser.userId !== AI_BOT.userId && messageType === 'TEXT' && content && AI_TRIGGER_PATTERN.test(content.trim())) {
+        const question = content.trim().replace(AI_TRIGGER_PATTERN, '').trim();
+        if (question) {
+          // Send typing indicator so users know the AI is thinking
+          io.to(roomId).emit('typing', {
+            roomId,
+            username: AI_BOT.name,
+            isTyping: true,
+            userId: AI_BOT.userId,
+          });
+
+          // Process AI response asynchronously (don't block the message handler)
+          (async () => {
+            try {
+              const botToken = generateAIBotToken();
+              const response = await fetch(LUCKY_STRICK_API, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${botToken}`,
+                },
+                body: JSON.stringify({
+                  message: question,
+                  subject: 'general',
+                }),
+              });
+
+              let aiText = '';
+
+              if (response.ok) {
+                const contentType = response.headers.get('content-type') || '';
+
+                if (contentType.includes('text/event-stream')) {
+                  // Read SSE stream
+                  const reader = response.body?.getReader();
+                  if (reader) {
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+                    while (true) {
+                      const { done, value } = await reader.read();
+                      if (done) break;
+                      buffer += decoder.decode(value, { stream: true });
+                      const lines = buffer.split('\n');
+                      buffer = lines.pop() || '';
+                      for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                          const data = line.slice(6).trim();
+                          if (data === '[DONE]') continue;
+                          try {
+                            const parsed = JSON.parse(data);
+                            if (parsed.content) aiText += parsed.content;
+                          } catch {
+                            // Skip malformed JSON chunks
+                          }
+                        }
+                      }
+                    }
+                  }
+                } else {
+                  // Read as JSON
+                  const json = await response.json();
+                  aiText = json?.response || json?.content || json?.message || '';
+                }
+              } else {
+                console.error(`[AI Bot] API returned status ${response.status}`);
+              }
+
+              // Stop typing indicator
+              io.to(roomId).emit('typing', {
+                roomId,
+                username: AI_BOT.name,
+                isTyping: false,
+                userId: AI_BOT.userId,
+              });
+
+              if (aiText.trim()) {
+                // Save AI message to DB
+                const aiMessage = await db.chatMessage.create({
+                  data: {
+                    roomId,
+                    userId: AI_BOT.userId,
+                    content: aiText.trim(),
+                    messageType: 'TEXT',
+                  },
+                  include: {
+                    user: {
+                      select: { id: true, name: true, role: true, avatar: true },
+                    },
+                  },
+                });
+
+                // Broadcast AI response to room
+                io.to(roomId).emit('message', {
+                  id: aiMessage.id,
+                  roomId: aiMessage.roomId,
+                  userId: AI_BOT.userId,
+                  username: AI_BOT.name,
+                  content: aiMessage.content,
+                  messageType: aiMessage.messageType,
+                  timestamp: aiMessage.createdAt.toISOString(),
+                  role: AI_BOT.role,
+                  type: 'user' as const,
+                });
+
+                console.log(`[AI Bot] Responded in room ${roomId} (${aiText.length} chars)`);
+              } else {
+                // No content received — send fallback
+                io.to(roomId).emit('message', {
+                  id: generateId(),
+                  roomId,
+                  userId: AI_BOT.userId,
+                  username: AI_BOT.name,
+                  content: 'Sorry, I could not generate a response. Please try again.',
+                  messageType: 'TEXT',
+                  timestamp: new Date().toISOString(),
+                  role: AI_BOT.role,
+                  type: 'user' as const,
+                });
+              }
+            } catch (err) {
+              console.error('[AI Bot] Error generating response:', err);
+
+              // Stop typing indicator
+              io.to(roomId).emit('typing', {
+                roomId,
+                username: AI_BOT.name,
+                isTyping: false,
+                userId: AI_BOT.userId,
+              });
+
+              // Send error message to room
+              io.to(roomId).emit('message', {
+                id: generateId(),
+                roomId,
+                userId: AI_BOT.userId,
+                username: AI_BOT.name,
+                content: 'Sorry, I encountered an error while processing your request. Please try again later.',
+                messageType: 'TEXT',
+                timestamp: new Date().toISOString(),
+                role: AI_BOT.role,
+                type: 'user' as const,
+              });
+            }
+          })();
+        }
+      }
     } catch (error) {
       console.error('[Message Error]', error);
       socket.emit('error', { message: 'Failed to send message' });
@@ -846,13 +1006,55 @@ io.on('connection', async (socket) => {
   });
 });
 
+// ─── Ensure AI Bot User Exists in DB ────────────────────────
+async function ensureAIBotUser() {
+  try {
+    await db.user.upsert({
+      where: { id: AI_BOT.userId },
+      update: {
+        name: AI_BOT.name,
+        avatar: AI_BOT.avatar,
+        status: 'ACTIVE',
+      },
+      create: {
+        id: AI_BOT.userId,
+        name: AI_BOT.name,
+        email: AI_BOT.email,
+        role: AI_BOT.role,
+        status: 'ACTIVE',
+        avatar: AI_BOT.avatar,
+        password: '',
+        authProvider: 'EMAIL',
+      },
+    });
+    console.log(`[AI Bot] User '${AI_BOT.name}' ensured in DB`);
+  } catch (err) {
+    console.error('[AI Bot] Failed to ensure AI bot user:', err);
+  }
+}
+
+// Generate a JWT for the AI bot (to call Lucky Strick API)
+function generateAIBotToken(): string {
+  const payload = {
+    userId: AI_BOT.userId,
+    email: AI_BOT.email,
+    name: AI_BOT.name,
+    role: AI_BOT.role,
+  };
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+}
+
 // ─── Start Server ────────────────────────────────────────────
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, async () => {
+  // Ensure AI bot user exists before accepting connections
+  await ensureAIBotUser();
+
   console.log(`╔══════════════════════════════════════════════╗`);
   console.log(`║  PU-ALRMS Chat Service                      ║`);
   console.log(`║  Socket.IO server running on port ${PORT}       ║`);
   console.log(`║  File uploads: POST /upload                   ║`);
   console.log(`║  File serving: GET /uploads/:filename         ║`);
+  console.log(`║  AI Bot: Lucky Strick AI (enabled)           ║`);
   console.log(`║  JWT Secret: ${JWT_SECRET.substring(0, 10)}...            ║`);
   console.log(`╚══════════════════════════════════════════════╝`);
 });

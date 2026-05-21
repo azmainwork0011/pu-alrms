@@ -1,380 +1,277 @@
-import { hash } from 'bcryptjs';
-import { db } from '../src/lib/db';
+/**
+ * PU-ALRMS Database Seed Script
+ *
+ * Seeds the database with:
+ * 1. Super Admin (from SUPER_ADMIN_EMAIL env var)
+ * 2. Demo accounts (CR, Student, Teacher) for development/testing
+ * 3. Demo batch (CSE-2024) and sample subjects
+ * 4. Quiz categories and sample questions
+ *
+ * Usage:
+ *   bun run db:seed          # Seed all data
+ *   SUPER_ADMIN_EMAIL=you@email.com bun run db:seed  # With custom admin email
+ */
 
-async function main() {
-  const adminPass = await hash('admin123', 12);
-  const teacherPass = await hash('teacher123', 12);
-  const studentPass = await hash('student123', 12);
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
-  const admin = await db.user.upsert({
-    where: { email: 'admin@pu.edu' },
-    update: {},
-    create: {
-      name: 'System Admin',
-      email: 'admin@pu.edu',
-      password: adminPass,
-      role: 'ADMIN',
-      avatar: 'https://api.dicebear.com/9.x/initials/svg?seed=SA&backgroundColor=c0392b',
-    },
-  });
+const prisma = new PrismaClient();
 
-  const teacher1 = await db.user.upsert({
-    where: { email: 'dr.smith@pu.edu' },
-    update: {},
-    create: {
-      name: 'Dr. Sarah Smith',
-      email: 'dr.smith@pu.edu',
-      password: teacherPass,
-      role: 'TEACHER',
-      avatar: 'https://api.dicebear.com/9.x/initials/svg?seed=SS&backgroundColor=27ae60',
-    },
-  });
+// ─── Configuration ──────────────────────────────────────────
+const SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL || '';
+const BATCH = 'CSE-2024';
+const DEPARTMENT = 'Computer Science & Engineering';
 
-  const teacher2 = await db.user.upsert({
-    where: { email: 'prof.johnson@pu.edu' },
-    update: {},
-    create: {
-      name: 'Prof. Mark Johnson',
-      email: 'prof.johnson@pu.edu',
-      password: teacherPass,
-      role: 'TEACHER',
-      avatar: 'https://api.dicebear.com/9.x/initials/svg?seed=MJ&backgroundColor=2980b9',
-    },
-  });
+// ─── Demo Accounts ──────────────────────────────────────────
+const DEMO_ACCOUNTS = [
+  {
+    email: 'cr@stu.pu.edu',
+    name: 'CR User',
+    password: 'cr123',
+    role: 'CR',
+    rollNumber: 'CSE-2024-001',
+    batch: BATCH,
+    department: DEPARTMENT,
+  },
+  {
+    email: 'alice@stu.pu.edu',
+    name: 'Alice Student',
+    password: 'student123',
+    role: 'STUDENT',
+    rollNumber: 'CSE-2024-002',
+    batch: BATCH,
+    department: DEPARTMENT,
+  },
+  {
+    email: 'teacher@pu.edu',
+    name: 'Dr. Teacher',
+    password: 'teacher123',
+    role: 'TEACHER',
+    batch: BATCH,
+    department: DEPARTMENT,
+  },
+  {
+    email: 'admin@pu.edu',
+    name: 'Admin User',
+    password: 'admin123',
+    role: 'ADMIN',
+    batch: BATCH,
+    department: DEPARTMENT,
+  },
+];
 
-  // CR user
-  const crPass = await hash('cr123', 12);
-  const cr = await db.user.upsert({
-    where: { email: 'cr@stu.pu.edu' },
-    update: {},
-    create: {
-      name: 'Rafiq Ahmed',
-      email: 'cr@stu.pu.edu',
-      password: crPass,
-      role: 'CR',
-      batch: 'CSE-2024',
-      avatar: 'https://api.dicebear.com/9.x/initials/svg?seed=RA&backgroundColor=e74c3c',
-    },
-  });
+// ─── Demo Subjects ──────────────────────────────────────────
+const DEMO_SUBJECTS = [
+  { name: 'Data Structures', code: 'CSE-201', batch: BATCH },
+  { name: 'Algorithms', code: 'CSE-202', batch: BATCH },
+  { name: 'Database Management', code: 'CSE-203', batch: BATCH },
+  { name: 'Operating Systems', code: 'CSE-204', batch: BATCH },
+  { name: 'Software Engineering', code: 'CSE-205', batch: BATCH },
+];
 
-  // Super Admin (separate from the regular admin)
-  const superAdminPass = await hash('super123', 12);
-  const superAdmin = await db.user.upsert({
-    where: { email: 'super@pu.edu' },
-    update: {},
-    create: {
-      name: 'Super Admin',
-      email: 'super@pu.edu',
-      password: superAdminPass,
-      role: 'SUPER_ADMIN',
-      avatar: 'https://api.dicebear.com/9.x/initials/svg?seed=SUP&backgroundColor=e74c3c',
-    },
-  });
+// ─── Demo Quiz Categories ───────────────────────────────────
+const DEMO_QUIZ_CATEGORIES = [
+  { name: 'Data Structures', department: 'CSE', icon: '🌳', difficulty: 'MEDIUM' },
+  { name: 'Algorithms', department: 'CSE', icon: '🧮', difficulty: 'HARD' },
+  { name: 'Database', department: 'CSE', icon: '🗃️', difficulty: 'MEDIUM' },
+  { name: 'Operating Systems', department: 'CSE', icon: '💻', difficulty: 'HARD' },
+  { name: 'Physics', department: 'GEN', icon: '⚛️', difficulty: 'MEDIUM' },
+  { name: 'Mathematics', department: 'GEN', icon: '📐', difficulty: 'EASY' },
+];
 
-  const students = [];
-  const studentData = [
-    { name: 'Alice Chen', email: 'alice@stu.pu.edu', seed: 'AC', color: '8e44ad' },
-    { name: 'Bob Martinez', email: 'bob@stu.pu.edu', seed: 'BM', color: 'd35400' },
-    { name: 'Carol Williams', email: 'carol@stu.pu.edu', seed: 'CW', color: '16a085' },
-    { name: 'David Kim', email: 'david@stu.pu.edu', seed: 'DK', color: '2c3e50' },
-    { name: 'Emma Wilson', email: 'emma@stu.pu.edu', seed: 'EW', color: 'c0392b' },
-    { name: 'Frank Lee', email: 'frank@stu.pu.edu', seed: 'FL', color: '7f8c8d' },
-    { name: 'Grace Taylor', email: 'grace@stu.pu.edu', seed: 'GT', color: 'f39c12' },
-    { name: 'Henry Brown', email: 'henry@stu.pu.edu', seed: 'HB', color: '1abc9c' },
-  ];
-
-  for (const s of studentData) {
-    const student = await db.user.upsert({
-      where: { email: s.email },
-      update: { batch: 'CSE-2024' },
-      create: {
-        name: s.name,
-        email: s.email,
-        password: studentPass,
-        role: 'STUDENT',
-        batch: 'CSE-2024',
-        avatar: `https://api.dicebear.com/9.x/initials/svg?seed=${s.seed}&backgroundColor=${s.color}`,
-      },
-    });
-    students.push(student);
-  }
-
-  // Subjects
-  const subject1 = await db.subject.create({
-    data: {
-      name: 'Data Structures & Algorithms',
-      code: 'CS201',
-      teacherId: teacher1.id,
-    },
-  });
-
-  const subject2 = await db.subject.create({
-    data: {
-      name: 'Database Management Systems',
-      code: 'CS301',
-      teacherId: teacher1.id,
-    },
-  });
-
-  const subject3 = await db.subject.create({
-    data: {
-      name: 'Web Development',
-      code: 'CS401',
-      teacherId: teacher2.id,
-    },
-  });
-
-  const subject4 = await db.subject.create({
-    data: {
-      name: 'Operating Systems',
-      code: 'CS302',
-      teacherId: teacher2.id,
-    },
-  });
-
-  // Assignments
-  const now = new Date();
-  const assignments = [
-    {
-      title: 'Binary Tree Implementation',
-      description: 'Implement a binary search tree with insert, delete, search, and traversal operations. Include proper error handling and write unit tests for each operation.',
-      subjectId: subject1.id,
-      type: 'ASSIGNMENT',
-      deadline: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
-      createdBy: teacher1.id,
-    },
-    {
-      title: 'Graph Algorithms Lab',
-      description: 'Implement BFS and DFS algorithms. Analyze time complexity for different graph representations (adjacency matrix vs adjacency list).',
-      subjectId: subject1.id,
-      type: 'LAB_REPORT',
-      deadline: new Date(now.getTime() + 5 * 24 * 60 * 60 * 1000),
-      createdBy: teacher1.id,
-    },
-    {
-      title: 'Normalization Exercise',
-      description: 'Given an unnormalized table, normalize it to 3NF. Document each step of the normalization process and explain the functional dependencies.',
-      subjectId: subject2.id,
-      type: 'ASSIGNMENT',
-      deadline: new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000),
-      createdBy: teacher1.id,
-    },
-    {
-      title: 'SQL Query Optimization Lab',
-      description: 'Write optimized SQL queries for given scenarios. Explain the query execution plan and suggest improvements using indexes.',
-      subjectId: subject2.id,
-      type: 'LAB_REPORT',
-      deadline: new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000),
-      createdBy: teacher1.id,
-    },
-    {
-      title: 'React Dashboard Project',
-      description: 'Build a responsive dashboard using React with Tailwind CSS. Include data visualization charts, filtering, and a responsive sidebar navigation.',
-      subjectId: subject3.id,
-      type: 'ASSIGNMENT',
-      deadline: new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000),
-      createdBy: teacher2.id,
-    },
-    {
-      title: 'REST API Development Lab',
-      description: 'Develop a REST API using Next.js API routes. Include authentication, CRUD operations, proper error handling, and API documentation.',
-      subjectId: subject3.id,
-      type: 'LAB_REPORT',
-      deadline: new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000),
-      createdBy: teacher2.id,
-    },
-    {
-      title: 'Process Scheduling Simulation',
-      description: 'Simulate FCFS, SJF, Round Robin, and Priority scheduling algorithms. Compare their performance with different workloads.',
-      subjectId: subject4.id,
-      type: 'ASSIGNMENT',
-      deadline: new Date(now.getTime() + 12 * 24 * 60 * 60 * 1000),
-      createdBy: teacher2.id,
-    },
-    {
-      title: 'Memory Management Lab',
-      description: 'Implement paging and segmentation algorithms. Simulate page replacement strategies (FIFO, LRU, Optimal).',
-      subjectId: subject4.id,
-      type: 'LAB_REPORT',
-      deadline: new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000), // Past deadline
-      createdBy: teacher2.id,
-    },
-  ];
-
-  const createdAssignments = [];
-  for (const a of assignments) {
-    const assignment = await db.assignment.create({ data: a });
-    createdAssignments.push(assignment);
-  }
-
-  // Submissions (for some assignments and students)
-  const submissionData = [
-    { assignmentIdx: 0, studentIdx: 0, status: 'GRADED', marks: 92, feedback: 'Excellent implementation! Clean code and good test coverage.' },
-    { assignmentIdx: 0, studentIdx: 1, status: 'GRADED', marks: 78, feedback: 'Good work. Could improve error handling in delete operation.' },
-    { assignmentIdx: 0, studentIdx: 2, status: 'SUBMITTED' },
-    { assignmentIdx: 1, studentIdx: 0, status: 'GRADED', marks: 88, feedback: 'Great analysis of time complexity.' },
-    { assignmentIdx: 1, studentIdx: 3, status: 'SUBMITTED' },
-    { assignmentIdx: 1, studentIdx: 4, status: 'SUBMITTED' },
-    { assignmentIdx: 2, studentIdx: 0, status: 'GRADED', marks: 95, feedback: 'Perfect normalization steps!' },
-    { assignmentIdx: 2, studentIdx: 1, status: 'GRADED', marks: 82, feedback: 'Good work, minor issues in 2NF step.' },
-    { assignmentIdx: 2, studentIdx: 2, status: 'SUBMITTED' },
-    { assignmentIdx: 2, studentIdx: 3, status: 'SUBMITTED' },
-    { assignmentIdx: 2, studentIdx: 4, status: 'LATE', marks: 70, feedback: 'Late submission. Content was good.' },
-    { assignmentIdx: 4, studentIdx: 0, status: 'SUBMITTED' },
-    { assignmentIdx: 4, studentIdx: 5, status: 'SUBMITTED' },
-    { assignmentIdx: 5, studentIdx: 6, status: 'SUBMITTED' },
-    { assignmentIdx: 5, studentIdx: 7, status: 'SUBMITTED' },
-    { assignmentIdx: 7, studentIdx: 0, status: 'GRADED', marks: 85, feedback: 'Good simulation results.' },
-    { assignmentIdx: 7, studentIdx: 1, status: 'GRADED', marks: 90, feedback: 'Excellent work on page replacement!' },
-    { assignmentIdx: 7, studentIdx: 2, status: 'LATE', marks: 65, feedback: 'Incomplete implementation.' },
-  ];
-
-  for (const sd of submissionData) {
-    await db.submission.create({
-      data: {
-        assignmentId: createdAssignments[sd.assignmentIdx].id,
-        studentId: students[sd.studentIdx].id,
-        fileName: `${createdAssignments[sd.assignmentIdx].title.replace(/\s+/g, '_')}_${students[sd.studentIdx].name.split(' ')[0].toLowerCase()}.pdf`,
-        status: sd.status,
-        marks: sd.marks,
-        feedback: sd.feedback,
-        gradedAt: sd.status === 'GRADED' ? new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000) : null,
-      },
-    });
-  }
-
-  // Comments
-  const commentsData = [
-    { assignmentIdx: 0, userId: teacher1.id, content: 'Remember to include time complexity analysis in your submissions.' },
-    { assignmentIdx: 0, userId: students[0].id, content: 'Should we also include space complexity?' },
-    { assignmentIdx: 0, userId: teacher1.id, content: 'Yes, Alice. Space complexity analysis would be a great addition.' },
-    { assignmentIdx: 2, userId: teacher1.id, content: 'Make sure to show all functional dependencies clearly.' },
-    { assignmentIdx: 4, userId: teacher2.id, content: 'Feel free to use any charting library you prefer.' },
-    { assignmentIdx: 4, userId: students[0].id, content: 'Can we use Chart.js or should we stick to Recharts?' },
-    { assignmentIdx: 4, userId: teacher2.id, content: 'Either is fine. Recharts works well with React.' },
-  ];
-
-  for (const cd of commentsData) {
-    await db.comment.create({
-      data: {
-        assignmentId: createdAssignments[cd.assignmentIdx].id,
-        userId: cd.userId,
-        content: cd.content,
-      },
-    });
-  }
-
-  // Notifications
-  const notificationsData = [
-    { userId: students[0].id, title: 'New Assignment', message: 'Binary Tree Implementation has been posted for CS201', type: 'ASSIGNMENT' },
-    { userId: students[1].id, title: 'New Assignment', message: 'Binary Tree Implementation has been posted for CS201', type: 'ASSIGNMENT' },
-    { userId: students[2].id, title: 'Deadline Approaching', message: 'Normalization Exercise is due in 3 days', type: 'DEADLINE' },
-    { userId: students[3].id, title: 'Feedback Available', message: 'Your submission for Graph Algorithms Lab has been graded', type: 'FEEDBACK' },
-    { userId: students[0].id, title: 'Feedback Available', message: 'Your submission for Binary Tree Implementation scored 92/100', type: 'FEEDBACK' },
-    { userId: students[4].id, title: 'Deadline Passed', message: 'Memory Management Lab deadline has passed', type: 'DEADLINE' },
-    { userId: teacher1.id, title: 'New Submission', message: 'Carol Williams submitted Binary Tree Implementation', type: 'INFO' },
-    { userId: teacher2.id, title: 'New Submission', message: 'Grace Taylor submitted REST API Development Lab', type: 'INFO' },
-  ];
-
-  for (const nd of notificationsData) {
-    await db.notification.create({
-      data: nd,
-    });
-  }
-
-  // Sample submission tasks for CR
-  const now2 = new Date();
-  const taskData = [
-    {
-      subjectName: 'Data Structures & Algorithms',
-      subjectCode: 'CS201',
-      batch: 'CSE-2024',
-      type: 'ASSIGNMENT',
-      description: 'Implement AVL Tree with all rotations. Submit code with proper comments.',
-      dueDate: new Date(now2.getTime() + 5 * 24 * 60 * 60 * 1000),
-      status: 'ACTIVE',
-      createdBy: cr.id,
-    },
-    {
-      subjectName: 'Database Management Systems',
-      subjectCode: 'CS301',
-      batch: 'CSE-2024',
-      type: 'LAB_REPORT',
-      description: 'Complete ER Diagram and Relational Schema for Library Management System.',
-      dueDate: new Date(now2.getTime() + 3 * 24 * 60 * 60 * 1000),
-      status: 'ACTIVE',
-      createdBy: cr.id,
-    },
-    {
-      subjectName: 'Operating Systems',
-      subjectCode: 'CS302',
-      batch: 'CSE-2024',
-      type: 'PRESENTATION',
-      description: 'Group presentation on Process Scheduling Algorithms (10 min per group).',
-      dueDate: new Date(now2.getTime() + 10 * 24 * 60 * 60 * 1000),
-      status: 'ACTIVE',
-      createdBy: cr.id,
-    },
-  ];
-
-  const createdTasks = [];
-  for (const t of taskData) {
-    const task = await db.submissionTask.create({ data: t });
-    createdTasks.push(task);
-
-    // Create batch notifications
-    await db.batchNotification.create({
-      data: {
-        taskId: task.id,
-        batch: t.batch,
-        title: `New ${t.type.replace('_', ' ')}: ${t.subjectName}`,
-        message: `A new ${t.type.replace('_', ' ').toLowerCase()} for ${t.subjectName} (${t.subjectCode}). Due: ${t.dueDate.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}.`,
-        type: 'SUBMISSION',
-        sentBy: cr.id,
-      },
-    });
-  }
-
-  // Sample student responses
-  await db.taskResponse.create({
-    data: {
-      taskId: createdTasks[0].id,
-      studentId: students[0].id,
-      status: 'SUBMITTED',
-      fileName: 'avl_tree_implementation.pdf',
-      fileUrl: '/uploads/avl_tree_alice.pdf',
-      submittedAt: new Date(now2.getTime() - 1 * 24 * 60 * 60 * 1000),
-    },
-  });
-  await db.taskResponse.create({
-    data: {
-      taskId: createdTasks[0].id,
-      studentId: students[1].id,
-      status: 'SUBMITTED',
-      fileName: 'avl_tree_bob.pdf',
-      fileUrl: '/uploads/avl_tree_bob.pdf',
-      submittedAt: new Date(now2.getTime() - 12 * 60 * 60 * 1000),
-    },
-  });
-
-  console.log('Seed completed successfully!');
-  console.log('--- Accounts ---');
-  console.log('Admin: admin@pu.edu / admin123');
-  console.log('Super Admin: super@pu.edu / super123');
-  console.log('Teacher: dr.smith@pu.edu / teacher123');
-  console.log('Teacher: prof.johnson@pu.edu / teacher123');
-  console.log('CR: cr@stu.pu.edu / cr123');
-  console.log('Student: alice@stu.pu.edu / student123');
-  console.log('Student: bob@stu.pu.edu / student123');
-  console.log('Student: carol@stu.pu.edu / student123');
+// ─── Helpers ────────────────────────────────────────────────
+async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 12);
 }
 
-main()
-  .then(async () => {
-    await db.$disconnect();
-  })
-  .catch(async (e) => {
-    console.error(e);
-    await db.$disconnect();
-    process.exit(1);
+async function upsertUser(data: {
+  email: string;
+  name: string;
+  password: string;
+  role: string;
+  rollNumber?: string;
+  batch?: string;
+  department?: string;
+  verified?: boolean;
+  avatar?: string;
+}) {
+  const hashedPassword = await hashPassword(data.password);
+
+  return prisma.user.upsert({
+    where: { email: data.email },
+    update: {
+      name: data.name,
+      role: data.role,
+      ...(data.rollNumber ? { rollNumber: data.rollNumber } : {}),
+      ...(data.batch ? { batch: data.batch } : {}),
+      ...(data.department ? { department: data.department } : {}),
+    },
+    create: {
+      email: data.email,
+      name: data.name,
+      password: hashedPassword,
+      role: data.role,
+      authProvider: 'EMAIL',
+      verified: data.verified ?? false,
+      status: 'ACTIVE',
+      rollNumber: data.rollNumber,
+      batch: data.batch,
+      department: data.department,
+      avatar: data.avatar || `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(data.name)}&backgroundColor=059669`,
+    },
   });
+}
+
+// ─── Seed Functions ─────────────────────────────────────────
+
+async function seedSuperAdmin() {
+  if (!SUPER_ADMIN_EMAIL) {
+    console.log('⚠️  SUPER_ADMIN_EMAIL not set — skipping super admin seed');
+    console.log('   Set SUPER_ADMIN_EMAIL env var to create a super admin');
+    return;
+  }
+
+  const name = 'Super Admin';
+  const avatar = `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=dc2626`;
+
+  const superAdmin = await upsertUser({
+    email: SUPER_ADMIN_EMAIL,
+    name,
+    password: 'super123',
+    role: 'SUPER_ADMIN',
+    verified: true,
+    avatar,
+  });
+
+  console.log(`✅ Super Admin: ${SUPER_ADMIN_EMAIL} (${superAdmin.role})`);
+}
+
+async function seedDemoAccounts() {
+  console.log('\n--- Seeding Demo Accounts ---');
+
+  for (const account of DEMO_ACCOUNTS) {
+    const user = await upsertUser(account);
+    console.log(`✅ ${account.name}: ${account.email} (${user.role})`);
+  }
+
+  // Also create super admin as demo if SUPER_ADMIN_EMAIL is set
+  if (SUPER_ADMIN_EMAIL && SUPER_ADMIN_EMAIL !== 'admin@pu.edu') {
+    await upsertUser({
+      email: SUPER_ADMIN_EMAIL,
+      name: 'Super Admin',
+      password: 'super123',
+      role: 'SUPER_ADMIN',
+      verified: true,
+    });
+    console.log(`✅ Super Admin: ${SUPER_ADMIN_EMAIL}`);
+  }
+}
+
+async function seedSubjects() {
+  console.log('\n--- Seeding Subjects ---');
+
+  // Find the teacher user
+  const teacher = await prisma.user.findFirst({
+    where: { role: 'TEACHER' },
+  });
+
+  if (!teacher) {
+    console.log('⚠️  No teacher found — skipping subjects');
+    return;
+  }
+
+  for (const subject of DEMO_SUBJECTS) {
+    const s = await prisma.subject.upsert({
+      where: {
+        id: `${subject.code}-${subject.batch}`,
+      },
+      update: {
+        name: subject.name,
+        teacherId: teacher.id,
+      },
+      create: {
+        id: `${subject.code}-${subject.batch}`,
+        name: subject.name,
+        code: subject.code,
+        teacherId: teacher.id,
+        batch: subject.batch,
+      },
+    });
+    console.log(`✅ Subject: ${s.name} (${s.code})`);
+  }
+}
+
+async function seedQuizCategories() {
+  console.log('\n--- Seeding Quiz Categories ---');
+
+  for (const cat of DEMO_QUIZ_CATEGORIES) {
+    const category = await prisma.quizCategory.upsert({
+      where: {
+        id: `quiz-${cat.name.toLowerCase().replace(/\s+/g, '-')}`,
+      },
+      update: {},
+      create: {
+        id: `quiz-${cat.name.toLowerCase().replace(/\s+/g, '-')}`,
+        name: cat.name,
+        department: cat.department,
+        icon: cat.icon,
+        difficulty: cat.difficulty,
+      },
+    });
+    console.log(`✅ Quiz Category: ${category.name}`);
+  }
+}
+
+async function seedBatchNotifications() {
+  console.log('\n--- Seeding Welcome Notification ---');
+
+  const cr = await prisma.user.findFirst({ where: { role: 'CR' } });
+  if (!cr) {
+    console.log('⚠️  No CR found — skipping notifications');
+    return;
+  }
+
+  await prisma.batchNotification.upsert({
+    where: { id: 'welcome-notification' },
+    update: {},
+    create: {
+      id: 'welcome-notification',
+      batch: BATCH,
+      title: 'Welcome to PU-ALRMS!',
+      message: 'Welcome to the Presidency University Academic Lab Report Management System. Use this platform to submit lab reports, check assignments, and stay connected with your batch.',
+      type: 'GENERAL',
+      sentBy: cr.id,
+    },
+  });
+
+  console.log('✅ Welcome notification created');
+}
+
+// ─── Main ───────────────────────────────────────────────────
+async function main() {
+  console.log('╔══════════════════════════════════════════════╗');
+  console.log('║       PU-ALRMS Database Seeder                ║');
+  console.log('╚══════════════════════════════════════════════╝');
+  console.log(`Database: ${process.env.DATABASE_URL ? 'Connected' : 'NOT CONFIGURED'}`);
+  console.log(`Super Admin Email: ${SUPER_ADMIN_EMAIL || '(not set)'}`);
+  console.log('');
+
+  try {
+    await seedSuperAdmin();
+    await seedDemoAccounts();
+    await seedSubjects();
+    await seedQuizCategories();
+    await seedBatchNotifications();
+
+    console.log('\n══════════════════════════════════════════════');
+    console.log('✅ Seed completed successfully!');
+    console.log('══════════════════════════════════════════════');
+  } catch (error) {
+    console.error('\n❌ Seed failed:', error);
+    process.exit(1);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
+main();
