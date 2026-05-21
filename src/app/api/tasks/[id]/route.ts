@@ -205,7 +205,7 @@ export async function PUT(
   }
 }
 
-// ─── DELETE: Soft delete — archive the task (CR/Admin) ──────
+// ─── DELETE: Hard delete the task and its responses (CR/Admin) ──
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -231,25 +231,14 @@ export async function DELETE(
       return NextResponse.json({ success: false, error: 'Task not found' }, { status: 404 });
     }
 
-    if (existingTask.status === 'ARCHIVED') {
-      return NextResponse.json({ success: false, error: 'Task is already archived' }, { status: 400 });
-    }
-
-    // Soft delete: set status to ARCHIVED
-    const archivedTask = await db.submissionTask.update({
+    // Delete all responses first, then batch notifications, then the task
+    await db.taskResponse.deleteMany({ where: { taskId: id } });
+    await db.batchNotification.deleteMany({ where: { taskId: id } });
+    const deletedTask = await db.submissionTask.delete({
       where: { id },
-      data: { status: 'ARCHIVED' },
-      include: {
-        creator: {
-          select: { id: true, name: true, email: true, avatar: true },
-        },
-        _count: {
-          select: { responses: true },
-        },
-      },
     });
 
-    return NextResponse.json({ success: true, data: archivedTask });
+    return NextResponse.json({ success: true, data: deletedTask });
   } catch (error) {
     console.error('Delete task error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });

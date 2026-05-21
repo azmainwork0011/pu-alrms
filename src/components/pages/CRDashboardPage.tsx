@@ -313,6 +313,7 @@ export default function CRDashboardPage() {
     if (!form.subjectName.trim()) errors.subjectName = 'Subject name is required';
     if (!form.subjectCode.trim()) errors.subjectCode = 'Subject code is required';
     if (!form.dueDate) errors.dueDate = 'Due date is required';
+    if (!form.batch.trim()) errors.batch = 'Batch name is required';
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -348,13 +349,13 @@ export default function CRDashboardPage() {
     if (!deletingTask) return;
     try {
       await taskApi.delete(deletingTask.id);
-      toast.success('Task archived');
+      toast.success('Task deleted successfully');
       setDeleteConfirmOpen(false);
       setDeletingTask(null);
       fetchTasks();
       fetchAnalytics();
     } catch (err) {
-      const msg = err instanceof ApiError ? err.message : 'Failed to archive task';
+      const msg = err instanceof ApiError ? err.message : 'Failed to delete task';
       toast.error(msg);
     }
   };
@@ -635,7 +636,7 @@ export default function CRDashboardPage() {
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => confirmDelete(task)} className="text-red-600 dark:text-red-400 focus:text-red-600">
-                                  <Trash2 className="w-4 h-4 mr-2" /> Archive
+                                  <Trash2 className="w-4 h-4 mr-2" /> Delete
                                 </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
@@ -878,7 +879,7 @@ export default function CRDashboardPage() {
               <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
                 {editingTask ? <Edit className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> : <Plus className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />}
               </div>
-              {editingTask ? 'Edit Task' : 'Create New Task'}
+              {editingTask ? `Edit ${getTypeBadge(editingTask.type).label}` : `Create ${getTypeBadge(form.type).label}`}
             </DialogTitle>
             <DialogDescription className="dark:text-gray-400">
               {editingTask ? 'Update task details. Changes will be reflected to all students.' : 'Create a new submission task for your batch. Students will be notified.'}
@@ -926,7 +927,8 @@ export default function CRDashboardPage() {
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-wider">Batch</Label>
               <Input value={form.batch} onChange={e => setForm({ ...form, batch: e.target.value })}
-                className="h-10 dark:bg-gray-800 dark:border-gray-700" disabled={user?.role !== 'ADMIN'} />
+                className="h-10 dark:bg-gray-800 dark:border-gray-700" disabled={!['CR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(user?.role || '')} />
+              {formErrors.batch && <p className="text-[11px] text-red-500">{formErrors.batch}</p>}
             </div>
 
             <div className="space-y-2">
@@ -953,16 +955,16 @@ export default function CRDashboardPage() {
               <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                 <Trash2 className="w-4 h-4 text-red-600 dark:text-red-400" />
               </div>
-              Archive Task
+              Delete Task
             </DialogTitle>
             <DialogDescription className="dark:text-gray-400">
-              Are you sure you want to archive <strong>&quot;{deletingTask?.subjectName}&quot;</strong>? This action can be reversed later.
+              Are you sure you want to delete <strong>&quot;{deletingTask?.subjectName}&quot;</strong>? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => { setDeleteConfirmOpen(false); setDeletingTask(null); }}
               className="dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300">Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete}>Archive</Button>
+            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
