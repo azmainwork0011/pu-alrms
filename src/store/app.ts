@@ -48,6 +48,7 @@ interface AppState {
 
   // Navigation
   currentPage: PageView;
+  pageHistory: PageView[];
   selectedAssignmentId: string | null;
 
   // UI State
@@ -60,6 +61,8 @@ interface AppState {
   updateUser: (data: Partial<User>) => void;
   logout: () => void;
   setPage: (page: PageView) => void;
+  goBack: () => void;
+  canGoBack: () => boolean;
   setAssignmentId: (id: string) => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
@@ -87,6 +90,7 @@ export const useAppStore = create<AppState>((set) => ({
   mounted: false,
   isDemoUser: false,
   currentPage: 'dashboard',
+  pageHistory: [],
   selectedAssignmentId: null,
   sidebarOpen: false,
   notificationCount: 0,
@@ -139,11 +143,55 @@ export const useAppStore = create<AppState>((set) => ({
         // Ignore localStorage errors during logout
       }
     }
-    set({ user: null, token: null, isAuthenticated: false, isDemoUser: false, currentPage: 'dashboard', notificationCount: 0 });
+    set({ user: null, token: null, isAuthenticated: false, isDemoUser: false, currentPage: 'dashboard', pageHistory: [], notificationCount: 0 });
   },
 
-  setPage: (page) => set({ currentPage: page, sidebarOpen: false }),
-  setAssignmentId: (id) => set({ selectedAssignmentId: id, currentPage: 'assignment-detail' }),
+  setPage: (page) => {
+    const state = useAppStore.getState();
+    const current = state.currentPage;
+    // Don't push to history if navigating to the same page
+    if (page !== current) {
+      // Push current page to history stack (limit to 50 entries)
+      const newHistory = [...state.pageHistory, current].slice(-50);
+      set({ currentPage: page, sidebarOpen: false, pageHistory: newHistory });
+      // Sync browser History API so browser back button works
+      if (typeof window !== 'undefined') {
+        try {
+          window.history.pushState({ page, pageHistory: newHistory }, '');
+        } catch {
+          // Ignore in environments where history manipulation is restricted
+        }
+      }
+    } else {
+      set({ sidebarOpen: false });
+    }
+  },
+
+  goBack: () => {
+    const state = useAppStore.getState();
+    if (state.pageHistory.length === 0) return;
+    // Pop the last entry from history
+    const newHistory = [...state.pageHistory];
+    const previousPage = newHistory.pop()!;
+    set({ currentPage: previousPage, pageHistory: newHistory, sidebarOpen: false });
+    // We already navigated back in history via popstate, so don't push again
+  },
+
+  canGoBack: () => {
+    return useAppStore.getState().pageHistory.length > 0;
+  },
+
+  setAssignmentId: (id) => {
+    const state = useAppStore.getState();
+    const current = state.currentPage;
+    const newHistory = [...state.pageHistory, current].slice(-50);
+    set({ selectedAssignmentId: id, currentPage: 'assignment-detail', pageHistory: newHistory, sidebarOpen: false });
+    if (typeof window !== 'undefined') {
+      try {
+        window.history.pushState({ page: 'assignment-detail', pageHistory: newHistory }, '');
+      } catch { /* ignore */ }
+    }
+  },
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setNotificationCount: (count) => set({ notificationCount: count }),

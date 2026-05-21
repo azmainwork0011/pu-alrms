@@ -13,7 +13,7 @@ import {
   LayoutDashboard, ClipboardList, FlaskConical, Plus, FileText, Trophy,
   Megaphone, MessageSquare, Sparkles, Bell, User as UserIcon,
   LogOut, Menu, GraduationCap, Moon, Sun, BookOpen, Swords,
-  Shield, BadgeCheck, Settings,
+  Shield, BadgeCheck, ChevronLeft,
 } from 'lucide-react';
 import { getInitials, PageTransition } from '@/components/pu-helpers';
 
@@ -216,7 +216,8 @@ const pageTitles: Record<string, string> = {
 
 // ─── Main App Layout ────────────────────────────────────
 export default function AppLayout() {
-  const { currentPage, user, toggleSidebar, notificationCount, setPage, logout } = useAppStore();
+  const { currentPage, user, toggleSidebar, notificationCount, setPage, goBack, logout } = useAppStore();
+  const pageHistory = useAppStore((s) => s.pageHistory);
 
   // Listen for auth-expired events and auto-logout
   useEffect(() => {
@@ -226,6 +227,34 @@ export default function AppLayout() {
     window.addEventListener('auth-expired', handleAuthExpired);
     return () => window.removeEventListener('auth-expired', handleAuthExpired);
   }, [logout]);
+
+  // Listen for browser back/forward button (popstate)
+  useEffect(() => {
+    const handlePopState = (event: PopStateEvent) => {
+      // If the state has our custom page data, navigate to it
+      if (event.state && event.state.page) {
+        const page = event.state.page as PageView;
+        const history = event.state.pageHistory as PageView[] || [];
+        useAppStore.setState({ currentPage: page, pageHistory: history, sidebarOpen: false });
+      } else {
+        // No state means we're at the initial entry — go back in our stack
+        goBack();
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [goBack]);
+
+  const canGoBack = pageHistory.length > 0;
+
+  // Initialize browser history state on first mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && !window.history.state?.page) {
+      try {
+        window.history.replaceState({ page: 'dashboard', pageHistory: [] }, '');
+      } catch { /* ignore */ }
+    }
+  }, []);
 
   const renderPage = () => {
     switch (currentPage) {
@@ -285,10 +314,15 @@ export default function AppLayout() {
         {/* Header */}
         <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-md border-b">
           <div className="flex items-center justify-between h-14 px-4 gap-2">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" className="md:hidden h-9 w-9" onClick={toggleSidebar}>
                 <Menu className="w-5 h-5" />
               </Button>
+              {canGoBack && (
+                <Button variant="ghost" size="icon" className="h-9 w-9" onClick={goBack} aria-label="Go back">
+                  <ChevronLeft className="w-5 h-5" />
+                </Button>
+              )}
               <h2 className="text-sm font-medium text-muted-foreground truncate max-w-[160px] sm:max-w-none">
                 {pageTitles[currentPage] || currentPage.replace(/-/g, ' ')}
               </h2>
