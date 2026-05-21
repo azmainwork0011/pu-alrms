@@ -26,6 +26,7 @@ export type PageView =
   | 'assignment-detail'
   | 'create-assignment'
   | 'submissions'
+  | 'student-tasks'
   | 'ai-chat'
   | 'leaderboard'
   | 'notifications'
@@ -34,7 +35,8 @@ export type PageView =
   | 'announcements'
   | 'quiz'
   | 'code-quest'
-  | 'books';
+  | 'books'
+  | 'cr-dashboard';
 
 interface AppState {
   // Auth

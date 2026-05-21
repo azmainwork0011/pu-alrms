@@ -601,3 +601,56 @@ export const luckyStrickApi = {
   getStats: () =>
     apiFetch<any>('/api/lucky-strick/stats'),
 };
+
+// ═══════════════════════════════════════════════════════════════
+// CR Submission Task Management APIs
+// ═══════════════════════════════════════════════════════════════
+export const taskApi = {
+  list: (params?: Record<string, string>) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiFetch<any>('/api/tasks' + query);
+  },
+  get: (id: string) =>
+    apiFetch<any>(`/api/tasks/${id}`),
+  create: (data: { subjectName: string; subjectCode: string; batch: string; type: string; description?: string; dueDate: string }) =>
+    apiFetch<any>('/api/tasks', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  update: (id: string, data: Partial<{ subjectName: string; subjectCode: string; batch: string; type: string; description: string; dueDate: string; status: string }>) =>
+    apiFetch<any>(`/api/tasks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  delete: (id: string) =>
+    apiFetch<void>(`/api/tasks/${id}`, {
+      method: 'DELETE',
+    }),
+  respond: (id: string, formData: FormData) =>
+    apiFetch<any>(`/api/tasks/${id}/respond`, {
+      method: 'POST',
+      body: formData,
+      timeout: 60000,
+    }),
+  getResponses: (id: string) =>
+    apiFetch<any>(`/api/tasks/${id}/responses`),
+  gradeResponse: (id: string, data: { studentId: string; marks: number; feedback: string }) =>
+    apiFetch<void>(`/api/tasks/${id}/responses`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  analytics: () =>
+    apiFetch<any>('/api/tasks/analytics'),
+};
+
+export const batchNotificationApi = {
+  list: (params?: Record<string, string>) => {
+    const query = params ? '?' + new URLSearchParams(params).toString() : '';
+    return apiFetch<any>('/api/batch-notifications' + query);
+  },
+  send: (data: { batch: string; title: string; message: string; type: string }) =>
+    apiFetch<void>('/api/batch-notifications', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+};

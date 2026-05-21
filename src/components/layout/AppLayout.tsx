@@ -13,7 +13,7 @@ import {
   LayoutDashboard, ClipboardList, FlaskConical, Plus, FileText, Trophy,
   Megaphone, MessageSquare, Sparkles, Bell, User as UserIcon,
   LogOut, Menu, GraduationCap, Moon, Sun, BookOpen, Swords,
-  Shield, BadgeCheck, ChevronLeft,
+  Shield, BadgeCheck, ChevronLeft, ListTodo,
 } from 'lucide-react';
 import { getInitials, PageTransition } from '@/components/pu-helpers';
 
@@ -27,12 +27,14 @@ import AIChatPage from '@/components/pages/AIChatPage';
 import LeaderboardPage from '@/components/pages/LeaderboardPage';
 import NotificationsPage from '@/components/pages/NotificationsPage';
 import ProfilePage from '@/components/pages/ProfilePage';
-import StudentCommunityPage from '@/components/pages/StudentCommunityPage';
+import BatchChatPage from '@/components/pages/BatchChatPage';
 import AnnouncementsPage from '@/components/pages/AnnouncementsPage';
 import QuizPage from '@/components/pages/QuizPage';
 import LearnWithGame from '@/components/pages/LearnWithGame';
 import BooksPage from '@/components/pages/BooksPage';
 import AdminPanelPage from '@/components/pages/AdminPanelPage';
+import CRDashboardPage from '@/components/pages/CRDashboardPage';
+import StudentTasksPage from '@/components/pages/StudentTasksPage';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 // ─── Navigation Items ────────────────────────────────────
@@ -46,14 +48,16 @@ const navItems: {
   section?: string;
 }[] = [
   { page: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, section: 'Main' },
+  { page: 'cr-dashboard', label: 'CR Dashboard', icon: ListTodo, roles: ['CR', 'ADMIN', 'SUPER_ADMIN'], section: 'Main' },
   { page: 'admin-panel', label: 'Admin Panel', icon: Shield, roles: ['SUPER_ADMIN'], section: 'Main' },
   { page: 'assignments', label: 'Assignments', icon: ClipboardList, section: 'Academic' },
   { page: 'lab-reports', label: 'Lab Reports', icon: FlaskConical, section: 'Academic' },
   { page: 'create-assignment', label: 'Create Assignment', icon: Plus, roles: ['TEACHER', 'CR', 'ADMIN'], section: 'Academic' },
   { page: 'submissions', label: 'Submissions', icon: FileText, section: 'Academic' },
+  { page: 'student-tasks', label: 'My Tasks', icon: ClipboardList, section: 'Academic' },
   { page: 'leaderboard', label: 'Leaderboard', icon: Trophy, roles: ['STUDENT', 'CR', 'ADMIN'], section: 'Academic' },
   { page: 'announcements', label: 'Announcements', icon: Megaphone, section: 'Communication' },
-  { page: 'student-community', label: 'Community Chat', icon: MessageSquare, demoHidden: true, section: 'Communication' },
+  { page: 'student-community', label: 'Batch Chat', icon: MessageSquare, demoHidden: true, section: 'Communication' },
   { page: 'quiz', label: 'Quick Quiz', icon: GraduationCap, section: 'Learning' },
   { page: 'code-quest', label: 'Learn With Game', icon: Swords, section: 'Learning' },
   { page: 'books', label: 'Digital Library', icon: BookOpen, section: 'Learning' },
@@ -203,15 +207,17 @@ const pageTitles: Record<string, string> = {
   'assignment-detail': 'Assignment Details',
   'create-assignment': 'Create Assignment',
   'submissions': 'Submissions',
+  'student-tasks': 'My Tasks',
   'ai-chat': 'Lucky Strick AI',
   'leaderboard': 'Leaderboard',
   'notifications': 'Notifications',
   'profile': 'Profile',
-  'student-community': 'Community Chat',
+  'student-community': 'Batch Chat',
   'announcements': 'Announcements',
   'quiz': 'Quick Quiz',
   'code-quest': 'Learn With Game',
   'books': 'Digital Library',
+  'cr-dashboard': 'CR Dashboard',
 };
 
 // ─── Main App Layout ────────────────────────────────────
@@ -264,16 +270,18 @@ export default function AppLayout() {
       case 'assignment-detail': return <AssignmentDetailPage />;
       case 'create-assignment': return <CreateAssignmentPage />;
       case 'submissions': return <SubmissionsPage />;
+      case 'student-tasks': return <StudentTasksPage />;
       case 'ai-chat': return <ErrorBoundary fallbackTitle="AI Assistant encountered an error"><AIChatPage /></ErrorBoundary>;
       case 'leaderboard': return <LeaderboardPage />;
       case 'notifications': return <NotificationsPage />;
       case 'profile': return <ProfilePage />;
-      case 'student-community': return <StudentCommunityPage />;
+      case 'student-community': return <BatchChatPage />;
       case 'announcements': return <AnnouncementsPage />;
       case 'quiz': return <QuizPage />;
       case 'code-quest': return <ErrorBoundary fallbackTitle="Learn with Games encountered an error"><LearnWithGame /></ErrorBoundary>;
       case 'books': return <BooksPage />;
       case 'admin-panel': return <AdminPanelPage />;
+      case 'cr-dashboard': return <CRDashboardPage />;
       default: return <DashboardPage />;
     }
   };

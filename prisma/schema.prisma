@@ -27,28 +27,33 @@ model User {
   batch       String?
   department  String?
   bio         String?
+  deviceToken String?                    // FCM / push notification token
   lastLogin   DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  subjects       Subject[]
-  assignments    Assignment[]
-  submissions    Submission[]
-  comments       Comment[]
-  notifications  Notification[]
-  announcements  Announcement[]
-  chatMessages   ChatMessage[]
-  quizAttempts   QuizAttempt[]
-  quizProfile    QuizProfile?
-  savedBooks     SavedBook[]
-  battlesAsP1    BattleRoom[] @relation("BattlePlayer1")
-  battlesAsP2    BattleRoom[] @relation("BattlePlayer2")
-  cqProfile       CQProfile?
-  cqFriends       CQFriend[]  @relation("UserFriends")
-  cqFriendOf      CQFriend[]  @relation("FriendOf")
-  cqBattlesP1     CQBattleSession[] @relation("CQBattleP1")
-  cqBattlesP2     CQBattleSession[] @relation("CQBattleP2")
-  aiChatHistory   LuckyStrickChat[]
+  subjects          Subject[]
+  assignments       Assignment[]
+  submissions       Submission[]
+  submissionTasks   SubmissionTask[]
+  taskResponses     TaskResponse[]
+  comments          Comment[]
+  notifications     Notification[]
+  batchNotifications BatchNotification[]
+  announcements     Announcement[]
+  chatMessages      ChatMessage[]
+  chatReadReceipts  ChatReadReceipt[]
+  quizAttempts      QuizAttempt[]
+  quizProfile       QuizProfile?
+  savedBooks        SavedBook[]
+  battlesAsP1       BattleRoom[] @relation("BattlePlayer1")
+  battlesAsP2       BattleRoom[] @relation("BattlePlayer2")
+  cqProfile         CQProfile?
+  cqFriends         CQFriend[]  @relation("UserFriends")
+  cqFriendOf        CQFriend[]  @relation("FriendOf")
+  cqBattlesP1       CQBattleSession[] @relation("CQBattleP1")
+  cqBattlesP2       CQBattleSession[] @relation("CQBattleP2")
+  aiChatHistory     LuckyStrickChat[]
 }
 
 model Subject {
@@ -162,13 +167,34 @@ model ChatMessage {
   roomId     String
   userId     String
   content    String
-  messageType String  @default("TEXT")
+  messageType String  @default("TEXT")       // TEXT, IMAGE, FILE, SYSTEM
   fileUrl    String?
   fileName   String?
+  fileSize   Int?
+  replyToId  String?                       // Thread/reply support
+  isEdited   Boolean  @default(false)
+  isDeleted  Boolean  @default(false)       // Soft delete
+  isPinned   Boolean  @default(false)
   createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  room ChatRoom @relation(fields: [roomId], references: [id])
-  user User     @relation(fields: [userId], references: [id])
+  room        ChatRoom          @relation(fields: [roomId], references: [id])
+  user        User              @relation(fields: [userId], references: [id])
+  replyTo     ChatMessage?      @relation("MessageReply", fields: [replyToId], references: [id])
+  replies     ChatMessage[]     @relation("MessageReply")
+  readReceipts ChatReadReceipt[]
+}
+
+model ChatReadReceipt {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  message ChatMessage @relation(fields: [messageId], references: [id])
+  user    User        @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId])
 }
 
 model QuizCategory {
@@ -371,6 +397,72 @@ model BookDownload {
   userId    String?
   bookTitle String
   createdAt DateTime    @default(now())
+}
+
+// ─── Submission Task (CR creates, Students respond) ───────
+model SubmissionTask {
+  id            String   @id @default(cuid())
+  subjectName   String                       // e.g. "Data Structures"
+  subjectCode   String                       // e.g. "CSE-201"
+  batch         String                       // Target batch
+  type          String   @default("ASSIGNMENT") // ASSIGNMENT, LAB_REPORT, PRESENTATION
+  description   String   @default("")
+  dueDate       DateTime                     // Deadline
+  attachmentUrl String?                      // Optional file attachment by CR
+  attachmentName String?
+  status        String   @default("ACTIVE")    // ACTIVE, CLOSED, ARCHIVED
+  createdBy     String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  creator     User           @relation(fields: [createdBy], references: [id])
+  responses   TaskResponse[]
+  notifications BatchNotification[]
+
+  @@index([batch])
+  @@index([type])
+  @@index([dueDate])
+  @@index([status])
+}
+
+model TaskResponse {
+  id           String   @id @default(cuid())
+  taskId       String
+  studentId    String
+  status       String   @default("PENDING")   // PENDING, SUBMITTED, LATE, GRADED
+  fileName     String   @default("")
+  fileUrl      String?
+  fileSize     Int?
+  marks        Float?
+  feedback     String?
+  submittedAt  DateTime?
+  gradedAt     DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  task    SubmissionTask @relation(fields: [taskId], references: [id])
+  student User            @relation(fields: [studentId], references: [id])
+
+  @@unique([taskId, studentId])
+  @@index([studentId])
+  @@index([status])
+}
+
+model BatchNotification {
+  id            String   @id @default(cuid())
+  taskId        String?                       // Link to SubmissionTask
+  batch         String
+  title         String
+  message       String
+  type          String   @default("INFO")      // SUBMISSION, DEADLINE, GENERAL
+  sentBy        String
+  createdAt     DateTime @default(now())
+
+  task    SubmissionTask? @relation(fields: [taskId], references: [id])
+  creator User             @relation(fields: [sentBy], references: [id])
+
+  @@index([batch])
+  @@index([createdAt])
 }
 
 // ─── Lucky Strick AI Chat History ──────────────────────────

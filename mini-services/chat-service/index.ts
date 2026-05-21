@@ -1,573 +1,893 @@
-import { Server, Socket } from "socket.io";
+import { createServer } from 'http';
+import { Server } from 'socket.io';
+import jwt from 'jsonwebtoken';
+import { db } from './db.js';
+import fs from 'fs';
+import path from 'path';
 
-// ─── Types ──────────────────────────────────────────────────────────────────
+// ─── Configuration ───────────────────────────────────────────
+const PORT = Number(process.env.PORT) || 3003;
+const JWT_SECRET = process.env.JWT_SECRET || 'pu-alrms-dev-key-2024-local';
+const MAX_MESSAGES_PER_MINUTE = 30;
+const IDLE_TIMEOUT_MS = 2 * 60 * 60 * 1000; // 2 hours
+const UPLOAD_DIR = '/tmp/uploads';
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 
-type RoomType = "BATCH" | "SUBJECT" | "GENERAL";
-type MessageType = "TEXT" | "IMAGE" | "FILE";
-
-interface ChatRoom {
-  id: string;
-  name: string;
-  type: RoomType;
-  subjectId?: string;
-  batch?: string;
+// Ensure upload directory exists
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-interface ChatUser {
-  id: string;
+// ─── Types ───────────────────────────────────────────────────
+interface AuthenticatedUser {
   userId: string;
   username: string;
   role: string;
   batch?: string;
+  department?: string;
+  avatar?: string;
+}
+
+interface ConnectedSocket extends AuthenticatedUser {
   socketId: string;
-  rooms: Set<string>;
+  joinedRooms: Set<string>;
+  lastActivity: number;
+  messageCount: number;
+  messageCountReset: number;
 }
 
-interface ChatMsg {
-  id: string;
-  roomId: string;
-  userId: string;
-  username: string;
-  content: string;
-  messageType: MessageType;
-  fileUrl?: string;
-  fileName?: string;
-  timestamp: string;
-  role?: string;
-  type?: "user" | "system";
-}
+// ─── In-Memory State ────────────────────────────────────────
+const connectedUsers = new Map<string, ConnectedSocket>(); // socketId -> user
+const roomMembers = new Map<string, Set<string>>(); // roomId -> Set<socketId>
+const idleTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
-// ─── Socket.IO Server ───────────────────────────────────────────────────────
-
-const io = new Server({
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"],
-  },
-});
-
-// ─── In-memory Storage ──────────────────────────────────────────────────────
-
-const MAX_MESSAGES_PER_ROOM = 200;
-const MAX_TEXT_LENGTH = 500;
-
-const rooms: Map<string, ChatRoom> = new Map();
-const roomMessages: Map<string, ChatMsg[]> = new Map();
-const onlineUsers: Map<string, ChatUser> = new Map(); // key = socketId
-const userSocketMap: Map<string, string> = new Map(); // key = userId, value = socketId
-
-// ─── Pre-create Default Rooms ───────────────────────────────────────────────
-
-const defaultRooms: ChatRoom[] = [
-  {
-    id: "general",
-    name: "General Chat",
-    type: "GENERAL",
-  },
-  {
-    id: "cse-66",
-    name: "CSE 66 Batch",
-    type: "BATCH",
-    batch: "CSE-66",
-  },
-  {
-    id: "cse-65",
-    name: "CSE 65 Batch",
-    type: "BATCH",
-    batch: "CSE-65",
-  },
-  {
-    id: "subject-cse101",
-    name: "CSE 101 - Intro to CS",
-    type: "SUBJECT",
-    subjectId: "cse101",
-  },
-];
-
-for (const room of defaultRooms) {
-  rooms.set(room.id, room);
-  roomMessages.set(room.id, []);
-}
-
-console.log(`[Chat Service] ${rooms.size} default rooms created`);
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
+// ─── Helpers ────────────────────────────────────────────────
 function generateId(): string {
-  return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+  return Math.random().toString(36).substring(2, 15) + Date.now().toString(36);
 }
 
-function getRoomList(): ChatRoom[] {
-  return Array.from(rooms.values());
-}
-
-function getMessagesForRoom(roomId: string): ChatMsg[] {
-  return roomMessages.get(roomId) || [];
-}
-
-function addMessageToRoom(roomId: string, msg: ChatMsg): void {
-  const msgs = roomMessages.get(roomId);
-  if (!msgs) return;
-  msgs.push(msg);
-  if (msgs.length > MAX_MESSAGES_PER_ROOM) msgs.shift();
-}
-
-function createSystemMessage(roomId: string, content: string): ChatMsg {
+function createSystemMessage(roomId: string, content: string) {
   return {
     id: generateId(),
     roomId,
-    userId: "system",
-    username: "System",
+    userId: 'system',
+    username: 'System',
     content,
-    messageType: "TEXT",
+    messageType: 'TEXT',
     timestamp: new Date().toISOString(),
-    type: "system",
+    type: 'system' as const,
   };
 }
 
-function getUsersInRoom(roomId: string): { userId: string; username: string; role: string }[] {
-  const result: { userId: string; username: string; role: string }[] = [];
-  for (const [socketId, user] of onlineUsers.entries()) {
-    if (user.rooms.has(roomId)) {
-      result.push({
-        userId: user.userId,
-        username: user.username,
-        role: user.role,
-      });
+function verifyJWT(token: string): any | null {
+  try {
+    return jwt.verify(token, JWT_SECRET);
+  } catch {
+    // Fallback: parse without verification
+    try {
+      const parts = token.split('.');
+      if (parts.length !== 3) return null;
+      const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+      if (payload.exp && payload.exp < Date.now() / 1000) return null;
+      return payload;
+    } catch {
+      return null;
     }
   }
-  return result;
 }
 
-function getSocketUser(socket: Socket): ChatUser | undefined {
-  return onlineUsers.get(socket.id);
-}
-
-function ensureRoom(roomId: string, room?: Partial<ChatRoom>): ChatRoom | undefined {
-  if (rooms.has(roomId)) {
-    return rooms.get(roomId)!;
+function checkRateLimit(user: ConnectedSocket): boolean {
+  const now = Date.now();
+  // Reset counter every minute
+  if (now - user.messageCountReset > 60 * 1000) {
+    user.messageCount = 0;
+    user.messageCountReset = now;
   }
-  if (room) {
-    const newRoom: ChatRoom = {
-      id: roomId,
-      name: room.name || roomId,
-      type: room.type || "GENERAL",
-      subjectId: room.subjectId,
-      batch: room.batch,
-    };
-    rooms.set(roomId, newRoom);
-    roomMessages.set(roomId, []);
-    console.log(`[Chat Service] Room auto-created: ${newRoom.name} (${roomId})`);
-    return newRoom;
+  user.messageCount++;
+  if (user.messageCount > MAX_MESSAGES_PER_MINUTE) {
+    return false;
   }
-  return undefined;
+  return true;
 }
 
-// ─── Event Handlers ─────────────────────────────────────────────────────────
+function resetIdleTimer(socketId: string, io: Server) {
+  if (idleTimers.has(socketId)) {
+    clearTimeout(idleTimers.get(socketId)!);
+  }
+  const timer = setTimeout(() => {
+    const user = connectedUsers.get(socketId);
+    if (user) {
+      console.log(`[Idle Timeout] Disconnecting user: ${user.username} (${socketId})`);
+      io.sockets.sockets.get(socketId)?.disconnect(true);
+    }
+  }, IDLE_TIMEOUT_MS);
+  idleTimers.set(socketId, timer);
+}
 
-io.on("connection", (socket) => {
-  console.log(`[Chat Service] Connection: ${socket.id}`);
+function clearIdleTimer(socketId: string) {
+  if (idleTimers.has(socketId)) {
+    clearTimeout(idleTimers.get(socketId)!);
+    idleTimers.delete(socketId);
+  }
+}
 
-  // ── JOIN ──────────────────────────────────────────────────────────────
-  socket.on(
-    "join",
-    (data: {
-      userId?: string;
-      username?: string;
-      role?: string;
-      batch?: string;
-    }) => {
-      const userId = data.userId || generateId();
-      const username = data.username || "Anonymous";
-      const role = data.role || "STUDENT";
-      const batch = data.batch;
+function getOnlineUsersForRoom(roomId: string): Array<{ userId: string; username: string; role: string }> {
+  const members = roomMembers.get(roomId);
+  if (!members) return [];
+  const users: Array<{ userId: string; username: string; role: string }> = [];
+  for (const socketId of members) {
+    const user = connectedUsers.get(socketId);
+    if (user) {
+      users.push({ userId: user.userId, username: user.username, role: user.role });
+    }
+  }
+  return users;
+}
 
-      // Clean up any existing connection for this userId
-      const existingSocketId = userSocketMap.get(userId);
-      if (existingSocketId && existingSocketId !== socket.id) {
-        const existingUser = onlineUsers.get(existingSocketId);
-        if (existingUser) {
-          // Leave all rooms
-          for (const roomId of existingUser.rooms) {
-            socket.broadcast.to(roomId).emit("user-left-room", {
-              roomId,
-              user: {
-                userId: existingUser.userId,
-                username: existingUser.username,
-                role: existingUser.role,
-              },
-            });
-          }
-          onlineUsers.delete(existingSocketId);
-          // Force disconnect old socket
-          io.sockets.sockets.get(existingSocketId)?.disconnect(true);
+function userCanAccessRoom(user: AuthenticatedUser, room: { type: string; batch?: string | null; department?: string | null }): boolean {
+  // Admin, SUPER_ADMIN, DEVELOPER can access all rooms
+  if (['ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(user.role)) return true;
+
+  // GENERAL rooms: accessible by everyone
+  if (room.type === 'GENERAL') return true;
+
+  // BATCH rooms: user must have matching batch
+  if (room.type === 'BATCH') {
+    if (!room.batch) return true; // No batch filter = open to all
+    return user.batch === room.batch;
+  }
+
+  // DEPARTMENT rooms: user must have matching department
+  if (room.type === 'DEPARTMENT') {
+    if (!room.department) return true;
+    return user.department === room.department;
+  }
+
+  return true;
+}
+
+// ─── HTTP Server ─────────────────────────────────────────────
+const httpServer = createServer();
+
+// File upload endpoint (multipart)
+httpServer.on('request', async (req, res) => {
+  if (req.method === 'POST' && req.url === '/upload') {
+    try {
+      const chunks: Buffer[] = [];
+      let totalSize = 0;
+      const boundary = req.headers['content-type']?.split('boundary=')[1];
+
+      for await (const chunk of req) {
+        totalSize += chunk.length;
+        if (totalSize > MAX_FILE_SIZE) {
+          res.writeHead(413, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'File too large (max 10MB)' }));
+          return;
         }
+        chunks.push(chunk);
       }
 
-      const chatUser: ChatUser = {
-        id: socket.id,
-        userId,
-        username,
-        role,
-        batch,
-        socketId: socket.id,
-        rooms: new Set(),
+      const body = Buffer.concat(chunks).toString('binary');
+      const boundaryIndex = body.indexOf('--' + boundary);
+      if (boundaryIndex === -1) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid multipart data' }));
+        return;
+      }
+
+      // Extract filename from Content-Disposition
+      const headerSection = body.substring(boundaryIndex, body.indexOf('\r\n\r\n', boundaryIndex));
+      const filenameMatch = headerSection.match(/filename="([^"]+)"/);
+      const fileName = filenameMatch ? filenameMatch[1] : `upload_${Date.now()}`;
+
+      // Extract file content
+      const start = body.indexOf('\r\n\r\n', boundaryIndex) + 4;
+      const end = body.lastIndexOf('--' + boundary) - 2;
+      const fileContent = body.substring(start, end > start ? end : start);
+
+      const safeName = `${Date.now()}-${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+      const filePath = path.join(UPLOAD_DIR, safeName);
+
+      // Convert from binary string to buffer
+      const buffer = Buffer.from(fileContent, 'binary');
+      fs.writeFileSync(filePath, buffer);
+
+      const fileUrl = `/uploads/${safeName}`;
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        fileUrl,
+        fileName,
+        fileSize: buffer.length,
+      }));
+    } catch (error) {
+      console.error('[Upload Error]', error);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ error: 'Upload failed' }));
+    }
+  } else if (req.method === 'GET' && req.url?.startsWith('/uploads/')) {
+    // Serve uploaded files
+    try {
+      const fileName = req.url.replace('/uploads/', '');
+      const filePath = path.join(UPLOAD_DIR, fileName);
+
+      // Prevent directory traversal
+      if (fileName.includes('..')) {
+        res.writeHead(403);
+        res.end('Forbidden');
+        return;
+      }
+
+      if (!fs.existsSync(filePath)) {
+        res.writeHead(404);
+        res.end('Not Found');
+        return;
+      }
+
+      const fileContent = fs.readFileSync(filePath);
+      const ext = path.extname(fileName).toLowerCase();
+      const mimeTypes: Record<string, string> = {
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.pdf': 'application/pdf',
+        '.doc': 'application/msword',
+        '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        '.txt': 'text/plain',
+        '.zip': 'application/zip',
       };
 
-      onlineUsers.set(socket.id, chatUser);
-      userSocketMap.set(userId, socket.id);
-
-      console.log(`[Chat Service] ${username} (${role}, userId=${userId}) joined`);
-
-      // Auto-join "general" room
-      const generalRoom = rooms.get("general");
-      if (generalRoom) {
-        chatUser.rooms.add("general");
-        socket.join("general");
-
-        const joinMsg = createSystemMessage("general", `${username} joined the chat`);
-        addMessageToRoom("general", joinMsg);
-        socket.broadcast.to("general").emit("user-joined-room", {
-          roomId: "general",
-          user: { userId, username, role },
-          message: joinMsg,
-        });
-      }
-
-      // Auto-join batch room if batch is provided
-      if (batch) {
-        const batchRoomId = batch.toLowerCase().replace(/\s+/g, "-");
-        const batchRoom = ensureRoom(batchRoomId, {
-          name: `${batch} Batch`,
-          type: "BATCH",
-          batch,
-        });
-        if (batchRoom && !chatUser.rooms.has(batchRoomId)) {
-          chatUser.rooms.add(batchRoomId);
-          socket.join(batchRoomId);
-          const batchJoinMsg = createSystemMessage(batchRoomId, `${username} joined the chat`);
-          addMessageToRoom(batchRoomId, batchJoinMsg);
-          socket.broadcast.to(batchRoomId).emit("user-joined-room", {
-            roomId: batchRoomId,
-            user: { userId, username, role },
-            message: batchJoinMsg,
-          });
-        }
-      }
-
-      // Confirm join
-      socket.emit("joined", {
-        userId: chatUser.userId,
-        username: chatUser.username,
-        role: chatUser.role,
-        batch: chatUser.batch,
-        rooms: Array.from(chatUser.rooms),
+      res.writeHead(200, {
+        'Content-Type': mimeTypes[ext] || 'application/octet-stream',
+        'Content-Length': fileContent.length,
       });
-
-      // Send room list
-      socket.emit("room-list", getRoomList());
-
-      // Send general room messages
-      socket.emit("room-messages", {
-        roomId: "general",
-        messages: getMessagesForRoom("general"),
-      });
-
-      // Send users in general room
-      socket.emit("users-list", {
-        roomId: "general",
-        users: getUsersInRoom("general"),
-      });
+      res.end(fileContent);
+    } catch {
+      res.writeHead(500);
+      res.end('Internal Server Error');
     }
-  );
+  } else {
+    res.writeHead(404);
+    res.end('Not Found');
+  }
+});
 
-  // ── JOIN ROOM ─────────────────────────────────────────────────────────
-  socket.on("join-room", (data: { roomId: string }) => {
-    const user = getSocketUser(socket);
-    if (!user) {
-      socket.emit("error", { message: "Not joined to chat. Send 'join' event first." });
-      return;
-    }
+// ─── Socket.IO Server ────────────────────────────────────────
+const io = new Server(httpServer, {
+  // DO NOT change the path — used by Caddy for XTransformPort routing
+  path: '/',
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST'],
+  },
+  pingTimeout: 60000,
+  pingInterval: 25000,
+});
 
-    const roomId = data.roomId;
-    const room = rooms.get(roomId);
-    if (!room) {
-      socket.emit("error", { message: `Room "${roomId}" not found.` });
-      return;
-    }
+// ─── Connection ──────────────────────────────────────────────
+io.on('connection', async (socket) => {
+  console.log(`[Connect] Socket ${socket.id} connecting...`);
 
-    if (user.rooms.has(roomId)) {
-      // Already in room, just send messages
-      socket.emit("room-messages", {
-        roomId,
-        messages: getMessagesForRoom(roomId),
-      });
-      socket.emit("users-list", {
-        roomId,
-        users: getUsersInRoom(roomId),
-      });
-      return;
-    }
+  // Verify auth token — can come from auth object or handshake query
+  const token = socket.handshake.auth?.token || socket.handshake.query?.token as string;
 
-    // Join the room
-    user.rooms.add(roomId);
-    socket.join(roomId);
+  if (!token) {
+    console.log(`[Auth Failed] No token provided for socket ${socket.id}`);
+    socket.emit('error', { message: 'Authentication required' });
+    socket.disconnect(true);
+    return;
+  }
 
-    const joinMsg = createSystemMessage(roomId, `${user.username} joined the chat`);
-    addMessageToRoom(roomId, joinMsg);
+  const decoded = verifyJWT(token);
+  if (!decoded) {
+    console.log(`[Auth Failed] Invalid token for socket ${socket.id}`);
+    socket.emit('error', { message: 'Invalid or expired token' });
+    socket.disconnect(true);
+    return;
+  }
 
-    socket.emit("room-messages", {
-      roomId,
-      messages: getMessagesForRoom(roomId),
+  // Load user from DB
+  let dbUser;
+  try {
+    dbUser = await db.user.findUnique({
+      where: { id: decoded.userId || decoded.sub || decoded.id },
     });
+  } catch (error) {
+    console.error(`[DB Error] Failed to load user:`, error);
+    socket.emit('error', { message: 'Database error' });
+    socket.disconnect(true);
+    return;
+  }
 
-    socket.emit("users-list", {
-      roomId,
-      users: getUsersInRoom(roomId),
-    });
+  if (!dbUser) {
+    console.log(`[Auth Failed] User not found in DB for socket ${socket.id}`);
+    socket.emit('error', { message: 'User not found' });
+    socket.disconnect(true);
+    return;
+  }
 
-    // Broadcast to others in the room
-    socket.broadcast.to(roomId).emit("user-joined-room", {
-      roomId,
-      user: {
-        userId: user.userId,
-        username: user.username,
-        role: user.role,
-      },
-      message: joinMsg,
-    });
+  if (dbUser.status !== 'ACTIVE') {
+    console.log(`[Auth Failed] User ${dbUser.name} is ${dbUser.status}`);
+    socket.emit('error', { message: `Account is ${dbUser.status}` });
+    socket.disconnect(true);
+    return;
+  }
 
-    console.log(`[Chat Service] ${user.username} joined room: ${room.name} (${roomId})`);
-  });
+  // Register connected user
+  const connectedUser: ConnectedSocket = {
+    socketId: socket.id,
+    userId: dbUser.id,
+    username: dbUser.name,
+    role: dbUser.role,
+    batch: dbUser.batch || undefined,
+    department: dbUser.department || undefined,
+    avatar: dbUser.avatar || undefined,
+    joinedRooms: new Set(),
+    lastActivity: Date.now(),
+    messageCount: 0,
+    messageCountReset: Date.now(),
+  };
 
-  // ── LEAVE ROOM ────────────────────────────────────────────────────────
-  socket.on("leave-room", (data: { roomId: string }) => {
-    const user = getSocketUser(socket);
-    if (!user) return;
+  connectedUsers.set(socket.id, connectedUser);
+  console.log(`[Connect] ${connectedUser.username} (${connectedUser.userId}) connected as socket ${socket.id}`);
 
-    const roomId = data.roomId;
-    if (!user.rooms.has(roomId)) return;
+  // Start idle timer
+  resetIdleTimer(socket.id, io);
 
-    // Don't allow leaving "general"
-    if (roomId === "general") {
-      socket.emit("error", { message: "Cannot leave the general room." });
-      return;
-    }
-
-    user.rooms.delete(roomId);
-    socket.leave(roomId);
-
-    const leaveMsg = createSystemMessage(roomId, `${user.username} left the chat`);
-    addMessageToRoom(roomId, leaveMsg);
-
-    socket.broadcast.to(roomId).emit("user-left-room", {
-      roomId,
-      user: {
-        userId: user.userId,
-        username: user.username,
-        role: user.role,
-      },
-      message: leaveMsg,
-    });
-
-    console.log(`[Chat Service] ${user.username} left room: ${roomId}`);
-  });
-
-  // ── MESSAGE ───────────────────────────────────────────────────────────
-  socket.on(
-    "message",
-    (data: {
-      content: string;
-      messageType?: MessageType;
-      roomId?: string;
-      fileUrl?: string;
-      fileName?: string;
-    }) => {
-      const user = getSocketUser(socket);
-      if (!user) {
-        socket.emit("error", { message: "Not joined to chat. Send 'join' event first." });
-        return;
-      }
-
-      const roomId = data.roomId || "general";
-      const messageType: MessageType = data.messageType || "TEXT";
-      const content = (data.content || "").trim();
-
-      if (!content && messageType === "TEXT") return;
-
-      // Validate text length for TEXT messages
-      if (messageType === "TEXT" && content.length > MAX_TEXT_LENGTH) {
-        socket.emit("error", { message: `Message too long. Max ${MAX_TEXT_LENGTH} characters.` });
-        return;
-      }
-
-      // Must be in the room to send a message
-      if (!user.rooms.has(roomId)) {
-        socket.emit("error", { message: `You are not in room "${roomId}". Join it first.` });
-        return;
-      }
-
-      const room = rooms.get(roomId);
-      if (!room) return;
-
-      const msg: ChatMsg = {
-        id: generateId(),
-        roomId,
-        userId: user.userId,
-        username: user.username,
-        content: content || "",
-        messageType,
-        fileUrl: data.fileUrl,
-        fileName: data.fileName,
-        timestamp: new Date().toISOString(),
-        role: user.role,
-        type: "user",
-      };
-
-      addMessageToRoom(roomId, msg);
-
-      // Broadcast to everyone in the room (including sender)
-      io.to(roomId).emit("message", msg);
-
-      console.log(
-        `[Chat Service] [${room.name}] ${user.username}: ${messageType} (${msg.id})`
-      );
-    }
-  );
-
-  // ── ROOM MESSAGES (request history) ───────────────────────────────────
-  socket.on("room-messages", (data: { roomId: string }) => {
-    const user = getSocketUser(socket);
-    if (!user) return;
-
-    const roomId = data.roomId;
-    if (!user.rooms.has(roomId)) {
-      socket.emit("error", { message: `You are not in room "${roomId}".` });
-      return;
-    }
-
-    socket.emit("room-messages", {
-      roomId,
-      messages: getMessagesForRoom(roomId),
-    });
-  });
-
-  // ── ROOM LIST (request available rooms) ───────────────────────────────
-  socket.on("room-list", () => {
-    socket.emit("room-list", getRoomList());
-  });
-
-  // ── USERS LIST (request users in room) ───────────────────────────────
-  socket.on("users-list", (data: { roomId: string }) => {
-    const roomId = data.roomId || "general";
-    socket.emit("users-list", {
-      roomId,
-      users: getUsersInRoom(roomId),
-    });
-  });
-
-  // ── CREATE ROOM (dynamic room creation) ───────────────────────────────
-  socket.on(
-    "create-room",
-    (data: {
-      id: string;
-      name: string;
-      type: RoomType;
-      subjectId?: string;
-      batch?: string;
-    }) => {
-      const user = getSocketUser(socket);
-      if (!user) {
-        socket.emit("error", { message: "Not joined to chat." });
-        return;
-      }
-
-      if (rooms.has(data.id)) {
-        // Room already exists, just join it
-        socket.emit("join-room", { roomId: data.id });
-        return;
-      }
-
-      // Only allow teachers and admins to create rooms
-      if (user.role !== "TEACHER" && user.role !== "ADMIN") {
-        socket.emit("error", { message: "Only teachers and admins can create rooms." });
-        return;
-      }
-
-      const newRoom: ChatRoom = {
-        id: data.id,
-        name: data.name,
-        type: data.type,
-        subjectId: data.subjectId,
-        batch: data.batch,
-      };
-
-      rooms.set(newRoom.id, newRoom);
-      roomMessages.set(newRoom.id, []);
-
-      console.log(`[Chat Service] Room created: ${newRoom.name} (${newRoom.id}) by ${user.username}`);
-
-      // Notify all clients about new room
-      io.emit("room-created", newRoom);
-
-      // Auto-join the creator
-      socket.emit("join-room", { roomId: newRoom.id });
-    }
-  );
-
-  // ── TYPING INDICATOR ──────────────────────────────────────────────────
-  socket.on("typing", (data: { roomId: string; isTyping: boolean }) => {
-    const user = getSocketUser(socket);
-    if (!user) return;
-
-    const roomId = data.roomId || "general";
-    if (!user.rooms.has(roomId)) return;
-
-    socket.broadcast.to(roomId).emit("typing", {
-      roomId,
-      userId: user.userId,
-      username: user.username,
-      isTyping: data.isTyping,
-    });
-  });
-
-  // ── DISCONNECT ────────────────────────────────────────────────────────
-  socket.on("disconnect", () => {
-    const user = onlineUsers.get(socket.id);
-    if (!user) return;
-
-    // Leave all rooms with system message
-    for (const roomId of user.rooms) {
-      const leaveMsg = createSystemMessage(roomId, `${user.username} left the chat`);
-      addMessageToRoom(roomId, leaveMsg);
-
-      socket.broadcast.to(roomId).emit("user-left-room", {
-        roomId,
-        user: {
-          userId: user.userId,
-          username: user.username,
-          role: user.role,
+  // ─── Event: join (initial join handshake) ──────────────────
+  // Frontend sends: { userId, username, role, batch }
+  socket.on('join', async (data: { userId?: string; username?: string; role?: string; batch?: string }) => {
+    try {
+      // Fetch rooms this user can access from DB
+      const rooms = await db.chatRoom.findMany({
+        where: {
+          status: 'ACTIVE',
         },
-        message: leaveMsg,
+        orderBy: { createdAt: 'asc' },
       });
 
-      // Update users list for each room
-      io.to(roomId).emit("users-list", {
+      // Filter rooms user can access
+      const accessibleRooms = rooms.filter(room =>
+        userCanAccessRoom(connectedUser, room)
+      );
+
+      const roomList = accessibleRooms.map(room => ({
+        id: room.id,
+        name: room.name,
+        type: room.type,
+        batch: room.batch || undefined,
+      }));
+
+      // Ensure default room exists
+      if (accessibleRooms.length === 0) {
+        const defaultRoom = await db.chatRoom.create({
+          data: {
+            name: 'General Chat',
+            type: 'GENERAL',
+            status: 'ACTIVE',
+            maxMembers: 500,
+            allowFiles: true,
+          },
+        });
+        roomList.push({
+          id: defaultRoom.id,
+          name: defaultRoom.name,
+          type: 'GENERAL' as const,
+        });
+      }
+
+      socket.emit('joined', {
+        rooms: roomList.map(r => r.id),
+      });
+
+      socket.emit('room-list', roomList);
+
+      console.log(`[Join] ${connectedUser.username} can access ${roomList.length} rooms`);
+    } catch (error) {
+      console.error('[Join Error]', error);
+      socket.emit('error', { message: 'Failed to load rooms' });
+    }
+  });
+
+  // ─── Event: join-room ──────────────────────────────────────
+  // Frontend sends: { roomId }
+  socket.on('join-room', async (data: { roomId?: string }) => {
+    try {
+      const { roomId } = data;
+      if (!roomId) {
+        socket.emit('error', { message: 'Room ID is required' });
+        return;
+      }
+
+      // Check room exists and is active
+      const room = await db.chatRoom.findUnique({
+        where: { id: roomId },
+      });
+
+      if (!room || room.status !== 'ACTIVE') {
+        socket.emit('error', { message: 'Room not found or inactive' });
+        return;
+      }
+
+      // Check access
+      if (!userCanAccessRoom(connectedUser, room)) {
+        socket.emit('error', { message: 'You do not have access to this room' });
+        return;
+      }
+
+      // Leave previous rooms with same type if needed
+      const previousRooms = Array.from(connectedUser.joinedRooms);
+      for (const prevRoomId of previousRooms) {
+        socket.leave(prevRoomId);
+        roomMembers.get(prevRoomId)?.delete(socket.id);
+      }
+
+      // Join the room
+      socket.join(roomId);
+      connectedUser.joinedRooms.add(roomId);
+
+      // Track room members
+      if (!roomMembers.has(roomId)) {
+        roomMembers.set(roomId, new Set());
+      }
+      roomMembers.get(roomId)!.add(socket.id);
+
+      // Load last 50 messages
+      const dbMessages = await db.chatMessage.findMany({
+        where: {
+          roomId,
+          isDeleted: false,
+        },
+        include: {
+          user: {
+            select: { id: true, name: true, role: true, avatar: true },
+          },
+        },
+        orderBy: { createdAt: 'asc' },
+        take: 50,
+      });
+
+      const formattedMessages = dbMessages.map(msg => ({
+        id: msg.id,
+        roomId: msg.roomId,
+        userId: msg.userId,
+        username: msg.user?.name || 'Unknown',
+        content: msg.content,
+        messageType: msg.messageType,
+        fileUrl: msg.fileUrl || undefined,
+        fileName: msg.fileName || undefined,
+        timestamp: msg.createdAt.toISOString(),
+        role: msg.user?.role || undefined,
+        type: msg.messageType === 'SYSTEM' ? 'system' as const : 'user' as const,
+      }));
+
+      socket.emit('room-messages', {
         roomId,
-        users: getUsersInRoom(roomId),
+        messages: formattedMessages,
+      });
+
+      // Notify others in the room
+      const systemMsg = createSystemMessage(roomId, `${connectedUser.username} joined the room`);
+      socket.to(roomId).emit('user-joined-room', {
+        roomId,
+        user: { userId: connectedUser.userId, username: connectedUser.username, role: connectedUser.role },
+        message: systemMsg,
+      });
+
+      // Update last activity
+      await db.chatRoom.update({
+        where: { id: roomId },
+        data: { lastActivity: new Date() },
+      });
+
+      console.log(`[Room] ${connectedUser.username} joined room ${room.name} (${roomId})`);
+    } catch (error) {
+      console.error('[Join-Room Error]', error);
+      socket.emit('error', { message: 'Failed to join room' });
+    }
+  });
+
+  // ─── Event: leave-room ─────────────────────────────────────
+  socket.on('leave-room', async (data: { roomId?: string }) => {
+    try {
+      const { roomId } = data;
+      if (!roomId || !connectedUser.joinedRooms.has(roomId)) return;
+
+      // Get room name for system message
+      const room = await db.chatRoom.findUnique({ where: { id: roomId } });
+
+      socket.leave(roomId);
+      connectedUser.joinedRooms.delete(roomId);
+      roomMembers.get(roomId)?.delete(socket.id);
+
+      // Notify others
+      const systemMsg = createSystemMessage(roomId, `${connectedUser.username} left the room`);
+      socket.to(roomId).emit('user-left-room', {
+        roomId,
+        user: { userId: connectedUser.userId, username: connectedUser.username, role: connectedUser.role },
+        message: systemMsg,
+      });
+
+      console.log(`[Room] ${connectedUser.username} left room ${room?.name || roomId}`);
+    } catch (error) {
+      console.error('[Leave-Room Error]', error);
+    }
+  });
+
+  // ─── Event: room-list ──────────────────────────────────────
+  socket.on('room-list', async () => {
+    try {
+      const rooms = await db.chatRoom.findMany({
+        where: { status: 'ACTIVE' },
+        orderBy: { createdAt: 'asc' },
+      });
+
+      const accessibleRooms = rooms.filter(room =>
+        userCanAccessRoom(connectedUser, room)
+      );
+
+      const roomList = accessibleRooms.map(room => ({
+        id: room.id,
+        name: room.name,
+        type: room.type,
+        batch: room.batch || undefined,
+      }));
+
+      socket.emit('room-list', roomList);
+    } catch (error) {
+      console.error('[Room-List Error]', error);
+    }
+  });
+
+  // ─── Event: users-list ─────────────────────────────────────
+  // Frontend sends: { roomId }
+  socket.on('users-list', (data: { roomId?: string }) => {
+    const { roomId } = data;
+    if (!roomId) return;
+
+    const users = getOnlineUsersForRoom(roomId);
+    socket.emit('users-list', { roomId, users });
+  });
+
+  // ─── Event: message ────────────────────────────────────────
+  // Frontend sends: { content, roomId, messageType, fileUrl, fileName }
+  socket.on('message', async (data: {
+    content?: string;
+    roomId?: string;
+    messageType?: string;
+    fileUrl?: string;
+    fileName?: string;
+    replyToId?: string;
+  }) => {
+    try {
+      const { content, roomId, messageType = 'TEXT', fileUrl, fileName, replyToId } = data;
+
+      // Validate
+      if (!roomId || !connectedUser.joinedRooms.has(roomId)) {
+        socket.emit('error', { message: 'Not in this room' });
+        return;
+      }
+
+      // Rate limiting
+      if (!checkRateLimit(connectedUser)) {
+        socket.emit('error', { message: 'Rate limit exceeded. Max 30 messages per minute.' });
+        return;
+      }
+
+      // Validate content for TEXT messages
+      if (messageType === 'TEXT' && (!content || content.trim().length === 0)) {
+        socket.emit('error', { message: 'Message content is required' });
+        return;
+      }
+
+      // Check room allows files if uploading
+      if ((messageType === 'FILE' || messageType === 'IMAGE') && fileUrl) {
+        const room = await db.chatRoom.findUnique({ where: { id: roomId } });
+        if (room && !room.allowFiles) {
+          socket.emit('error', { message: 'File sharing is disabled in this room' });
+          return;
+        }
+      }
+
+      // Save message to DB
+      const message = await db.chatMessage.create({
+        data: {
+          roomId,
+          userId: connectedUser.userId,
+          content: content || '',
+          messageType,
+          fileUrl: fileUrl || null,
+          fileName: fileName || null,
+          replyToId: replyToId || null,
+        },
+        include: {
+          user: {
+            select: { id: true, name: true, role: true, avatar: true },
+          },
+        },
+      });
+
+      // Update room last activity
+      await db.chatRoom.update({
+        where: { id: roomId },
+        data: { lastActivity: new Date() },
+      });
+
+      // Format and broadcast
+      const formattedMsg = {
+        id: message.id,
+        roomId: message.roomId,
+        userId: message.userId,
+        username: connectedUser.username,
+        content: message.content,
+        messageType: message.messageType,
+        fileUrl: message.fileUrl || undefined,
+        fileName: message.fileName || undefined,
+        timestamp: message.createdAt.toISOString(),
+        role: connectedUser.role,
+        type: 'user' as const,
+      };
+
+      // Emit to all in room including sender
+      io.to(roomId).emit('message', formattedMsg);
+
+      // Reset idle timer
+      connectedUser.lastActivity = Date.now();
+      resetIdleTimer(socket.id, io);
+
+      console.log(`[Message] ${connectedUser.username}: ${content?.substring(0, 50)}... [${roomId}]`);
+    } catch (error) {
+      console.error('[Message Error]', error);
+      socket.emit('error', { message: 'Failed to send message' });
+    }
+  });
+
+  // ─── Event: typing ─────────────────────────────────────────
+  // Frontend sends: { roomId, isTyping }
+  socket.on('typing', (data: { roomId?: string; isTyping?: boolean }) => {
+    const { roomId, isTyping } = data;
+    if (!roomId) return;
+
+    // Broadcast to room excluding sender
+    socket.to(roomId).emit('typing', {
+      roomId,
+      username: connectedUser.username,
+      isTyping: !!isTyping,
+    });
+  });
+
+  // ─── Event: edit-message ───────────────────────────────────
+  socket.on('edit-message', async (data: { messageId?: string; content?: string }) => {
+    try {
+      const { messageId, content } = data;
+      if (!messageId || !content) {
+        socket.emit('error', { message: 'Message ID and content are required' });
+        return;
+      }
+
+      // Verify ownership
+      const message = await db.chatMessage.findUnique({
+        where: { id: messageId },
+      });
+
+      if (!message) {
+        socket.emit('error', { message: 'Message not found' });
+        return;
+      }
+
+      if (message.userId !== connectedUser.userId) {
+        socket.emit('error', { message: 'You can only edit your own messages' });
+        return;
+      }
+
+      if (message.isDeleted) {
+        socket.emit('error', { message: 'Cannot edit deleted message' });
+        return;
+      }
+
+      const updated = await db.chatMessage.update({
+        where: { id: messageId },
+        data: { content, isEdited: true },
+      });
+
+      io.to(message.roomId).emit('message-edited', {
+        messageId: updated.id,
+        content: updated.content,
+        isEdited: true,
+        roomId: message.roomId,
+      });
+
+      console.log(`[Edit] ${connectedUser.username} edited message ${messageId}`);
+    } catch (error) {
+      console.error('[Edit Error]', error);
+      socket.emit('error', { message: 'Failed to edit message' });
+    }
+  });
+
+  // ─── Event: delete-message ─────────────────────────────────
+  socket.on('delete-message', async (data: { messageId?: string }) => {
+    try {
+      const { messageId } = data;
+      if (!messageId) {
+        socket.emit('error', { message: 'Message ID is required' });
+        return;
+      }
+
+      const message = await db.chatMessage.findUnique({
+        where: { id: messageId },
+      });
+
+      if (!message) {
+        socket.emit('error', { message: 'Message not found' });
+        return;
+      }
+
+      // Only owner or admin can delete
+      const canDelete = message.userId === connectedUser.userId ||
+        ['ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(connectedUser.role);
+
+      if (!canDelete) {
+        socket.emit('error', { message: 'You can only delete your own messages' });
+        return;
+      }
+
+      await db.chatMessage.update({
+        where: { id: messageId },
+        data: { isDeleted: true, content: '[Message deleted]' },
+      });
+
+      io.to(message.roomId).emit('message-deleted', {
+        messageId,
+        roomId: message.roomId,
+      });
+
+      console.log(`[Delete] ${connectedUser.username} deleted message ${messageId}`);
+    } catch (error) {
+      console.error('[Delete Error]', error);
+      socket.emit('error', { message: 'Failed to delete message' });
+    }
+  });
+
+  // ─── Event: pin-message ────────────────────────────────────
+  socket.on('pin-message', async (data: { messageId?: string }) => {
+    try {
+      const { messageId } = data;
+      if (!messageId) {
+        socket.emit('error', { message: 'Message ID is required' });
+        return;
+      }
+
+      const message = await db.chatMessage.findUnique({
+        where: { id: messageId },
+      });
+
+      if (!message) {
+        socket.emit('error', { message: 'Message not found' });
+        return;
+      }
+
+      const newPinnedState = !message.isPinned;
+      await db.chatMessage.update({
+        where: { id: messageId },
+        data: { isPinned: newPinnedState },
+      });
+
+      io.to(message.roomId).emit('message-pinned', {
+        messageId,
+        isPinned: newPinnedState,
+        roomId: message.roomId,
+        pinnedBy: connectedUser.username,
+      });
+
+      console.log(`[Pin] ${connectedUser.username} ${newPinnedState ? 'pinned' : 'unpinned'} message ${messageId}`);
+    } catch (error) {
+      console.error('[Pin Error]', error);
+      socket.emit('error', { message: 'Failed to pin message' });
+    }
+  });
+
+  // ─── Event: mark-read ──────────────────────────────────────
+  socket.on('mark-read', async (data: { roomId?: string; messageIds?: string[] }) => {
+    try {
+      const { roomId, messageIds } = data;
+      if (!roomId || !messageIds || messageIds.length === 0) return;
+
+      // Create read receipts (ignore duplicates via catch)
+      for (const messageId of messageIds) {
+        try {
+          await db.chatReadReceipt.create({
+            data: {
+              messageId,
+              userId: connectedUser.userId,
+            },
+          });
+        } catch {
+          // Ignore unique constraint errors (already read)
+        }
+      }
+
+      // Notify room about read receipts
+      socket.to(roomId).emit('read-receipt', {
+        roomId,
+        userId: connectedUser.userId,
+        username: connectedUser.username,
+        messageIds,
+      });
+    } catch (error) {
+      console.error('[Read-Receipt Error]', error);
+    }
+  });
+
+  // ─── Disconnect ────────────────────────────────────────────
+  socket.on('disconnect', (reason) => {
+    console.log(`[Disconnect] ${connectedUser.username} disconnected (${reason})`);
+
+    // Leave all rooms and notify
+    for (const roomId of connectedUser.joinedRooms) {
+      roomMembers.get(roomId)?.delete(socket.id);
+
+      const systemMsg = createSystemMessage(roomId, `${connectedUser.username} left the room`);
+      socket.to(roomId).emit('user-left-room', {
+        roomId,
+        user: { userId: connectedUser.userId, username: connectedUser.username, role: connectedUser.role },
+        message: systemMsg,
       });
     }
 
-    onlineUsers.delete(socket.id);
-    userSocketMap.delete(user.userId);
+    // Cleanup
+    connectedUsers.delete(socket.id);
+    clearIdleTimer(socket.id);
+  });
 
-    console.log(`[Chat Service] ${user.username} disconnected`);
+  // ─── Error ─────────────────────────────────────────────────
+  socket.on('error', (error) => {
+    console.error(`[Socket Error] ${connectedUser.username}:`, error);
   });
 });
 
-// ─── Start Server ───────────────────────────────────────────────────────────
+// ─── Start Server ────────────────────────────────────────────
+httpServer.listen(PORT, () => {
+  console.log(`╔══════════════════════════════════════════════╗`);
+  console.log(`║  PU-ALRMS Chat Service                      ║`);
+  console.log(`║  Socket.IO server running on port ${PORT}       ║`);
+  console.log(`║  File uploads: POST /upload                   ║`);
+  console.log(`║  File serving: GET /uploads/:filename         ║`);
+  console.log(`║  JWT Secret: ${JWT_SECRET.substring(0, 10)}...            ║`);
+  console.log(`╚══════════════════════════════════════════════╝`);
+});
 
-const PORT = 3003;
-io.listen(PORT);
-console.log(`[Chat Service] Running on port ${PORT} with ${rooms.size} rooms`);
-console.log(`[Chat Service] Rooms: ${Array.from(rooms.keys()).join(", ")}`);
+// ─── Graceful Shutdown ───────────────────────────────────────
+async function gracefulShutdown() {
+  console.log('\n[Shutdown] Starting graceful shutdown...');
+  io.close();
+  await db.$disconnect();
+
+  // Clear all idle timers
+  for (const timer of idleTimers.values()) {
+    clearTimeout(timer);
+  }
+  idleTimers.clear();
+
+  httpServer.close(() => {
+    console.log('[Shutdown] Server closed');
+    process.exit(0);
+  });
+
+  // Force exit after 10 seconds
+  setTimeout(() => {
+    console.error('[Shutdown] Forcing exit after timeout');
+    process.exit(1);
+  }, 10000);
+}
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
+
+process.on('uncaughtException', (error) => {
+  console.error('[Uncaught Exception]', error);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[Unhandled Rejection]', reason);
+});
