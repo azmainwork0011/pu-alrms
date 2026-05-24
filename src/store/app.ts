@@ -146,6 +146,13 @@ export const useAppStore = create<AppState>((set) => ({
       }
     }
     set({ user: null, token: null, isAuthenticated: false, isDemoUser: false, currentPage: 'dashboard', pageHistory: [], notificationCount: 0 });
+    // Also sign out from NextAuth if available (clears Google OAuth session cookie)
+    // This is a fire-and-forget call — we don't await it to avoid blocking logout
+    if (typeof window !== 'undefined') {
+      import('next-auth/react').then(({ signOut }) => {
+        signOut({ redirect: false }).catch(() => {});
+      }).catch(() => {});
+    }
   },
 
   setPage: (page) => {

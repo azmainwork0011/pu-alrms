@@ -8,10 +8,10 @@ export function middleware(request: NextRequest) {
   const response = NextResponse.next();
   const { pathname } = request.nextUrl;
 
-  // ── Allow NextAuth API routes to pass through without extra headers ──
-  if (pathname.startsWith('/api/auth/')) {
-    // NextAuth handles its own CSRF and security headers
-    // Just add CORS for the callback
+  // ── NextAuth routes: pass through with CORS only, no security headers ──
+  // Covers /api/auth/[...nextauth] (sign-in, callback, session, csrf, etc.)
+  // and any other /api/auth/* paths. NextAuth manages its own CSRF + security.
+  if (pathname === '/api/auth/[...nextauth]' || pathname.startsWith('/api/auth/')) {
     const origin = request.headers.get('origin');
     if (origin) {
       response.headers.set('Access-Control-Allow-Origin', origin);

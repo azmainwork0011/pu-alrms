@@ -137,11 +137,11 @@ interface PendingSetup {
   provider: 'GOOGLE' | 'PHONE' | 'EMAIL';
 }
 
-function AuthPage() {
+function AuthPage({ oauthError }: { oauthError?: string | null }) {
   const [mode, setMode] = useState<AuthMode>('login-methods');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(oauthError || null);
 
   // Email form state
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'STUDENT' });
@@ -189,58 +189,35 @@ function AuthPage() {
     ? 'Name must be at least 2 characters'
     : null;
 
-  // ── Google Login via NextAuth ──
+  // ── Google Login via NextAuth (Production) ──
+  // In production: always uses NextAuth signIn('google') which redirects to Google.
+  // Google callback creates/links the user and returns a session with our custom JWT.
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     setError(null);
 
     try {
-      // Check if Google OAuth is configured
-      const isConfigured = !!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-
-      if (isConfigured) {
-        // Production path: Use NextAuth's signIn with Google provider
-        await signIn('google', {
-          callbackUrl: '/',
-          redirect: true,
-        });
-        // signIn will redirect — code below won't execute on success
-      } else {
-        // Development fallback: Use existing /api/auth/google endpoint directly
-        const mockGoogleUser = {
-          googleId: `google_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          email: `user${Math.floor(Math.random() * 10000)}@gmail.com`,
-          name: 'Google User',
-          picture: null,
-        };
-
-        const result = await apiFetch<{ token: string; user: any; isNewUser?: boolean }>('/api/auth/google', {
-          method: 'POST',
-          body: JSON.stringify(mockGoogleUser),
-          timeout: 20000,
-        });
-
-        if (result.isNewUser) {
-          setPendingSetup({ token: result.token, user: result.user, provider: 'GOOGLE' });
-          setSetupData({ name: result.user.name || '', rollNumber: '', batch: '', department: '', section: '' });
-          setMode('profile-setup');
-        } else {
-          handleAuthSuccess(result);
-        }
-      }
+      await signIn('google', {
+        callbackUrl: '/',
+        redirect: true,
+      });
+      // signIn() redirects on success — code after this only runs on error.
+      // If we reach here, NextAuth threw an error.
+      setError('Google sign-in could not be started. Please try again.');
     } catch (err: any) {
       console.error('[Google Auth] Error:', err);
       const msg = err?.error || err?.message || String(err);
 
-      if (msg.includes('ACCOUNT_EXISTS')) {
-        setError('An account with this email already exists. Please sign in with your password.');
-      } else if (msg.includes('OAuthCallback') || msg.includes('access_denied') || msg.includes('popup_closed')) {
-        // User cancelled the OAuth flow — not an error
-        setError(null);
+      if (msg.includes('OAuthAccountNotLinked') || msg.includes('ACCOUNT_EXISTS')) {
+        setError('An account with this email already exists. Please sign in with your password first, then link Google from your profile.');
+      } else if (msg.includes('access_denied') || msg.includes('popup_closed') || msg.includes('OAuthCallback')) {
+        setError(null); // User cancelled — not an error
       } else if (msg.includes('not configured') || msg.includes('CLIENT_ID') || msg.includes('CLIENT_SECRET')) {
         setError('Google sign-in is not configured. Please contact the administrator.');
+      } else if (msg.includes('Callback')) {
+        setError('Authentication was interrupted. Please try again.');
       } else if (isNetworkError(err)) {
-        setError('Network error. Please check your internet connection.');
+        setError('Network error. Please check your internet connection and try again.');
       } else {
         setError('Google sign-in failed. Please try again.');
       }

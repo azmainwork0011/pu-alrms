@@ -1,59 +1,86 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 /**
- * Google OAuth Login
- * Accepts a Google ID token for verification.
- * Falls back to simulated data in development when GOOGLE_CLIENT_ID is not set.
+ * Google OAuth Login (Production)
+ *
+ * This endpoint is now ONLY used as a backward-compatible fallback.
+ * Primary Google login goes through NextAuth: signIn('google')
+ *
+ * This endpoint ONLY accepts real Google ID tokens for verification.
+ * No mock/dev data is accepted in production.
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { googleId, email, name, picture, idToken } = body;
+    const { idToken } = body;
 
-    let userGoogleId = googleId;
-    let userEmail = email;
-    let userName = name;
-    let userAvatar = picture;
-    let isNewUser = false;
-
-    // ── Strategy 1: Real Google ID Token Verification ──
-    if (idToken && process.env.GOOGLE_CLIENT_ID) {
-      try {
-        // Verify the Google ID token by fetching Google's public certs
-        const response = await fetch(`https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`);
-        if (response.ok) {
-          const payload = await response.json();
-          // Verify audience matches our client ID
-          if (payload.aud === process.env.GOOGLE_CLIENT_ID || payload.aud?.includes(process.env.GOOGLE_CLIENT_ID)) {
-            userGoogleId = payload.sub;
-            userEmail = payload.email;
-            userName = payload.name || payload.given_name || 'Google User';
-            userAvatar = payload.picture || null;
-          }
-        }
-      } catch (err) {
-        console.error('[Google Auth] Token verification failed, falling back:', err instanceof Error ? err.message : err);
-      }
+    // ── Production: Only accept real Google ID tokens ──
+    if (!idToken) {
+      return NextResponse.json(
+        { error: 'Google ID token is required. Please use the Google sign-in button.' },
+        { status: 400 },
+      );
     }
 
-    // ── Strategy 2: Development mode (direct data) ──
-    if (!userGoogleId || !userEmail || !userName) {
-      if (!process.env.GOOGLE_CLIENT_ID && !idToken) {
-        // Dev mode: accept simulated data
-        if (!userGoogleId || !userEmail || !userName) {
-          return NextResponse.json({ error: 'Google account information is required' }, { status: 400 });
-        }
-      } else {
-        return NextResponse.json({ error: 'Google authentication failed. Please try again.' }, { status: 400 });
-      }
+    if (!process.env.GOOGLE_CLIENT_ID) {
+      return NextResponse.json(
+        { error: 'Google OAuth is not configured.' },
+        { status: 503 },
+      );
     }
 
-    const normalizedEmail = userEmail.trim().toLowerCase();
+    // Verify the Google ID token by fetching Google's tokeninfo endpoint
+    let userGoogleId: string;
+    let userEmail: string;
+    let userName: string;
+    let userAvatar: string | null;
+
+    try {
+      const response = await fetch(
+        `https://oauth2.googleapis.com/tokeninfo?id_token=${idToken}`,
+      );
+      if (!response.ok) {
+        return NextResponse.json(
+          { error: 'Google token verification failed.' },
+          { status: 401 },
+        );
+      }
+      const payload = await response.json();
+
+      // Verify audience matches our client ID
+      if (payload.aud !== process.env.GOOGLE_CLIENT_ID && !payload.aud?.includes(process.env.GOOGLE_CLIENT_ID)) {
+        return NextResponse.json(
+          { error: 'Google token audience mismatch.' },
+          { status: 401 },
+        );
+      }
+
+      if (!payload.email || !payload.sub) {
+        return NextResponse.json(
+          { error: 'Google account must have an email address.' },
+          { status: 400 },
+        );
+      }
+
+      userGoogleId = payload.sub;
+      userEmail = payload.email.trim().toLowerCase();
+      userName = payload.name || payload.given_name || 'Google User';
+      userAvatar = payload.picture || null;
+    } catch (err) {
+      console.error('[Google Auth] Token verification failed:', err instanceof Error ? err.message : err);
+      return NextResponse.json(
+        { error: 'Google token verification failed. Please try again.' },
+        { status: 401 },
+      );
+    }
+
+    const normalizedEmail = userEmail;
 
     const { db } = await import('@/lib/db');
 
     // Check if user already exists with this Google ID
     let user = await db.user.findUnique({ where: { googleId: userGoogleId } });
+    let isNewUser = false;
 
     if (user) {
       if (user.status === 'BANNED') {
@@ -71,7 +98,7 @@ export async function POST(req: NextRequest) {
       const existingByEmail = await db.user.findUnique({ where: { email: normalizedEmail } });
       if (existingByEmail) {
         if (existingByEmail.authProvider === 'GOOGLE') {
-          // Same email, link the Google ID
+          // Same email, same provider — link the Google ID
           user = await db.user.update({
             where: { id: existingByEmail.id },
             data: { googleId: userGoogleId, lastLogin: new Date(), ...(userAvatar ? { avatar: userAvatar } : {}) },
@@ -111,6 +138,7 @@ export async function POST(req: NextRequest) {
         name: user.name,
       });
     } catch {
+      // Emergency fallback — should never happen with proper JWT_SECRET
       const header = btoa(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
       const payload = btoa(JSON.stringify({
         userId: user.id, email: user.email, role: user.role, name: user.name,

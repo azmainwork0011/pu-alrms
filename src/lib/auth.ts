@@ -49,27 +49,75 @@ declare module 'next-auth/jwt' {
 function getEnvVar(name: string, required = true): string {
   const value = process.env[name];
   if (required && !value) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error(`[NextAuth] FATAL: ${name} is required in production but is not set. Aborting Google OAuth provider registration.`);
+      return '';
+    }
     console.warn(`[NextAuth] ${name} is not set. Google OAuth will be disabled.`);
   }
   return value || '';
 }
 
+// ─── Validate NEXTAUTH_SECRET in production ──────────────────
+function validateNextAuthSecret(): string {
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) {
+    if (process.env.NODE_ENV === 'production') {
+      console.error(
+        '[NextAuth] FATAL: NEXTAUTH_SECRET is not set in production. ' +
+        'This is required to sign and encrypt session cookies. ' +
+        'Generate one with: openssl rand -base64 32'
+      );
+      throw new Error(
+        'NEXTAUTH_SECRET environment variable is required in production. ' +
+        'Generate one with: openssl rand -base64 32'
+      );
+    }
+    console.warn('[NextAuth] NEXTAUTH_SECRET not set, using development fallback.');
+    return 'pu-alrms-dev-nextauth-secret';
+  }
+  return secret;
+}
+
 // ─── NextAuth Configuration ─────────────────────────────────
 export const authOptions: NextAuthOptions = {
   // ── Providers ──
-  providers: [
-    GoogleProvider({
-      clientId: getEnvVar('GOOGLE_CLIENT_ID'),
-      clientSecret: getEnvVar('GOOGLE_CLIENT_SECRET'),
-      authorization: {
-        params: {
-          prompt: 'select_account',
-          access_type: 'offline',
-          response_type: 'code',
+  // In production, Google OAuth requires both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.
+  // If either is missing, the Google provider is NOT registered to prevent
+  // confusing NextAuth errors from empty credentials.
+  providers: (() => {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      if (process.env.NODE_ENV === 'production') {
+        console.error(
+          '[NextAuth] Google OAuth is disabled: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing. ' +
+          'Google sign-in will NOT be available. Set both variables in your environment.'
+        );
+      } else {
+        console.warn(
+          '[NextAuth] Google OAuth is disabled: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing. ' +
+          'Set both in .env.local to enable Google sign-in.'
+        );
+      }
+      return [];
+    }
+
+    return [
+      GoogleProvider({
+        clientId,
+        clientSecret,
+        authorization: {
+          params: {
+            prompt: 'select_account',
+            access_type: 'offline',
+            response_type: 'code',
+          },
         },
-      },
-    }),
-  ],
+      }),
+    ];
+  })(),
 
   // ── Callbacks ──
   callbacks: {
@@ -84,13 +132,13 @@ export const authOptions: NextAuthOptions = {
       // Must have an email
       if (!user.email) {
         console.error('[NextAuth] Google account has no email');
-        return false;
+        return '/?error=NoEmail';
       }
 
-      // Check if Google OAuth is properly configured
+      // Google OAuth must be configured (no dev fallback in production)
       if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
         console.error('[NextAuth] Google OAuth not configured (missing CLIENT_ID or CLIENT_SECRET)');
-        return false;
+        return '/?error=Configuration';
       }
 
       return true;
@@ -245,12 +293,38 @@ export const authOptions: NextAuthOptions = {
 
   // ── Pages ──
   pages: {
-    signIn: '/', // Use our custom AuthPage as the sign-in page
-    error: '/',  // Redirect errors to our custom page
+    signIn: '/',
+    error: '/',
   },
 
+  // ── Events ──
+  events: {
+    /**
+     * Handle NextAuth sign-in/sign-out errors gracefully.
+     * Redirects to our custom AuthPage with an error query parameter.
+     */
+    async linkAccount({ profile, account, user }) {
+      // This event fires on first OAuth login. We handle user creation
+      // in the JWT callback, so we just let it pass through.
+    },
+    async signInError({ error }) {
+      const errorMap: Record<string, string> = {
+        OAuthSignin: 'Error=Configuration',
+        OAuthCallback: 'Error=Callback',
+        OAuthCreateAccount: 'Error=CreateAccount',
+        OAuthAccountNotLinked: 'Error=AccountNotLinked',
+        EmailSignin: 'Error=EmailSignin',
+        CredentialsSignin: 'Error=InvalidCredentials',
+        SessionRequired: 'Error=SessionRequired',
+        Default: 'Error=Default',
+      };
+      return `/?${errorMap[error] || 'Error=Unknown'}`;
+    },
+  } as any,
+
   // ── Security ──
-  secret: process.env.NEXTAUTH_SECRET || 'pu-alrms-nextauth-secret-fallback',
+  // NEXTAUTH_SECRET: validated by validateNextAuthSecret(). Throws in production if missing.
+  secret: validateNextAuthSecret(),
   debug: process.env.NODE_ENV === 'development',
 
   // ── Cookies ──

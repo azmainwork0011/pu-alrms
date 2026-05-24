@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useSession } from 'next-auth/react';
-import { useAppStore } from '@/store/app';
+import { useSession, signOut } from 'next-auth/react';
+import { useAppStore, type User } from '@/store/app';
 
 // ─── Client-only page imports (no SSR → no hydration) ──────
 const AuthPage = dynamic(() => import('@/components/pages/AuthPage'), { ssr: false });
@@ -20,23 +20,46 @@ function ErrorFallback({ error, onRetry }: { error: Error; onRetry: () => void }
           </svg>
         </div>
         <h2 className="text-lg font-bold text-white mb-2">Something went wrong</h2>
-        <p className="text-sm text-slate-400 mb-5">
-          {error.message || 'An unexpected error occurred. Please try again.'}
-        </p>
-        <button
-          onClick={onRetry}
-          className="px-6 py-2.5 text-white text-sm font-medium rounded-xl transition-all duration-200 hover:scale-105 active:scale-95"
-          style={{ background: 'linear-gradient(135deg, #ec4899, #a855f7)', boxShadow: '0 4px 16px rgba(236,72,153,0.25)' }}
-        >
-          Retry
-        </button>
+        <p className="text-sm text-slate-400 mb-5">{error.message}</p>
+        <button onClick={onRetry} className="px-6 py-2.5 text-white text-sm font-medium rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" style={{ background: 'linear-gradient(135deg, #ec4899, #a855f7)', boxShadow: '0 4px 16px rgba(236,72,153,0.25)' }}>Retry</button>
       </div>
     </div>
   );
 }
 
-// ─── OAuth Processing Screen ───────────────────────────────
 function OAuthProcessing() {
+  const [timedOut, setTimedOut] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setTimedOut(true);
+    }, 15_000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (timedOut) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #0a0d14 0%, #0d1117 40%, #111827 100%)' }}>
+        <div className="max-w-sm w-full text-center">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.15)' }}>
+            <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-bold text-white mb-2">Sign-in is taking too long</h2>
+          <p className="text-sm text-slate-400 mb-5">This might be a network issue.</p>
+          <button
+            onClick={() => { window.location.href = '/'; }}
+            className="px-6 py-2.5 text-white text-sm font-medium rounded-xl transition-all duration-200 hover:scale-105 active:scale-95"
+            style={{ background: 'linear-gradient(135deg, #ec4899, #a855f7)', boxShadow: '0 4px 16px rgba(236,72,153,0.25)' }}
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0a0d14 0%, #0d1117 40%, #111827 100%)' }}>
       <div className="text-center">
@@ -52,158 +75,114 @@ function OAuthProcessing() {
   );
 }
 
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  Configuration: 'Google sign-in is not configured. Please contact the administrator.',
+  Callback: 'Authentication was interrupted. Please try again.',
+  CreateAccount: 'Failed to create your account. Please try again.',
+  AccountNotLinked: 'An account with this email already exists. Please sign in with your password first.',
+  NoEmail: 'Google account has no email. Please use a different Google account.',
+  AccessDenied: 'Sign-in was cancelled.',
+  Default: 'Authentication failed. Please try again.',
+};
+
+function getInitialOAuthError(): string | null {
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  const errorParam = params.get('error');
+  if (errorParam) {
+    window.history.replaceState({}, '', '/');
+    return OAUTH_ERROR_MESSAGES[errorParam] || OAUTH_ERROR_MESSAGES.Default;
+  }
+  return null;
+}
+
 export default function Home() {
   const [error, setError] = useState<Error | null>(null);
-  const [oauthProcessing, setOAuthProcessing] = useState(false);
-  const [nextAuthBridged, setNextAuthBridged] = useState(false);
+  const [oauthError] = useState<string | null>(getInitialOAuthError);
+  const [bridgeDone, setBridgeDone] = useState(false);
+  const [bridgeFailed, setBridgeFailed] = useState<string | null>(null);
 
-  // Subscribe to auth state — MUST be before any conditional returns (React hooks rule)
-  // Zustand's mounted flag is set to true by hydrate() on the client side.
-  // During SSR, it stays false (default), so we render null → no hydration mismatch.
   const mounted = useAppStore((state) => state.mounted);
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
-
-  // ── NextAuth session — bridge with Zustand ──
-  const { data: nextAuthSession, status: nextAuthStatus } = useSession();
-
-  // ── Bridge NextAuth session to Zustand store ──
   const setAuth = useAppStore((state) => state.setAuth);
 
+  const { data: nextAuthSession, status: nextAuthStatus } = useSession();
+
+  // ── Auth bridge effect ──
+  // On first render where NextAuth is authenticated and has our JWT,
+  // bridge the session into Zustand. The state flags (bridgeDone/bridgeFailed)
+  // are only set via async callbacks (.then()), never synchronously.
   useEffect(() => {
-    if (nextAuthBridged) return; // Already bridged
-    if (nextAuthStatus === 'loading') return;
+    if (bridgeDone || bridgeFailed) return;
+    if (nextAuthStatus !== 'authenticated') return;
+    if (!nextAuthSession?.customJwt) return;
+    const jwt = nextAuthSession.customJwt;
 
-    // If NextAuth has an authenticated session with our custom JWT
-    if (nextAuthStatus === 'authenticated' && nextAuthSession?.customJwt) {
-      setOAuthProcessing(true);
-
-      // Check for errors from NextAuth callbacks
-      if ((nextAuthSession as any).error === 'ACCOUNT_BANNED') {
-        setOAuthProcessing(false);
-        setError(new Error('Your account has been banned. Contact support.'));
-        // Sign out from NextAuth to clear the error session
-        import('next-auth/react').then(({ signOut }) => signOut({ redirect: false }));
-        return;
-      }
-      if ((nextAuthSession as any).error === 'ACCOUNT_SUSPENDED') {
-        setOAuthProcessing(false);
-        setError(new Error('Your account is suspended. Contact an administrator.'));
-        import('next-auth/react').then(({ signOut }) => signOut({ redirect: false }));
-        return;
-      }
-
-      const user = {
-        id: nextAuthSession.userId || '',
-        name: nextAuthSession.user?.name || '',
-        email: nextAuthSession.user?.email || '',
-        role: nextAuthSession.role || 'STUDENT',
-        avatar: nextAuthSession.avatar || nextAuthSession.user?.image || null,
-        verified: false,
-        authProvider: 'GOOGLE' as const,
-      };
-
-      // Store in Zustand + localStorage
-      setAuth(user, nextAuthSession.customJwt);
-      setNextAuthBridged(true);
-      setOAuthProcessing(false);
-
-      console.log('[Auth Bridge] NextAuth session bridged to Zustand store');
+    const sessionError = (nextAuthSession as unknown as Record<string, unknown>)?.error;
+    if (sessionError === 'ACCOUNT_BANNED') {
+      signOut({ redirect: false }).catch(() => {}).finally(() => {
+        setBridgeFailed('Your account has been banned. Contact support.');
+      });
+      return;
     }
-  }, [nextAuthStatus, nextAuthSession, setAuth, nextAuthBridged]);
+    if (sessionError === 'ACCOUNT_SUSPENDED') {
+      signOut({ redirect: false }).catch(() => {}).finally(() => {
+        setBridgeFailed('Your account is suspended. Contact an administrator.');
+      });
+      return;
+    }
 
-  // ── Client mount: hydrate auth state from localStorage ──
+    const user: User = {
+      id: nextAuthSession.userId || '',
+      name: nextAuthSession.user?.name || '',
+      email: nextAuthSession.user?.email || '',
+      role: (nextAuthSession.role || 'STUDENT') as User['role'],
+      avatar: nextAuthSession.avatar || nextAuthSession.user?.image || undefined,
+      verified: false,
+    };
+
+    // Use microtask to defer state updates outside the synchronous effect body
+    Promise.resolve().then(() => {
+      setAuth(user, jwt);
+      setBridgeDone(true);
+    });
+  }, [nextAuthStatus, nextAuthSession, setAuth, bridgeDone, bridgeFailed]);
+
+  // ── Hydrate on mount ──
   useEffect(() => {
-    // Mark document as hydrated (hides CSS-only loading overlay)
     document.documentElement.classList.add('hydrated');
-
-    // Remove the script-injected loading overlay DOM after fade-out transition
     const overlayEl = document.getElementById('pu-loading-overlay');
     if (overlayEl) {
-      setTimeout(() => {
-        try { overlayEl.remove(); } catch {}
-      }, 600);
+      setTimeout(() => { try { overlayEl.remove(); } catch {} }, 600);
     }
-
-    // Hydrate auth state from localStorage — this sets store.mounted = true
     useAppStore.getState().hydrate();
   }, []);
 
-  // ── Global error handler — only catches truly unexpected errors ──
+  // ── Global error handler ──
   useEffect(() => {
     if (!mounted) return;
-
     const handler = (event: ErrorEvent) => {
-      // Ignore errors from login/auth — AuthPage handles these with inline error display
       const msg = event.message || '';
-      if (
-        msg.includes('Internal server error') ||
-        msg.includes('Login failed') ||
-        msg.includes('Authentication') ||
-        msg.includes('Invalid email') ||
-        msg.includes('Network') ||
-        msg.includes('fetch') ||
-        msg.includes('localStorage') ||
-        msg.includes('timeout') ||
-        msg.includes('AbortError')
-      ) {
-        return; // Let the component handle these
-      }
+      if (msg.includes('fetch') || msg.includes('Network') || msg.includes('localStorage') || msg.includes('timeout') || msg.includes('AbortError') || msg.includes('Authentication') || msg.includes('Login')) return;
       event.preventDefault();
       setError(new Error(msg || 'An unexpected error occurred'));
     };
-    const rejectionHandler = (event: PromiseRejectionEvent) => {
+    const rejHandler = (event: PromiseRejectionEvent) => {
       const msg = event.reason?.message || String(event.reason);
-      // Only show ErrorFallback for truly unexpected promise rejections
-      // Auth/network errors are handled by apiFetch and component error handlers
-      if (
-        msg.includes('Failed to fetch') ||
-        msg.includes('NetworkError') ||
-        msg.includes('localStorage') ||
-        msg.includes('Internal server error') ||
-        msg.includes('Login failed') ||
-        msg.includes('Invalid email') ||
-        msg.includes('timeout') ||
-        msg.includes('HTTP 4') ||
-        msg.includes('HTTP 5')
-      ) {
-        return; // Expected — handled elsewhere
-      }
+      if (msg.includes('fetch') || msg.includes('Network') || msg.includes('localStorage') || msg.includes('HTTP 4') || msg.includes('HTTP 5')) return;
       event.preventDefault();
       setError(new Error(msg));
     };
     window.addEventListener('error', handler);
-    window.addEventListener('unhandledrejection', rejectionHandler);
-    return () => {
-      window.removeEventListener('error', handler);
-      window.removeEventListener('unhandledrejection', rejectionHandler);
-    };
+    window.addEventListener('unhandledrejection', rejHandler);
+    return () => { window.removeEventListener('error', handler); window.removeEventListener('unhandledrejection', rejHandler); };
   }, [mounted]);
 
-  const handleRetry = useCallback(() => {
-    setError(null);
-    window.location.reload();
-  }, []);
-
-  // ── OAuth processing state ──
-  if (oauthProcessing) {
-    return <OAuthProcessing />;
-  }
-
-  // ── Server + pre-mount client: show minimal loading shell ──
-  // mounted starts as false. hydrate() sets it to true on first client render.
-  // The CSS-only loading overlay (in layout.tsx) provides visual feedback.
+  // ── Render logic ──
   if (!mounted) return <div className="min-h-screen" />;
-
-  // ── Client-only after mount: render real UI ──
-  if (error) {
-    return <ErrorFallback error={error} onRetry={handleRetry} />;
-  }
-
-  // If authenticated, show app layout (guide is not needed)
-  if (isAuthenticated) {
-    return <AppLayout />;
-  }
-
-  // Not authenticated: show login page
-  return <AuthPage />;
+  if (bridgeFailed) return <ErrorFallback error={new Error(bridgeFailed)} onRetry={() => { setError(null); setBridgeFailed(null); window.location.href = '/'; }} />;
+  if (error) return <ErrorFallback error={error} onRetry={() => { setError(null); window.location.reload(); }} />;
+  if (nextAuthStatus === 'loading' || (!bridgeDone && nextAuthStatus === 'authenticated' && !bridgeFailed)) return <OAuthProcessing />;
+  if (isAuthenticated) return <AppLayout />;
+  return <AuthPage oauthError={oauthError} />;
 }
