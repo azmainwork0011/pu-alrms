@@ -48,6 +48,9 @@ interface AppState {
   // Demo mode
   isDemoUser: boolean;
 
+  // Database status
+  dbConnected: boolean | null;  // null = not checked yet, true/false = result
+
   // Navigation
   currentPage: PageView;
   pageHistory: PageView[];
@@ -69,6 +72,8 @@ interface AppState {
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setNotificationCount: (count: number) => void;
+  setDbConnected: (connected: boolean) => void;
+  checkDatabase: () => Promise<void>;
   hydrate: () => void;
 }
 
@@ -91,6 +96,7 @@ export const useAppStore = create<AppState>((set) => ({
   isAuthenticated: false,
   mounted: false,
   isDemoUser: false,
+  dbConnected: null,
   currentPage: 'dashboard',
   pageHistory: [],
   selectedAssignmentId: null,
@@ -204,6 +210,17 @@ export const useAppStore = create<AppState>((set) => ({
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   setSidebarOpen: (open) => set({ sidebarOpen: open }),
   setNotificationCount: (count) => set({ notificationCount: count }),
+  setDbConnected: (connected) => set({ dbConnected: connected }),
+
+  checkDatabase: async () => {
+    try {
+      const res = await fetch('/api/health/db');
+      const data = await res.json();
+      set({ dbConnected: data.ok === true });
+    } catch {
+      set({ dbConnected: false });
+    }
+  },
 
   hydrate: () => {
     try {

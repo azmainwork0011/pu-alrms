@@ -16,6 +16,8 @@ import {
   Shield, BadgeCheck, ChevronLeft, ListTodo,
 } from 'lucide-react';
 import { getInitials, PageTransition } from '@/components/pu-helpers';
+import { DatabaseDisabled } from '@/components/ui/DatabaseDisabled';
+import { useFeatureGuard } from '@/hooks/useFeatureGuard';
 
 // ─── Page Components ─────────────────────────────────────
 import DashboardPage from '@/components/pages/DashboardPage';
@@ -66,6 +68,13 @@ const navItems: {
   { page: 'profile', label: 'Profile', icon: UserIcon, section: 'Account' },
 ];
 
+// Pages that require database
+const DB_REQUIRED_PAGES: PageView[] = [
+  'dashboard', 'cr-dashboard', 'admin-panel', 'assignments', 'lab-reports',
+  'assignment-detail', 'create-assignment', 'submissions', 'student-tasks',
+  'leaderboard', 'notifications', 'student-community', 'announcements', 'quiz',
+];
+
 // ─── Section Label ────────────────────────────────────────
 function SectionLabel({ label }: { label: string }) {
   return (
@@ -80,6 +89,8 @@ function SectionLabel({ label }: { label: string }) {
 // ─── Sidebar Navigation ──────────────────────────────────
 function SidebarNav({ onNavigate, compact = false }: { onNavigate: (page: PageView) => void; compact?: boolean }) {
   const { user, currentPage } = useAppStore();
+  const dbConnected = useAppStore((s) => s.dbConnected);
+  const isDemoUser = useAppStore((s) => s.isDemoUser);
 
   const filtered = navItems.filter(item => {
     if (item.roles && !item.roles.includes(user?.role || 'STUDENT')) return false;
@@ -99,21 +110,29 @@ function SidebarNav({ onNavigate, compact = false }: { onNavigate: (page: PageVi
             {sectionItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentPage === item.page;
+              const isDbRequired = DB_REQUIRED_PAGES.includes(item.page);
+              const isDisabled = isDbRequired && dbConnected === false && !isDemoUser;
               return (
                 <Button
                   key={item.page}
                   variant="ghost"
+                  disabled={isDisabled}
                   className={`
                     mx-2 h-9 justify-start gap-3 rounded-lg px-3 text-sm font-normal transition-all duration-200
                     ${isActive
                       ? 'bg-primary/10 text-primary font-medium shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                      : isDisabled
+                        ? 'text-muted-foreground/40 cursor-not-allowed'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-accent'
                     }
                   `}
-                  onClick={() => onNavigate(item.page)}
+                  onClick={() => !isDisabled && onNavigate(item.page)}
                 >
-                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-primary' : ''}`} />
+                  <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-primary' : isDisabled ? 'text-muted-foreground/30' : ''}`} />
                   <span className="truncate">{item.label}</span>
+                  {isDisabled && (
+                    <span className="ml-auto text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500/70 font-medium">No DB</span>
+                  )}
                 </Button>
               );
             })}
@@ -224,6 +243,18 @@ const pageTitles: Record<string, string> = {
 export default function AppLayout() {
   const { currentPage, user, toggleSidebar, notificationCount, setPage, goBack, logout } = useAppStore();
   const pageHistory = useAppStore((s) => s.pageHistory);
+  const checkDatabase = useAppStore((s) => s.checkDatabase);
+  const dbConnected = useAppStore((s) => s.dbConnected);
+  const isAuthenticated = useAppStore((s) => s.isAuthenticated);
+
+  // Check database connectivity when authenticated
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    checkDatabase();
+    // Re-check every 5 minutes
+    const interval = setInterval(checkDatabase, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [isAuthenticated, checkDatabase]);
 
   // Listen for auth-expired events and auto-logout
   useEffect(() => {
@@ -262,7 +293,10 @@ export default function AppLayout() {
     }
   }, []);
 
+  const { allowed, reason } = useFeatureGuard(currentPage);
+
   const renderPage = () => {
+    if (!allowed) return <DatabaseDisabled reason={reason} />;
     switch (currentPage) {
       case 'dashboard': return <DashboardPage />;
       case 'assignments': return <AssignmentsPage />;
@@ -337,6 +371,22 @@ export default function AppLayout() {
             </div>
 
             <div className="flex items-center gap-1 sm:gap-2">
+              {/* DB Status Indicator */}
+              {dbConnected === false && !useAppStore.getState().isDemoUser && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="hidden sm:flex items-center gap-1.5 text-[10px] px-2 py-1 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 cursor-default">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                        No Database
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="text-xs max-w-[200px]">
+                      Database is not connected. Some features are disabled. Ask your admin to configure Turso DB.
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
               <ThemeToggle />
 
               {/* Notifications */}
