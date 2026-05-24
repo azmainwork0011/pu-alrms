@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
+import { useSession } from 'next-auth/react';
 import { useAppStore } from '@/store/app';
 
 // ─── Client-only page imports (no SSR → no hydration) ──────
@@ -34,14 +35,81 @@ function ErrorFallback({ error, onRetry }: { error: Error; onRetry: () => void }
   );
 }
 
+// ─── OAuth Processing Screen ───────────────────────────────
+function OAuthProcessing() {
+  return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0a0d14 0%, #0d1117 40%, #111827 100%)' }}>
+      <div className="text-center">
+        <div className="relative w-16 h-16 mx-auto mb-5">
+          <div className="absolute inset-0 rounded-full border-2 border-white/5" />
+          <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-emerald-500 animate-spin" />
+          <div className="absolute inset-2 rounded-full border-2 border-transparent border-t-teal-400 animate-spin" style={{ animationDuration: '1.5s', animationDirection: 'reverse' }} />
+        </div>
+        <p className="text-white/80 text-sm font-medium mb-1">Completing sign in...</p>
+        <p className="text-white/40 text-xs">Please wait while we set up your account</p>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [error, setError] = useState<Error | null>(null);
+  const [oauthProcessing, setOAuthProcessing] = useState(false);
+  const [nextAuthBridged, setNextAuthBridged] = useState(false);
 
   // Subscribe to auth state — MUST be before any conditional returns (React hooks rule)
   // Zustand's mounted flag is set to true by hydrate() on the client side.
   // During SSR, it stays false (default), so we render null → no hydration mismatch.
   const mounted = useAppStore((state) => state.mounted);
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
+
+  // ── NextAuth session — bridge with Zustand ──
+  const { data: nextAuthSession, status: nextAuthStatus } = useSession();
+
+  // ── Bridge NextAuth session to Zustand store ──
+  const setAuth = useAppStore((state) => state.setAuth);
+
+  useEffect(() => {
+    if (nextAuthBridged) return; // Already bridged
+    if (nextAuthStatus === 'loading') return;
+
+    // If NextAuth has an authenticated session with our custom JWT
+    if (nextAuthStatus === 'authenticated' && nextAuthSession?.customJwt) {
+      setOAuthProcessing(true);
+
+      // Check for errors from NextAuth callbacks
+      if ((nextAuthSession as any).error === 'ACCOUNT_BANNED') {
+        setOAuthProcessing(false);
+        setError(new Error('Your account has been banned. Contact support.'));
+        // Sign out from NextAuth to clear the error session
+        import('next-auth/react').then(({ signOut }) => signOut({ redirect: false }));
+        return;
+      }
+      if ((nextAuthSession as any).error === 'ACCOUNT_SUSPENDED') {
+        setOAuthProcessing(false);
+        setError(new Error('Your account is suspended. Contact an administrator.'));
+        import('next-auth/react').then(({ signOut }) => signOut({ redirect: false }));
+        return;
+      }
+
+      const user = {
+        id: nextAuthSession.userId || '',
+        name: nextAuthSession.user?.name || '',
+        email: nextAuthSession.user?.email || '',
+        role: nextAuthSession.role || 'STUDENT',
+        avatar: nextAuthSession.avatar || nextAuthSession.user?.image || null,
+        verified: false,
+        authProvider: 'GOOGLE' as const,
+      };
+
+      // Store in Zustand + localStorage
+      setAuth(user, nextAuthSession.customJwt);
+      setNextAuthBridged(true);
+      setOAuthProcessing(false);
+
+      console.log('[Auth Bridge] NextAuth session bridged to Zustand store');
+    }
+  }, [nextAuthStatus, nextAuthSession, setAuth, nextAuthBridged]);
 
   // ── Client mount: hydrate auth state from localStorage ──
   useEffect(() => {
@@ -115,6 +183,11 @@ export default function Home() {
     setError(null);
     window.location.reload();
   }, []);
+
+  // ── OAuth processing state ──
+  if (oauthProcessing) {
+    return <OAuthProcessing />;
+  }
 
   // ── Server + pre-mount client: show minimal loading shell ──
   // mounted starts as false. hydrate() sets it to true on first client render.

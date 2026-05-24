@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -159,7 +160,6 @@ function AuthPage() {
   // Profile setup state
   const [pendingSetup, setPendingSetup] = useState<PendingSetup | null>(null);
   const [setupData, setSetupData] = useState({ name: '', rollNumber: '', batch: '', department: '', section: '' });
-  const googleScriptRef = useRef<boolean>(false);
 
   const { setAuth, updateUser } = useAppStore();
 
@@ -189,65 +189,65 @@ function AuthPage() {
     ? 'Name must be at least 2 characters'
     : null;
 
-  // ── Load Google Identity Services ──
-  const loadGoogleGIS = useCallback(() => {
-    if (googleScriptRef.current) return;
-    googleScriptRef.current = true;
-
-    // Load the GIS script
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      // Initialize Google Identity Services
-      if (typeof window !== 'undefined' && (window as any).google) {
-        try {
-          (window as any).google.accounts.id.initialize({
-            client_id: process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '',
-            callback: handleGoogleCredentialResponse,
-            auto_select: false,
-            cancel_on_tap_outside: true,
-          });
-        } catch (e) {
-          console.log('[GIS] Initialize skipped (no CLIENT_ID)');
-        }
-      }
-    };
-    document.head.appendChild(script);
-  }, []);
-
-  // ── Handle Google Credential Response ──
-  const handleGoogleCredentialResponse = useCallback(async (response: { credential?: string }) => {
-    if (!response.credential) return;
+  // ── Google Login via NextAuth ──
+  const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     setError(null);
+
     try {
-      const result = await apiFetch<{ token: string; user: any; isNewUser?: boolean }>('/api/auth/google', {
-        method: 'POST',
-        body: JSON.stringify({ idToken: response.credential }),
-        timeout: 20000,
-      });
-      if (result.isNewUser) {
-        setPendingSetup({ token: result.token, user: result.user, provider: 'GOOGLE' });
-        setSetupData({ name: result.user.name || '', rollNumber: '', batch: '', department: '', section: '' });
-        setMode('profile-setup');
+      // Check if Google OAuth is configured
+      const isConfigured = !!process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+
+      if (isConfigured) {
+        // Production path: Use NextAuth's signIn with Google provider
+        await signIn('google', {
+          callbackUrl: '/',
+          redirect: true,
+        });
+        // signIn will redirect — code below won't execute on success
       } else {
-        handleAuthSuccess(result);
+        // Development fallback: Use existing /api/auth/google endpoint directly
+        const mockGoogleUser = {
+          googleId: `google_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          email: `user${Math.floor(Math.random() * 10000)}@gmail.com`,
+          name: 'Google User',
+          picture: null,
+        };
+
+        const result = await apiFetch<{ token: string; user: any; isNewUser?: boolean }>('/api/auth/google', {
+          method: 'POST',
+          body: JSON.stringify(mockGoogleUser),
+          timeout: 20000,
+        });
+
+        if (result.isNewUser) {
+          setPendingSetup({ token: result.token, user: result.user, provider: 'GOOGLE' });
+          setSetupData({ name: result.user.name || '', rollNumber: '', batch: '', department: '', section: '' });
+          setMode('profile-setup');
+        } else {
+          handleAuthSuccess(result);
+        }
       }
     } catch (err: any) {
-      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[Google Auth] Error:', err);
+      const msg = err?.error || err?.message || String(err);
+
       if (msg.includes('ACCOUNT_EXISTS')) {
         setError('An account with this email already exists. Please sign in with your password.');
+      } else if (msg.includes('OAuthCallback') || msg.includes('access_denied') || msg.includes('popup_closed')) {
+        // User cancelled the OAuth flow — not an error
+        setError(null);
+      } else if (msg.includes('not configured') || msg.includes('CLIENT_ID') || msg.includes('CLIENT_SECRET')) {
+        setError('Google sign-in is not configured. Please contact the administrator.');
       } else if (isNetworkError(err)) {
         setError('Network error. Please check your internet connection.');
       } else {
-        setError(msg || 'Google login failed. Please try again.');
+        setError('Google sign-in failed. Please try again.');
       }
     } finally {
       setGoogleLoading(false);
     }
-  }, []);
+  };
 
   const handleAuthSuccess = useCallback((result: { user: any; token: string }) => {
     setAuth(result.user, result.token);
@@ -290,65 +290,7 @@ function AuthPage() {
     } finally { setLoading(false); }
   };
 
-  // ── Google Login ──
-  const handleGoogleLogin = async () => {
-    setGoogleLoading(true); setError(null);
 
-    // Try real Google Identity Services first
-    if (typeof window !== 'undefined' && (window as any).google?.accounts?.id) {
-      try {
-        (window as any).google.accounts.id.prompt((notification: any) => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            // Fallback to dev mode
-            handleGoogleDevLogin();
-          }
-        });
-        // Don't set loading false here — wait for callback
-        setTimeout(() => { setGoogleLoading(false); }, 10000); // Safety timeout
-        return;
-      } catch {
-        // Fall through to dev mode
-      }
-    }
-
-    handleGoogleDevLogin();
-  };
-
-  const handleGoogleDevLogin = async () => {
-    try {
-      const mockGoogleUser = {
-        googleId: `google_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-        email: `user${Math.floor(Math.random() * 10000)}@gmail.com`,
-        name: 'Google User',
-        picture: null,
-      };
-
-      const result = await apiFetch<{ token: string; user: any; isNewUser?: boolean }>('/api/auth/google', {
-        method: 'POST',
-        body: JSON.stringify(mockGoogleUser),
-        timeout: 20000,
-      });
-
-      if (result.isNewUser) {
-        setPendingSetup({ token: result.token, user: result.user, provider: 'GOOGLE' });
-        setSetupData({ name: result.user.name || '', rollNumber: '', batch: '', department: '', section: '' });
-        setMode('profile-setup');
-      } else {
-        handleAuthSuccess(result);
-      }
-    } catch (err: any) {
-      const msg = err instanceof Error ? err.message : String(err);
-      if (msg.includes('ACCOUNT_EXISTS')) {
-        setError('An account with this email already exists. Please sign in with your password.');
-      } else if (isNetworkError(err)) {
-        setError('Network error. Please check your internet connection.');
-      } else {
-        setError(msg || 'Google login failed. Please try again.');
-      }
-    } finally {
-      setGoogleLoading(false);
-    }
-  };
 
   // ── Phone OTP Send ──
   const handleSendOtp = async (e: React.FormEvent) => {
@@ -585,12 +527,12 @@ function AuthPage() {
                         type="button"
                         whileHover={{ scale: 1.01 }}
                         whileTap={{ scale: 0.98 }}
-                        onClick={() => { loadGoogleGIS(); handleGoogleLogin(); }}
+                        onClick={handleGoogleLogin}
                         disabled={googleLoading}
-                        className="flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl border border-white/[0.08] hover:border-white/[0.15] border-l-[3px] border-l-[#4285F4] bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-200 text-gray-200 hover:text-white"
+                        className="flex items-center justify-center gap-3 w-full py-3 px-4 rounded-xl border border-white/[0.08] hover:border-white/[0.15] border-l-[3px] border-l-[#4285F4] bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-200 text-gray-200 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         {googleLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <GoogleIcon />}
-                        <span className="text-sm font-medium">{googleLoading ? 'Connecting...' : 'Continue with Google'}</span>
+                        <span className="text-sm font-medium">{googleLoading ? 'Connecting to Google...' : 'Continue with Google'}</span>
                       </motion.button>
 
                       {/* Phone Number */}
@@ -692,6 +634,25 @@ function AuthPage() {
                       </div>
                       <ErrorDisplay error={error} onDismiss={() => setError(null)} />
                       <SubmitButton loading={loading} label="Sign In" />
+
+                      {/* Google Divider on Email Login */}
+                      <div className="relative pt-2">
+                        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/[0.06]" /></div>
+                        <div className="relative flex justify-center text-xs">
+                          <span className="px-3 bg-transparent text-gray-600">or continue with</span>
+                        </div>
+                      </div>
+                      <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleGoogleLogin}
+                        disabled={googleLoading}
+                        className="flex items-center justify-center gap-3 w-full py-2.5 px-4 rounded-xl border border-white/[0.08] hover:border-white/[0.15] bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-200 text-gray-300 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon className="w-4 h-4" />}
+                        <span className="text-sm font-medium">{googleLoading ? 'Connecting...' : 'Continue with Google'}</span>
+                      </motion.button>
                     </form>
                   </motion.div>
                 )}
@@ -758,6 +719,25 @@ function AuthPage() {
                       </div>
                       <ErrorDisplay error={error} onDismiss={() => setError(null)} />
                       <SubmitButton loading={loading} label="Create Account" />
+
+                      {/* Google Divider on Register */}
+                      <div className="relative pt-2">
+                        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/[0.06]" /></div>
+                        <div className="relative flex justify-center text-xs">
+                          <span className="px-3 bg-transparent text-gray-600">or sign up with</span>
+                        </div>
+                      </div>
+                      <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.01 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={handleGoogleLogin}
+                        disabled={googleLoading}
+                        className="flex items-center justify-center gap-3 w-full py-2.5 px-4 rounded-xl border border-white/[0.08] hover:border-white/[0.15] bg-white/[0.03] hover:bg-white/[0.06] transition-all duration-200 text-gray-300 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {googleLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <GoogleIcon className="w-4 h-4" />}
+                        <span className="text-sm font-medium">{googleLoading ? 'Connecting...' : 'Sign up with Google'}</span>
+                      </motion.button>
                     </form>
                   </motion.div>
                 )}
