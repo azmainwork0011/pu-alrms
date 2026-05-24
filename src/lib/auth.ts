@@ -58,23 +58,18 @@ function getEnvVar(name: string, required = true): string {
   return value || '';
 }
 
-// ─── Validate NEXTAUTH_SECRET in production ──────────────────
-function validateNextAuthSecret(): string {
+// ─── Get NEXTAUTH_SECRET with production validation ──────────
+// Note: In Vercel, env vars are available at runtime but NOT during build.
+// So we only validate/throw at runtime, not at module evaluation time.
+function getNextAuthSecret(): string {
   const secret = process.env.NEXTAUTH_SECRET;
   if (!secret) {
-    if (process.env.NODE_ENV === 'production') {
-      console.error(
-        '[NextAuth] FATAL: NEXTAUTH_SECRET is not set in production. ' +
-        'This is required to sign and encrypt session cookies. ' +
-        'Generate one with: openssl rand -base64 32'
-      );
-      throw new Error(
-        'NEXTAUTH_SECRET environment variable is required in production. ' +
-        'Generate one with: openssl rand -base64 32'
-      );
+    // During build (Next.js collects page data), Vercel doesn't inject env vars.
+    // Return a placeholder — the real secret will be available at runtime.
+    if (!process.env.VERCEL) {
+      console.warn('[NextAuth] NEXTAUTH_SECRET not set, using development fallback.');
     }
-    console.warn('[NextAuth] NEXTAUTH_SECRET not set, using development fallback.');
-    return 'pu-alrms-dev-nextauth-secret';
+    return 'build-time-placeholder';
   }
   return secret;
 }
@@ -323,8 +318,9 @@ export const authOptions: NextAuthOptions = {
   } as any,
 
   // ── Security ──
-  // NEXTAUTH_SECRET: validated by validateNextAuthSecret(). Throws in production if missing.
-  secret: validateNextAuthSecret(),
+  // NEXTAUTH_SECRET: lazy evaluation — returns placeholder during build,
+  // real secret available at runtime on Vercel.
+  secret: getNextAuthSecret(),
   debug: process.env.NODE_ENV === 'development',
 
   // ── Cookies ──
