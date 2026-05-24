@@ -1,7 +1,7 @@
 /**
- * NextAuth.js Configuration for PU-ALRMS (Postgres Edition)
+ * NextAuth.js Configuration for PU-ALRMS
  *
- * Implements Google OAuth with full Postgres database integration.
+ * Implements Google OAuth with database integration (SQLite / Turso LibSQL).
  * Bridges NextAuth sessions with the existing custom JWT system.
  *
  * Key Features:

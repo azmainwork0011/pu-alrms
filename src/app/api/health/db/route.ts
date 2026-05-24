@@ -2,25 +2,34 @@
  * Database Health Check Endpoint
  *
  * Probes whether the database is reachable and functional.
- * Used by the frontend to toggle feature availability.
+ * Works with both local SQLite and Turso LibSQL.
  *
  * Response:
- *   { ok: true,  latency: "12ms" }       — DB is connected
- *   { ok: false, error: "..." }           — DB is unavailable
+ *   { ok: true, mode: "sqlite"|"libsql", latency: "12ms" }
+ *   { ok: false, error: "..." }
  */
 import { NextResponse } from 'next/server';
 
 export async function GET() {
   const start = Date.now();
   try {
-    const { db } = await import('@/lib/db');
-    // Run a lightweight query to verify database connectivity
+    const { db, getDbMode } = await import('@/lib/db');
+
+    // SELECT 1 works on both SQLite and LibSQL
     await db.$queryRaw`SELECT 1`;
+
     const latency = Date.now() - start;
-    return NextResponse.json({ ok: true, latency: `${latency}ms` });
+    const mode = getDbMode();
+
+    return NextResponse.json({
+      ok: true,
+      mode,
+      latency: `${latency}ms`,
+    });
   } catch (err: any) {
     const msg = err?.message || String(err);
-    // Don't expose internal errors to the client
+    // Log internally but don't expose details to client
+    console.error('[DB Health] Check failed:', msg);
     return NextResponse.json(
       { ok: false, error: 'Database is not configured or unreachable' },
       { status: 503 },
