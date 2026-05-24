@@ -146,18 +146,19 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, account, profile, user }) {
       // Only process on first sign-in (when account exists)
       if (account && profile) {
+        const googleId = account.providerAccountId;
+        const email = (profile.email || user.email || '').toLowerCase().trim();
+        const name = profile.name || user.name || 'Google User';
+        const avatar = (profile as any).picture || user.image || null;
+
+        if (!email) {
+          console.error('[NextAuth] No email available from Google profile');
+          return token;
+        }
+
         try {
+          // ── Try database path (full user creation/linking) ──
           const { db } = await import('./db');
-
-          const googleId = account.providerAccountId;
-          const email = (profile.email || user.email || '').toLowerCase().trim();
-          const name = profile.name || user.name || 'Google User';
-          const avatar = (profile as any).picture || user.image || null;
-
-          if (!email) {
-            console.error('[NextAuth] No email available from Google profile');
-            return token;
-          }
 
           let dbUser;
           let isNewUser = false;
@@ -166,19 +167,14 @@ export const authOptions: NextAuthOptions = {
           dbUser = await db.user.findUnique({ where: { googleId } });
 
           if (dbUser) {
-            // Check account status
             if (dbUser.status === 'BANNED') {
-              console.warn(`[NextAuth] Banned user attempted login: ${email}`);
               token.error = 'ACCOUNT_BANNED';
               return token;
             }
             if (dbUser.status === 'SUSPENDED') {
-              console.warn(`[NextAuth] Suspended user attempted login: ${email}`);
               token.error = 'ACCOUNT_SUSPENDED';
               return token;
             }
-
-            // Update last login and avatar
             await db.user.update({
               where: { id: dbUser.id },
               data: {
@@ -187,41 +183,24 @@ export const authOptions: NextAuthOptions = {
               },
             });
           } else {
-            // 2. Check if email already exists with a different provider
             const existingByEmail = await db.user.findUnique({ where: { email } });
-
             if (existingByEmail) {
-              // Link Google account to existing email account
               dbUser = await db.user.update({
                 where: { id: existingByEmail.id },
-                data: {
-                  googleId,
-                  authProvider: 'GOOGLE',
-                  lastLogin: new Date(),
-                  ...(avatar ? { avatar } : {}),
-                },
+                data: { googleId, authProvider: 'GOOGLE', lastLogin: new Date(), ...(avatar ? { avatar } : {}) },
               });
             } else {
-              // 3. Create new user
               isNewUser = true;
               dbUser = await db.user.create({
                 data: {
-                  email,
-                  name,
-                  password: '',
-                  role: 'STUDENT',
-                  authProvider: 'GOOGLE',
-                  googleId,
-                  avatar:
-                    avatar ||
-                    `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=059669`,
+                  email, name, password: '', role: 'STUDENT', authProvider: 'GOOGLE', googleId,
+                  avatar: avatar || `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=059669`,
                   lastLogin: new Date(),
                 },
               });
             }
           }
 
-          // Sign our custom JWT (compatible with existing system)
           const jwtPayload: JWTPayload = {
             userId: dbUser.id,
             email: dbUser.email,
@@ -230,7 +209,6 @@ export const authOptions: NextAuthOptions = {
           };
           const customJwt = signToken(jwtPayload);
 
-          // Embed everything in the NextAuth token
           token.customJwt = customJwt;
           token.userId = dbUser.id;
           token.email = dbUser.email;
@@ -239,13 +217,38 @@ export const authOptions: NextAuthOptions = {
           token.isNewUser = isNewUser || !dbUser.batch;
           token.avatar = dbUser.avatar;
           token.authProvider = 'GOOGLE';
-          token.sub = dbUser.id; // NextAuth standard
-          token.error = undefined; // Clear any previous errors
+          token.sub = dbUser.id;
+          token.error = undefined;
+          token.dbMode = 'full';
 
-          console.log(`[NextAuth] Google login successful: ${email} (${dbUser.role})`);
-        } catch (error) {
-          console.error('[NextAuth] Error during JWT callback:', error);
-          token.error = 'INTERNAL_ERROR';
+          console.log(`[NextAuth] Google login successful (DB): ${email} (${dbUser.role})`);
+        } catch (dbError) {
+          // ── Fallback: No database available (e.g. Vercel without DB) ──
+          // Create session from Google profile data directly
+          console.warn('[NextAuth] Database unavailable, using fallback auth:', dbError);
+
+          const fallbackUserId = `google_${googleId}`;
+          const jwtPayload: JWTPayload = {
+            userId: fallbackUserId,
+            email,
+            role: 'STUDENT',
+            name,
+          };
+          const customJwt = signToken(jwtPayload);
+
+          token.customJwt = customJwt;
+          token.userId = fallbackUserId;
+          token.email = email;
+          token.role = 'STUDENT';
+          token.name = name;
+          token.isNewUser = true;
+          token.avatar = avatar || `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=059669`;
+          token.authProvider = 'GOOGLE';
+          token.sub = fallbackUserId;
+          token.error = undefined;
+          token.dbMode = 'fallback';
+
+          console.log(`[NextAuth] Google login successful (fallback): ${email}`);
         }
       }
 
