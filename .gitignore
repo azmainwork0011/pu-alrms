@@ -94,4 +94,4 @@ examples/
 public/uploads/
 
 # Lock files (Vercel uses npm)
-bun.lock
+bun.lockdb/custom.db

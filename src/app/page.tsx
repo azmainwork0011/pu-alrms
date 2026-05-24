@@ -82,6 +82,7 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   AccountNotLinked: 'An account with this email already exists. Please sign in with your password first.',
   NoEmail: 'Google account has no email. Please use a different Google account.',
   AccessDenied: 'Sign-in was cancelled.',
+ DATABASE_UNAVAILABLE: 'Database is not configured. Please contact the administrator.',
   Default: 'Authentication failed. Please try again.',
 };
 
@@ -128,6 +129,12 @@ export default function Home() {
     if (sessionError === 'ACCOUNT_SUSPENDED') {
       signOut({ redirect: false }).catch(() => {}).finally(() => {
         setBridgeFailed('Your account is suspended. Contact an administrator.');
+      });
+      return;
+    }
+    if (sessionError === 'DATABASE_UNAVAILABLE') {
+      signOut({ redirect: false }).catch(() => {}).finally(() => {
+        setBridgeFailed('Database is not configured. Please contact the administrator.');
       });
       return;
     }

@@ -157,7 +157,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         try {
-          // ── Try database path (full user creation/linking) ──
+          // ── Database path: full user creation/linking ──
           const { db } = await import('./db');
 
           let dbUser;
@@ -201,6 +201,32 @@ export const authOptions: NextAuthOptions = {
             }
           }
 
+          // After user is created/linked, create Account record for NextAuth
+          await db.account.upsert({
+            where: {
+              provider_providerAccountId: {
+                provider: 'google',
+                providerAccountId: googleId,
+              },
+            },
+            create: {
+              userId: dbUser.id,
+              type: 'oauth',
+              provider: 'google',
+              providerAccountId: googleId,
+              access_token: account.access_token,
+              token_type: account.token_type,
+              scope: account.scope,
+              id_token: account.id_token,
+            },
+            update: {
+              access_token: account.access_token,
+              token_type: account.token_type,
+              scope: account.scope,
+              id_token: account.id_token,
+            },
+          });
+
           const jwtPayload: JWTPayload = {
             userId: dbUser.id,
             email: dbUser.email,
@@ -219,36 +245,13 @@ export const authOptions: NextAuthOptions = {
           token.authProvider = 'GOOGLE';
           token.sub = dbUser.id;
           token.error = undefined;
-          token.dbMode = 'full';
 
           console.log(`[NextAuth] Google login successful (DB): ${email} (${dbUser.role})`);
         } catch (dbError) {
-          // ── Fallback: No database available (e.g. Vercel without DB) ──
-          // Create session from Google profile data directly
-          console.warn('[NextAuth] Database unavailable, using fallback auth:', dbError);
-
-          const fallbackUserId = `google_${googleId}`;
-          const jwtPayload: JWTPayload = {
-            userId: fallbackUserId,
-            email,
-            role: 'STUDENT',
-            name,
-          };
-          const customJwt = signToken(jwtPayload);
-
-          token.customJwt = customJwt;
-          token.userId = fallbackUserId;
-          token.email = email;
-          token.role = 'STUDENT';
-          token.name = name;
-          token.isNewUser = true;
-          token.avatar = avatar || `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=059669`;
-          token.authProvider = 'GOOGLE';
-          token.sub = fallbackUserId;
-          token.error = undefined;
-          token.dbMode = 'fallback';
-
-          console.log(`[NextAuth] Google login successful (fallback): ${email}`);
+          // ── Database unavailable ──
+          // Return error so the frontend can show a proper message
+          console.error('[NextAuth] Database unavailable:', dbError);
+          token.error = 'DATABASE_UNAVAILABLE';
         }
       }
 

@@ -76,3 +76,29 @@ Stage Summary:
 - middleware.ts: NextAuth routes explicitly bypass security headers (CORS only)
 - .env.example: clear REQUIRED labels and production deployment guidance
 - All ESLint checks pass
+
+---
+Task ID: auth-db-production-fix
+Agent: general-purpose
+Task: Complete Google auth fix + Turso DB setup for Vercel
+
+Work Log:
+- Updated src/lib/db.ts with Turso libSQL adapter support (conditional require, fallback to standard PrismaClient)
+- Added Account model to prisma/schema.prisma for NextAuth OAuth account linking
+- Added accounts Account[] relation to User model
+- Fixed auth.ts JWT callback to create Account records via upsert after user creation/linking
+- Removed no-DB fallback mode from auth.ts; replaced with DATABASE_UNAVAILABLE error
+- Removed dbMode from token (no longer tracking fallback vs full mode)
+- Updated page.tsx OAuth bridge with DATABASE_UNAVAILABLE error handling
+- Added DATABASE_UNAVAILABLE to OAUTH_ERROR_MESSAGES map
+- Updated package.json: build script runs prisma generate, added postinstall, db:studio, db:seed, vercel-build scripts
+- Created prisma/seed.ts for Super Admin seeding via SUPER_ADMIN_EMAIL env var
+- Updated .env.example with all variables including DATABASE_AUTH_TOKEN, SUPER_ADMIN_EMAIL
+- Ran prisma generate + db push successfully (schema synced, Account table created)
+- Ran lint — all checks pass with zero errors
+
+Stage Summary:
+- Database: Turso-ready via libSQL adapter (works with file: SQLite locally)
+- Auth: Google OAuth complete with account linking, no duplicates, DATABASE_UNAVAILABLE error for missing DB
+- Build: Vercel-compatible scripts (postinstall, vercel-build)
+- Seed: SUPER_ADMIN_EMAIL env var support via prisma/seed.ts
