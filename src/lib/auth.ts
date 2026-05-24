@@ -1,18 +1,26 @@
 /**
- * NextAuth.js Configuration for PU-ALRMS
+ * NextAuth.js Configuration for PU-ALRMS (Postgres Edition)
  *
- * Implements Google OAuth with full database integration.
+ * Implements Google OAuth with full Postgres database integration.
  * Bridges NextAuth sessions with the existing custom JWT system.
  *
- * Strategy:
+ * Key Features:
  * - Google OAuth flow via NextAuth's GoogleProvider
- * - JWT session strategy (not database sessions)
+ * - JWT session strategy (not database sessions — works in serverless)
  * - Custom JWT embedded in NextAuth token for seamless Zustand integration
  * - User creation/linking handled in JWT callback
+ * - SUPER_ADMIN role assigned via SUPER_ADMIN_EMAIL env var
  * - Existing email/password auth remains untouched
+ * - Graceful error handling for database unavailability
+ *
+ * Role Assignment:
+ * - First-time Google sign-up → STUDENT (unless SUPER_ADMIN_EMAIL matches)
+ * - SUPER_ADMIN_EMAIL env → grants SUPER_ADMIN role on match
+ * - Existing users keep their role
+ * - Banned/Suspended users are rejected
  */
 
-import type { NextAuthOptions, Session } from 'next-auth';
+import type { NextAuthOptions } from 'next-auth';
 import type { JWT } from 'next-auth/jwt';
 import GoogleProvider from 'next-auth/providers/google';
 import { signToken, type JWTPayload } from './jwt';
@@ -26,6 +34,7 @@ declare module 'next-auth' {
     authProvider?: string;
     role?: string;
     avatar?: string;
+    error?: string;
   }
 
   interface User {
@@ -42,44 +51,40 @@ declare module 'next-auth/jwt' {
     authProvider?: string;
     role?: string;
     avatar?: string;
+    email?: string;
+    name?: string;
+    error?: string;
   }
 }
 
-// ─── Helper: Environment variable validation ────────────────
-function getEnvVar(name: string, required = true): string {
-  const value = process.env[name];
-  if (required && !value) {
-    if (process.env.NODE_ENV === 'production') {
-      console.error(`[NextAuth] FATAL: ${name} is required in production but is not set. Aborting Google OAuth provider registration.`);
-      return '';
-    }
-    console.warn(`[NextAuth] ${name} is not set. Google OAuth will be disabled.`);
-  }
-  return value || '';
-}
-
-// ─── Get NEXTAUTH_SECRET with production validation ──────────
-// Note: In Vercel, env vars are available at runtime but NOT during build.
+// ─── Helper: Get NEXTAUTH_SECRET ────────────────────────────
+// In Vercel, env vars are available at runtime but NOT during build.
 // So we only validate/throw at runtime, not at module evaluation time.
 function getNextAuthSecret(): string {
   const secret = process.env.NEXTAUTH_SECRET;
   if (!secret) {
-    // During build (Next.js collects page data), Vercel doesn't inject env vars.
-    // Return a placeholder — the real secret will be available at runtime.
     if (!process.env.VERCEL) {
       console.warn('[NextAuth] NEXTAUTH_SECRET not set, using development fallback.');
     }
-    return 'build-time-placeholder';
+    // Return a placeholder for build time — real secret available at runtime
+    return 'build-time-placeholder-do-not-use-in-production';
   }
   return secret;
+}
+
+// ─── Helper: Determine role for new Google users ────────────
+function getRoleForNewUser(email: string): string {
+  const superAdminEmail = process.env.SUPER_ADMIN_EMAIL?.toLowerCase().trim();
+  if (superAdminEmail && email.toLowerCase().trim() === superAdminEmail) {
+    console.log(`[NextAuth] Granting SUPER_ADMIN role to: ${email}`);
+    return 'SUPER_ADMIN';
+  }
+  return 'STUDENT';
 }
 
 // ─── NextAuth Configuration ─────────────────────────────────
 export const authOptions: NextAuthOptions = {
   // ── Providers ──
-  // In production, Google OAuth requires both GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.
-  // If either is missing, the Google provider is NOT registered to prevent
-  // confusing NextAuth errors from empty credentials.
   providers: (() => {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -88,11 +93,11 @@ export const authOptions: NextAuthOptions = {
       if (process.env.NODE_ENV === 'production') {
         console.error(
           '[NextAuth] Google OAuth is disabled: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing. ' +
-          'Google sign-in will NOT be available. Set both variables in your environment.'
+          'Google sign-in will NOT be available.'
         );
       } else {
         console.warn(
-          '[NextAuth] Google OAuth is disabled: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing. ' +
+          '[NextAuth] Google OAuth is disabled: missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET. ' +
           'Set both in .env.local to enable Google sign-in.'
         );
       }
@@ -117,10 +122,10 @@ export const authOptions: NextAuthOptions = {
   // ── Callbacks ──
   callbacks: {
     /**
-     * signIn callback — runs before JWT creation.
-     * Validates that the user can sign in.
+     * signIn callback — validates the user can sign in.
+     * Runs before JWT creation.
      */
-    async signIn({ user, account, profile }) {
+    async signIn({ user, account }) {
       // Only allow Google provider
       if (account?.provider !== 'google') return false;
 
@@ -130,9 +135,9 @@ export const authOptions: NextAuthOptions = {
         return '/?error=NoEmail';
       }
 
-      // Google OAuth must be configured (no dev fallback in production)
+      // Google OAuth must be configured
       if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-        console.error('[NextAuth] Google OAuth not configured (missing CLIENT_ID or CLIENT_SECRET)');
+        console.error('[NextAuth] Google OAuth not configured');
         return '/?error=Configuration';
       }
 
@@ -149,17 +154,16 @@ export const authOptions: NextAuthOptions = {
         const googleId = account.providerAccountId;
         const email = (profile.email || user.email || '').toLowerCase().trim();
         const name = profile.name || user.name || 'Google User';
-        const avatar = (profile as any).picture || user.image || null;
+        const avatar = (profile as Record<string, unknown>).picture as string || user.image || null;
 
         if (!email) {
           console.error('[NextAuth] No email available from Google profile');
+          token.error = 'NO_EMAIL';
           return token;
         }
 
         try {
-          // ── Database path: full user creation/linking ──
           const { db } = await import('./db');
-
           let dbUser;
           let isNewUser = false;
 
@@ -167,6 +171,7 @@ export const authOptions: NextAuthOptions = {
           dbUser = await db.user.findUnique({ where: { googleId } });
 
           if (dbUser) {
+            // Existing Google user — check status
             if (dbUser.status === 'BANNED') {
               token.error = 'ACCOUNT_BANNED';
               return token;
@@ -175,6 +180,8 @@ export const authOptions: NextAuthOptions = {
               token.error = 'ACCOUNT_SUSPENDED';
               return token;
             }
+
+            // Update last login and avatar if changed
             await db.user.update({
               where: { id: dbUser.id },
               data: {
@@ -183,25 +190,43 @@ export const authOptions: NextAuthOptions = {
               },
             });
           } else {
+            // 2. Check if user exists with this email (account linking)
             const existingByEmail = await db.user.findUnique({ where: { email } });
+
             if (existingByEmail) {
+              // Link Google account to existing user
               dbUser = await db.user.update({
                 where: { id: existingByEmail.id },
-                data: { googleId, authProvider: 'GOOGLE', lastLogin: new Date(), ...(avatar ? { avatar } : {}) },
+                data: {
+                  googleId,
+                  authProvider: 'GOOGLE',
+                  lastLogin: new Date(),
+                  ...(avatar && !existingByEmail.avatar ? { avatar } : {}),
+                },
               });
+              console.log(`[NextAuth] Linked Google account to existing user: ${email}`);
             } else {
+              // 3. Create new user
               isNewUser = true;
+              const role = getRoleForNewUser(email);
               dbUser = await db.user.create({
                 data: {
-                  email, name, password: '', role: 'STUDENT', authProvider: 'GOOGLE', googleId,
+                  email,
+                  name,
+                  password: '', // No password for OAuth users
+                  role,
+                  authProvider: 'GOOGLE',
+                  googleId,
                   avatar: avatar || `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=059669`,
+                  verified: role === 'SUPER_ADMIN',
                   lastLogin: new Date(),
                 },
               });
+              console.log(`[NextAuth] Created new Google user: ${email} (${role})`);
             }
           }
 
-          // After user is created/linked, create Account record for NextAuth
+          // 4. Create/update NextAuth Account record
           await db.account.upsert({
             where: {
               provider_providerAccountId: {
@@ -227,6 +252,7 @@ export const authOptions: NextAuthOptions = {
             },
           });
 
+          // 5. Build custom JWT payload
           const jwtPayload: JWTPayload = {
             userId: dbUser.id,
             email: dbUser.email,
@@ -235,6 +261,7 @@ export const authOptions: NextAuthOptions = {
           };
           const customJwt = signToken(jwtPayload);
 
+          // 6. Embed everything in NextAuth JWT
           token.customJwt = customJwt;
           token.userId = dbUser.id;
           token.email = dbUser.email;
@@ -246,11 +273,9 @@ export const authOptions: NextAuthOptions = {
           token.sub = dbUser.id;
           token.error = undefined;
 
-          console.log(`[NextAuth] Google login successful (DB): ${email} (${dbUser.role})`);
+          console.log(`[NextAuth] Google login successful: ${email} (${dbUser.role})`);
         } catch (dbError) {
-          // ── Database unavailable ──
-          // Return error so the frontend can show a proper message
-          console.error('[NextAuth] Database unavailable:', dbError);
+          console.error('[NextAuth] Database error during Google login:', dbError);
           token.error = 'DATABASE_UNAVAILABLE';
         }
       }
@@ -259,9 +284,9 @@ export const authOptions: NextAuthOptions = {
     },
 
     /**
-     * Session callback — exposes our custom data to the client.
+     * Session callback — exposes custom data to the client.
      */
-    async session({ session, token }): Promise<any> {
+    async session({ session, token }) {
       // Pass through error state
       if (token.error) {
         return { ...session, error: token.error };
@@ -300,32 +325,25 @@ export const authOptions: NextAuthOptions = {
 
   // ── Events ──
   events: {
-    /**
-     * Handle NextAuth sign-in/sign-out errors gracefully.
-     * Redirects to our custom AuthPage with an error query parameter.
-     */
-    async linkAccount({ profile, account, user }) {
-      // This event fires on first OAuth login. We handle user creation
-      // in the JWT callback, so we just let it pass through.
+    async linkAccount() {
+      // Account linking handled in JWT callback — pass through
     },
-    async signInError({ error }) {
+    async signInError({ error }: { error: string }) {
       const errorMap: Record<string, string> = {
-        OAuthSignin: 'Error=Configuration',
-        OAuthCallback: 'Error=Callback',
-        OAuthCreateAccount: 'Error=CreateAccount',
-        OAuthAccountNotLinked: 'Error=AccountNotLinked',
-        EmailSignin: 'Error=EmailSignin',
-        CredentialsSignin: 'Error=InvalidCredentials',
-        SessionRequired: 'Error=SessionRequired',
-        Default: 'Error=Default',
+        OAuthSignin: 'Configuration',
+        OAuthCallback: 'Callback',
+        OAuthCreateAccount: 'CreateAccount',
+        OAuthAccountNotLinked: 'AccountNotLinked',
+        EmailSignin: 'EmailSignin',
+        CredentialsSignin: 'InvalidCredentials',
+        SessionRequired: 'SessionRequired',
+        Default: 'Unknown',
       };
-      return `/?${errorMap[error] || 'Error=Unknown'}`;
+      return `/?error=${errorMap[error] || 'Unknown'}`;
     },
   } as any,
 
   // ── Security ──
-  // NEXTAUTH_SECRET: lazy evaluation — returns placeholder during build,
-  // real secret available at runtime on Vercel.
   secret: getNextAuthSecret(),
   debug: process.env.NODE_ENV === 'development',
 

@@ -14,7 +14,7 @@ export async function GET() {
   const start = Date.now();
   try {
     const { db } = await import('@/lib/db');
-    // Run a lightweight query (SQLite: SELECT 1 is a no-op)
+    // Run a lightweight query to verify database connectivity
     await db.$queryRaw`SELECT 1`;
     const latency = Date.now() - start;
     return NextResponse.json({ ok: true, latency: `${latency}ms` });

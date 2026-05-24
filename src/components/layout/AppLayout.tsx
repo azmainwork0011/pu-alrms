@@ -382,7 +382,7 @@ export default function AppLayout() {
                       </span>
                     </TooltipTrigger>
                     <TooltipContent className="text-xs max-w-[200px]">
-                      Database is not connected. Some features are disabled. Ask your admin to configure Turso DB.
+                      Database is not connected. Some features are disabled. Ask your admin to configure the database.
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>

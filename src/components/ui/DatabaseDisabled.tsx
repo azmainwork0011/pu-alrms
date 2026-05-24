@@ -59,7 +59,7 @@ export function DatabaseDisabled({ reason }: { reason?: string }) {
 
         {/* Tip */}
         <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-6">
-          Ask your administrator to configure the database (Turso/SQLite).
+          Ask your administrator to configure the database (Postgres/Neon).
         </p>
       </motion.div>
     </div>
