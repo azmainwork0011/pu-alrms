@@ -25,7 +25,8 @@ import AssignmentsPage from '@/components/pages/AssignmentsPage';
 import AssignmentDetailPage from '@/components/pages/AssignmentDetailPage';
 import CreateAssignmentPage from '@/components/pages/CreateAssignmentPage';
 import SubmissionsPage from '@/components/pages/SubmissionsPage';
-import AIChatPage from '@/components/pages/AIChatPage';
+import AIChat from '@/components/ai/AIChat';
+import VoiceAssistant from '@/components/ai/VoiceAssistant';
 import LeaderboardPage from '@/components/pages/LeaderboardPage';
 import NotificationsPage from '@/components/pages/NotificationsPage';
 import ProfilePage from '@/components/pages/ProfilePage';
@@ -305,7 +306,7 @@ export default function AppLayout() {
       case 'create-assignment': return <CreateAssignmentPage />;
       case 'submissions': return <SubmissionsPage />;
       case 'student-tasks': return <StudentTasksPage />;
-      case 'ai-chat': return <ErrorBoundary fallbackTitle="AI Assistant encountered an error"><AIChatPage /></ErrorBoundary>;
+      case 'ai-chat': return <ErrorBoundary fallbackTitle="AI Assistant encountered an error"><AIChat user={user} /></ErrorBoundary>;
       case 'leaderboard': return <LeaderboardPage />;
       case 'notifications': return <NotificationsPage />;
       case 'profile': return <ProfilePage />;
@@ -459,6 +460,7 @@ export default function AppLayout() {
       </div>
 
       <MobileSidebar />
+      <VoiceAssistant />
     </div>
   );
 }
