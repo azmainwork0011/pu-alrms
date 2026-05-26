@@ -80,3 +80,30 @@ Stage Summary:
 - Build errors resolved: merge conflict + missing export
 - Git history cleaned: no secrets
 - Database on Vercel: still SQLite (Turso setup pending user action)
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Fix Google OAuth, RBAC Permissions, and Dashboard Accuracy
+
+Work Log:
+- Replaced broken NextAuth signIn('google') with Google Identity Services (GIS)
+- Dynamically loads accounts.google.com/gsi/client script on AuthPage mount
+- Implements One Tap popup via google.accounts.id.prompt()
+- handleGoogleCredentialResponse sends credential to POST /api/auth/google
+- Backend route updated to accept both 'credential' and 'idToken' field names
+- Error messages in Bangla + English (account exists, banned, suspended, not configured)
+- Added SUPER_ADMIN explicit bypass in hasPermission() — always returns true
+- Added CR write permissions: assignment:create, assignment:edit, announcement:create, submission:grade
+- Removed ROLES.CR from hiddenForRoles on create-assignment page
+- Added CR-specific dashboard stats (batchStudents, batchAssignments, pendingGrading)
+- Fixed audit-logger.ts to match rbac.ts AuditLogEntry interface
+- Committed and pushed to GitHub
+- Vercel build: ✅ READY
+
+Stage Summary:
+- Google OAuth: ✅ Working via Google Identity Services (GIS) One Tap
+- CR RBAC: ✅ Full write access on assignments/lab-reports
+- SUPER_ADMIN: ✅ Explicit bypass — always allowed
+- Dashboard: ✅ CR sees batch stats, Admin sees global stats
+- Vercel deployment: ✅ SUCCESS (https://pu-alrms.vercel.app)
