@@ -23,3 +23,40 @@ Stage Summary:
 - Vercel has all env vars except DATABASE_URL and DATABASE_AUTH_TOKEN (requires Turso account creation)
 - User needs to run ONE command on their machine: VERCEL_TOKEN=xxx bash scripts/setup-production-db.sh
 - Full deployment guide in DEPLOYMENT.md
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Implement Snowwe Voice Assistant for PU-ALRMS
+
+Work Log:
+- Read existing codebase: AppLayout, VoiceAssistant, /api/ai/voice, ai/router, rbac, store/app
+- Created /src/app/api/ai/voice-assistant/route.ts — Snowwe backend API
+  - DB user context injection (name, role, batch, department)
+  - Structured JSON response: { reply, navigation }
+  - SPA page navigation command extraction
+  - Uses existing chatAI router (Gemini → Groq → OpenRouter fallback)
+  - Rate limiting (30 req/min)
+  - Optional auth (works for guests too)
+- Created /src/components/ai/VoiceAssistantSnowwe.tsx — Frontend component
+  - Named identity: "Snowwe" (স্নোয়ি) with snowflake branding
+  - Initial Bangla greeting: "আসসালামু আলাইকুম, আমি PU-ALRMS থেকে স্নোয়ি বলছি।"
+  - Web Speech API for recognition (Bangla + English auto-detect)
+  - SpeechSynthesis TTS with female voice preference
+  - Floating button + expandable chat panel
+  - Animated waveform when speaking
+  - SPA navigation via Zustand setPage() (NO window.location)
+  - Conversation history display
+  - Mute/unmute, reset, re-greeting controls
+  - Auto-greeting on login (2s delay)
+- Updated AppLayout.tsx: replaced VoiceAssistant → VoiceAssistantSnowwe
+- Lint passed clean (0 new errors/warnings)
+- API tested: compiles, responds correctly, graceful fallback when AI keys not configured
+
+Stage Summary:
+- Snowwe voice assistant fully implemented (backend + frontend + integration)
+- Backend route: /api/ai/voice-assistant with DB-aware personalization
+- Frontend: VoiceAssistantSnowwe.tsx with speech recognition, TTS, chat panel
+- Integration: AppLayout.tsx updated, old VoiceAssistant replaced
+- Architecture: Uses existing AI router (Gemini→Groq→OpenRouter fallback chain)
+- Note: AI responses require GEMINI_API_KEY, GROQ_API_KEY, or OPENROUTER_API_KEY

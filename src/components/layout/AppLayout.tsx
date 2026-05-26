@@ -26,7 +26,7 @@ import AssignmentDetailPage from '@/components/pages/AssignmentDetailPage';
 import CreateAssignmentPage from '@/components/pages/CreateAssignmentPage';
 import SubmissionsPage from '@/components/pages/SubmissionsPage';
 import AIChat from '@/components/ai/AIChat';
-import VoiceAssistant from '@/components/ai/VoiceAssistant';
+import VoiceAssistantSnowwe from '@/components/ai/VoiceAssistantSnowwe';
 import LeaderboardPage from '@/components/pages/LeaderboardPage';
 import NotificationsPage from '@/components/pages/NotificationsPage';
 import ProfilePage from '@/components/pages/ProfilePage';
@@ -460,7 +460,7 @@ export default function AppLayout() {
       </div>
 
       <MobileSidebar />
-      <VoiceAssistant />
+      <VoiceAssistantSnowwe />
     </div>
   );
 }
