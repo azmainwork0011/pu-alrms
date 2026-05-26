@@ -102,10 +102,8 @@ export async function POST(req: NextRequest) {
     ];
 
     // ─── 5. Call chatAI (non-streaming for voice) ─────────
-    const abortSignal = req.signal;
     const result = await chatAI(messages, 'voice', {
       stream: false,
-      signal: abortSignal,
     });
 
     // ─── 6. Format response ───────────────────────────────
@@ -121,7 +119,7 @@ export async function POST(req: NextRequest) {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        collected += decoder.decode(value, { stream: true });
+        collected += typeof value === 'string' ? value : decoder.decode(value as BufferSource, { stream: true });
       }
       responseText = sanitizeOutput(collected);
     } else {

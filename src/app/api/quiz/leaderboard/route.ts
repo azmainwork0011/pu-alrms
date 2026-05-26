@@ -30,7 +30,11 @@ export async function GET(req: NextRequest) {
     });
 
     // Get user details for each
-    const leaderboard = [];
+    const leaderboard: Array<{
+      userId: string; name: string | null; avatar: string | null;
+      batch: string | null; department: string | null; role: string;
+      bestScore: number; bestAccuracy: number; fastestTime: number; totalQuizzes: number;
+    }> = [];
     for (const attempt of bestAttempts) {
       const user = await db.user.findUnique({
         where: { id: attempt.userId },

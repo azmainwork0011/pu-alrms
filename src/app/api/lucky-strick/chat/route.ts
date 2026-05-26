@@ -174,7 +174,7 @@ export async function POST(req: NextRequest) {
 
     // Build conversation messages
     const systemPrompt = buildSystemPrompt(effectiveSubject);
-    const messages: { role: string; content: string }[] = [
+    const messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }> = [
       { role: 'assistant', content: systemPrompt },
     ];
 

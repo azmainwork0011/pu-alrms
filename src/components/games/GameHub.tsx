@@ -11,7 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { GAMES, GAME_CATEGORIES, type GameCategory, type GameDefinition, searchGames, getGamesByCategory } from '@/lib/games-data';
+import { ALL_GAMES as GAMES, CATEGORY_INFO, type GameCategory, type GameDefinition, searchGames, getGamesByCategory } from '@/lib/games-data';
+
+// Convert Record to array for UI rendering
+const GAME_CATEGORIES = Object.entries(CATEGORY_INFO).map(([id, info]) => ({ id, ...info }));
 import { diffColors } from '@/components/games/GameShared';
 import { useAppStore } from '@/store/app';
 import { LEVEL_THRESHOLDS, getLevelForXP, getNextLevel, getTodayChallenge } from '@/lib/cq-data';
@@ -57,14 +60,14 @@ export default function GameHub({ onSelectGame }: GameHubProps) {
       </div>
 
       {/* Category Tabs */}
-      <ScrollArea className="w-full -mx-1" horizontal>
+      <ScrollArea className="w-full -mx-1">
         <Tabs value={activeCategory} onValueChange={setActiveCategory} className="w-full">
           <TabsList className="bg-gray-100 dark:bg-gray-800/50 h-auto p-1 flex-wrap w-full gap-1">
             {categories.map(cat => (
               <TabsTrigger key={cat.id} value={cat.id}
                 className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 data-[state=active]:shadow-sm px-3 py-1.5 text-xs rounded-lg">
                 <span className="mr-1">{cat.icon}</span>
-                <span className="hidden sm:inline">{cat.name}</span>
+                <span className="hidden sm:inline">{cat.label}</span>
               </TabsTrigger>
             ))}
           </TabsList>
@@ -96,7 +99,7 @@ export default function GameHub({ onSelectGame }: GameHubProps) {
                 className="overflow-hidden border border-gray-200 dark:border-gray-700/50 shadow-sm hover:shadow-lg transition-all cursor-pointer h-full group"
                 onClick={() => onSelectGame(game.id)}
               >
-                <div className={`relative h-24 sm:h-28 bg-gradient-to-br ${categories.find(c => c.id === game.category)?.color || 'from-gray-500 to-gray-600'} p-3 flex items-center justify-center`}>
+                <div className={`relative h-24 sm:h-28 bg-gradient-to-br ${CATEGORY_INFO[game.category as GameCategory]?.bgColor || 'from-gray-500 to-gray-600'} p-3 flex items-center justify-center`}>
                   <span className="text-4xl sm:text-5xl group-hover:scale-110 transition-transform">{game.icon}</span>
                   <div className="absolute top-2 right-2 flex gap-1">
                     {game.isNew && <Badge className="bg-white/90 text-[10px] px-1.5 py-0 text-emerald-700 font-bold">NEW</Badge>}

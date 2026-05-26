@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
           existing.preview = msg.content.slice(0, 100);
         }
         if (new Date(msg.createdAt) > new Date(existing.lastMessageAt)) {
-          existing.lastMessageAt = msg.createdAt;
+          existing.lastMessageAt = new Date(msg.createdAt).toISOString();
         }
       } else {
         sessionMap.set(msg.sessionId, {
@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
           subject: msg.subject,
           preview: msg.role === 'user' ? msg.content.slice(0, 100) : '',
           messageCount: 1,
-          lastMessageAt: msg.createdAt,
+          lastMessageAt: new Date(msg.createdAt).toISOString(),
           totalTokens: 0,
         });
       }

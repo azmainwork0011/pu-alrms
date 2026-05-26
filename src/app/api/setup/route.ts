@@ -71,7 +71,7 @@ export async function GET() {
       { name: 'Emma Wilson', email: 'emma@stu.pu.edu', seed: 'EW', color: 'c0392b' },
     ];
 
-    const students = [];
+    const students: Array<{ id: string; name: string; email: string; role: string; avatar: string | null }> = [];
     for (const s of studentData) {
       const student = await db.user.create({
         data: {

@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
         where: { id: payload.userId },
         select: { batch: true },
       });
-      targetBatch = user?.batch;
+      targetBatch = user?.batch ?? null;
     }
 
     const where: Record<string, unknown> = {};

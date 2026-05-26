@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        collected += decoder.decode(value, { stream: true });
+        collected += typeof value === 'string' ? value : decoder.decode(value as BufferSource, { stream: true });
       }
       rawResponse = sanitizeOutput(collected);
     }

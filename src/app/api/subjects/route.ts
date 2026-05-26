@@ -56,7 +56,8 @@ export async function POST(req: NextRequest) {
     }
 
     // Check for duplicate code
-    const existing = await db.subject.findUnique({ where: { code: code.trim().toUpperCase() } });
+    const subjectCode = String(code).trim().toUpperCase();
+    const existing = await db.subject.findFirst({ where: { code: subjectCode } });
     if (existing) {
       return NextResponse.json({ error: 'A subject with this code already exists' }, { status: 409 });
     }
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
     const subject = await db.subject.create({
       data: {
         name: name.trim(),
-        code: code.trim().toUpperCase(),
+        code: subjectCode,
         teacherId: payload.userId,
         batch: batch?.trim() || null,
       },

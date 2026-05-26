@@ -163,7 +163,7 @@ export async function GET(req: NextRequest) {
         // Total active tasks for this student's batch
         const totalTasksForBatch = await db.submissionTask.count({
           where: {
-            batch: student?.batch,
+            batch: student?.batch ?? undefined,
             status: { not: 'ARCHIVED' },
           },
         });

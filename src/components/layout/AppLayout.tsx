@@ -106,8 +106,8 @@ function SidebarNav({ onNavigate, compact = false }: { onNavigate: (page: PageVi
       {uniqueSections.map((section) => {
         const sectionItems = filtered.filter(item => item.section === section);
         return (
-          <React.Fragment key={section}>
-            {!compact && <SectionLabel label={section} />}
+          <React.Fragment key={section ?? ''}>
+            {!compact && section && <SectionLabel label={section} />}
             {sectionItems.map((item) => {
               const Icon = item.icon;
               const isActive = currentPage === item.page;
