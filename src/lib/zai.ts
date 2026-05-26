@@ -18,6 +18,18 @@ export async function getZAI(): Promise<ZAIInstance> {
 }
 
 /**
+ * Check if ZAI SDK is ready (initialized).
+ */
+export async function isZAIReady(): Promise<boolean> {
+  try {
+    await getZAI();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Reset singleton (if config changes).
  */
 export function resetZAI(): void {

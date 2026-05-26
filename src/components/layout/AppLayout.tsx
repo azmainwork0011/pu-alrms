@@ -26,7 +26,6 @@ import AssignmentDetailPage from '@/components/pages/AssignmentDetailPage';
 import CreateAssignmentPage from '@/components/pages/CreateAssignmentPage';
 import SubmissionsPage from '@/components/pages/SubmissionsPage';
 import AIChat from '@/components/ai/AIChat';
-<<<<<<< HEAD
 import VoiceAssistantSnowwe from '@/components/ai/VoiceAssistantSnowwe';
 import LeaderboardPage from '@/components/pages/LeaderboardPage';
 import NotificationsPage from '@/components/pages/NotificationsPage';
