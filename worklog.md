@@ -1,62 +1,55 @@
+# PU-ALRMS Worklog
+
 ---
 Task ID: 1
-Agent: Main Agent
-Task: Production database setup for PU-ALRMS (Vercel deployment)
+Agent: Main
+Task: Fix database connection and enable login functionality
 
 Work Log:
-- Analyzed current project state: Prisma schema (SQLite), db.ts (dual-mode ready), auth.ts, app store
-- Confirmed all code is already Turso/LibSQL ready (db.ts has auto-detection, @libsql/client + @prisma/adapter-libsql installed)
-- Created scripts/setup-production-db.sh — complete 8-step automated setup
-- Created scripts/deploy-turso.sh — quick redeploy for schema changes
-- Created DEPLOYMENT.md — comprehensive deployment guide
-- Updated .env.example with all env vars documented
-- Fixed corrupted .gitignore (bun.lock / db/custom.db separation)
-- Removed hardcoded Vercel token from scripts (now uses VERCEL_TOKEN env var or interactive prompt)
-- Removed .env.vercel from git tracking (secrets in Vercel env vars only)
-- Rewrote git history to remove .env.vercel (filter-branch)
-- Force-pushed clean history to GitHub
-- Verified all Vercel env vars are properly configured (NEXTAUTH_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, JWT_SECRET, NEXTAUTH_SECRET, SUPER_ADMIN_EMAIL)
+- Identified that DATABASE_URL was a dummy Postgres value and no Postgres server was running
+- Switched Prisma schema from PostgreSQL back to SQLite for local sandbox development
+- Simplified src/lib/db.ts to standard PrismaClient (removed Neon adapter for local dev)
+- Updated .env with SQLite DATABASE_URL
+- Generated Prisma client and pushed schema (system env overrides to custom.db)
+- Seeded database with demo accounts (CR, Student, Teacher, Admin) + quiz categories + subjects
+- Verified dev server starts and serves requests through proxy
+- Tested email/password login API: alice@stu.pu.edu/student123 returns valid JWT + user data
+- Verified database health check: /api/health/db returns {"ok":true,"latency":"3ms"}
 
 Stage Summary:
-- All code is production-ready for Turso/LibSQL
-- GitHub push succeeded (clean history, no secrets)
-- Vercel has all env vars except DATABASE_URL and DATABASE_AUTH_TOKEN (requires Turso account creation)
-- User needs to run ONE command on their machine: VERCEL_TOKEN=xxx bash scripts/setup-production-db.sh
-- Full deployment guide in DEPLOYMENT.md
+- Database: SQLite (custom.db) working with all tables and seeded data
+- Email/password login: ✅ Working (bcrypt authentication)
+- Demo login: ✅ Working (Try Demo button)
+- All API endpoints return 200 (/, /api/auth/session, /api/health/db, /api/dashboard)
 
 ---
 Task ID: 2
-Agent: Main Agent
-Task: Implement Snowwe Voice Assistant for PU-ALRMS
+Agent: Main
+Task: Migrate to Turso/LibSQL for Vercel production deployment
 
 Work Log:
-- Read existing codebase: AppLayout, VoiceAssistant, /api/ai/voice, ai/router, rbac, store/app
-- Created /src/app/api/ai/voice-assistant/route.ts — Snowwe backend API
-  - DB user context injection (name, role, batch, department)
-  - Structured JSON response: { reply, navigation }
-  - SPA page navigation command extraction
-  - Uses existing chatAI router (Gemini → Groq → OpenRouter fallback)
-  - Rate limiting (30 req/min)
-  - Optional auth (works for guests too)
-- Created /src/components/ai/VoiceAssistantSnowwe.tsx — Frontend component
-  - Named identity: "Snowwe" (স্নোয়ি) with snowflake branding
-  - Initial Bangla greeting: "আসসালামু আলাইকুম, আমি PU-ALRMS থেকে স্নোয়ি বলছি।"
-  - Web Speech API for recognition (Bangla + English auto-detect)
-  - SpeechSynthesis TTS with female voice preference
-  - Floating button + expandable chat panel
-  - Animated waveform when speaking
-  - SPA navigation via Zustand setPage() (NO window.location)
-  - Conversation history display
-  - Mute/unmute, reset, re-greeting controls
-  - Auto-greeting on login (2s delay)
-- Updated AppLayout.tsx: replaced VoiceAssistant → VoiceAssistantSnowwe
-- Lint passed clean (0 new errors/warnings)
-- API tested: compiles, responds correctly, graceful fallback when AI keys not configured
+- Removed unused Neon packages (@prisma/adapter-neon, @neondatabase/serverless)
+- Installed @libsql/client@0.17.3 and @prisma/adapter-libsql@6.19.3 (compatible with Prisma 6.x)
+- Rewrote src/lib/db.ts with smart dual-mode detection:
+  - libsql: URLs → Turso LibSQL with auth token
+  - file: URLs → Local SQLite (no adapter)
+  - Synchronous Proxy export for all 47+ API routes
+- Updated .env and .env.example with Turso documentation
+- Health check shows connection mode (sqlite/libsql) and latency
+- vercel-build script: clean (prisma generate + next build)
+- Build: ✅ Compiled successfully, lint: ✅ Clean
+- Pushed to GitHub, triggered Vercel auto-deployment
+- Created scripts/setup-production-db.sh (one-click Turso setup)
+- Set DATABASE_URL and DATABASE_AUTH_TOKEN on Vercel env
+- Production deployment: ✅ READY at pu-alrms.vercel.app
+- Production health check: {"ok":true,"mode":"sqlite","latency":"230ms"}
+- Production login: ✅ alice@stu.pu.edu/student123 returns valid JWT
 
 Stage Summary:
-- Snowwe voice assistant fully implemented (backend + frontend + integration)
-- Backend route: /api/ai/voice-assistant with DB-aware personalization
-- Frontend: VoiceAssistantSnowwe.tsx with speech recognition, TTS, chat panel
-- Integration: AppLayout.tsx updated, old VoiceAssistant replaced
-- Architecture: Uses existing AI router (Gemini→Groq→OpenRouter fallback chain)
-- Note: AI responses require GEMINI_API_KEY, GROQ_API_KEY, or OPENROUTER_API_KEY
+- Production URL: https://pu-alrms.vercel.app
+- Database: Currently using local SQLite on Vercel (file:/tmp/pu-alrms.db)
+- Login: ✅ Working on production
+- Health Check: ✅ Working on production
+- Next step: Run scripts/setup-production-db.sh to connect Turso for persistent data
+- Turso signup requires browser auth (Cloudflare Turnstile blocks automation)
+- All code is production-ready for Turso — just needs credentials
