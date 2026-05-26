@@ -3,21 +3,20 @@ import { NextRequest, NextResponse } from 'next/server';
 /**
  * Google OAuth Login (Production)
  *
- * This endpoint is now ONLY used as a backward-compatible fallback.
- * Primary Google login goes through NextAuth: signIn('google')
- *
- * This endpoint ONLY accepts real Google ID tokens for verification.
- * No mock/dev data is accepted in production.
+ * Accepts a Google ID token (from Google Identity Services) in the POST body.
+ * Field: `credential` (from GIS) or `idToken` (backward compatible).
+ * Verifies the token via Google's tokeninfo endpoint, then creates/links the user.
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { idToken } = body;
+    // Accept both `credential` (GIS) and `idToken` (legacy) field names
+    const idToken = body.credential || body.idToken;
 
     // ── Production: Only accept real Google ID tokens ──
     if (!idToken) {
       return NextResponse.json(
-        { error: 'Google ID token is required. Please use the Google sign-in button.' },
+        { error: 'Google ID token (credential) is required. Please use the Google sign-in button.' },
         { status: 400 },
       );
     }

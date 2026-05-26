@@ -142,7 +142,8 @@ export async function GET(req: NextRequest) {
         return { id: subj.id, name: subj.name, code: subj.code, teacher: subj.teacher.name, total, submitted, avg };
       });
 
-      result = {
+      // Build base student result
+      const studentResult = {
         pendingAssignments,
         submittedCount: submittedSubmissions,
         upcomingDeadlines: upcomingAssignments,
@@ -158,6 +159,36 @@ export async function GET(req: NextRequest) {
         totalSubjects: allSubjects.length,
         completionRate: allAssignments.length > 0 ? Math.round(submittedIds.length / allAssignments.length * 100) : 0,
       };
+
+      // If user is CR, add batch management stats
+      if (payload.role === 'CR') {
+        const user = await db.user.findUnique({
+          where: { id: payload.userId },
+          select: { batch: true, department: true },
+        });
+
+        if (user?.batch) {
+          const [batchStudentCount, batchAssignments, pendingSubmissions] = await Promise.all([
+            db.user.count({ where: { batch: user.batch, role: 'STUDENT' } }),
+            db.assignment.count({ where: { batch: user.batch, status: 'ACTIVE' } }),
+            db.submission.count({ where: { status: { in: ['SUBMITTED', 'LATE'] }, assignment: { batch: user.batch } } }),
+          ]);
+
+          result = {
+            ...studentResult,
+            crDashboard: {
+              batchName: user.batch,
+              batchStudents: batchStudentCount,
+              batchAssignments,
+              pendingGrading: pendingSubmissions,
+            },
+          };
+        } else {
+          result = studentResult;
+        }
+      } else {
+        result = studentResult;
+      }
     } else if (payload.role === 'TEACHER') {
       // ─── Teacher Dashboard ─────────────────────────────
       const [

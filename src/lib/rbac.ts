@@ -148,9 +148,9 @@ const ROLE_PERMISSIONS: Record<string, Permission[]> = {
     'subject:view',
   ],
   [ROLES.CR]: [
-    'assignment:view',
-    'submission:view', 'submission:create',
-    'announcement:view',
+    'assignment:view', 'assignment:create', 'assignment:edit',
+    'submission:view', 'submission:create', 'submission:grade',
+    'announcement:view', 'announcement:create',
     'chat:access', 'chat:send',
     'quiz:view', 'quiz:play',
     'profile:view', 'profile:edit',
@@ -202,6 +202,8 @@ const DEMO_BLOCKED_ENDPOINTS: string[] = [
 
 // ─── Helper: Check permission ──────────────────────────────
 export function hasPermission(role: string, permission: Permission): boolean {
+  // SUPER_ADMIN bypass — always allow everything
+  if (role === ROLES.SUPER_ADMIN) return true;
   if (ROLE_PERMISSIONS[role]) {
     return ROLE_PERMISSIONS[role].includes(permission);
   }
@@ -391,7 +393,7 @@ export const PAGE_ACCESS_RULES: PageAccessRule[] = [
   { page: 'admin-panel', requiredPermission: 'admin:access', minRole: ROLES.SUPER_ADMIN },
   { page: 'assignments', requiredPermission: 'assignment:view' },
   { page: 'lab-reports', requiredPermission: 'assignment:view' },
-  { page: 'create-assignment', requiredPermission: 'assignment:create', hiddenForRoles: [ROLES.STUDENT, ROLES.CR] },
+  { page: 'create-assignment', requiredPermission: 'assignment:create', hiddenForRoles: [ROLES.STUDENT] },
   { page: 'submissions', requiredPermission: 'submission:view' },
   { page: 'ai-chat', requiredPermission: 'ai:chat' },
   { page: 'leaderboard', requiredPermission: 'leaderboard:view', hiddenForRoles: [ROLES.TEACHER] },
