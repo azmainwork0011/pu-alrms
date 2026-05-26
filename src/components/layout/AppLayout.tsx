@@ -64,7 +64,7 @@ const navItems: {
   { page: 'quiz', label: 'Quick Quiz', icon: GraduationCap, section: 'Learning' },
   { page: 'code-quest', label: 'Learn With Game', icon: Swords, section: 'Learning' },
   { page: 'books', label: 'Digital Library', icon: BookOpen, section: 'Learning' },
-  { page: 'ai-chat', label: 'Lucky Strick AI', icon: Sparkles, demoHidden: true, section: 'Tools' },
+  { page: 'ai-chat', label: 'Gemini AI', icon: Sparkles, demoHidden: true, section: 'Tools' },
   { page: 'notifications', label: 'Notifications', icon: Bell, section: 'Account' },
   { page: 'profile', label: 'Profile', icon: UserIcon, section: 'Account' },
 ];
@@ -228,7 +228,7 @@ const pageTitles: Record<string, string> = {
   'create-assignment': 'Create Assignment',
   'submissions': 'Submissions',
   'student-tasks': 'My Tasks',
-  'ai-chat': 'Lucky Strick AI',
+  'ai-chat': 'Gemini AI',
   'leaderboard': 'Leaderboard',
   'notifications': 'Notifications',
   'profile': 'Profile',

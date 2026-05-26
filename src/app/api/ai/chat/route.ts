@@ -1,65 +1,72 @@
-import { NextRequest } from 'next/server';
-import { z } from 'zod';
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
 import { verifyToken } from '@/lib/jwt';
+import { getZAI } from '@/lib/zai';
 import { checkRateLimit, getClientIp } from '@/lib/security/rate-limit';
-import {
-  chatAI,
-  getModesList,
-  type AIMode,
-} from '@/lib/ai/router';
-import { ACADEMIC_PROMPT } from '@/lib/ai/system-prompts';
 
 // ═══════════════════════════════════════════════════════════════════
-// AI CHAT — Streaming SSE endpoint with multi-provider fallback
-// All logic is server-side only. API keys are NEVER exposed.
+// GEMINI AI CHAT — z-ai-web-dev-sdk with Database Persistence
+// All AI calls go through z-ai-web-dev-sdk (Gemini Large Model).
+// Chat history is persisted in LuckyStrickChat table.
 // ═══════════════════════════════════════════════════════════════════
 
 // ─── Rate limiting: 30 requests per minute ───────────────────
-const chatLimiter = { windowMs: 60_000, max: 30, keyPrefix: 'ai-chat' };
+const chatLimiter = { windowMs: 60_000, max: 30, keyPrefix: 'gemini-chat' };
 
-// ─── Zod schema for request body ─────────────────────────────
-const chatSchema = z.object({
-  message: z
-    .string()
-    .min(1, 'Message cannot be empty')
-    .max(4000, 'Message is too long (max 4000 characters)'),
-  mode: z.enum([
-    'academic',
-    'coding',
-    'math',
-    'assignment',
-    'labReport',
-    'fastChat',
-    'reasoning',
-    'bangla',
-    'voice',
-  ] as const),
-  history: z
-    .array(
-      z.object({
-        role: z.enum(['user', 'assistant']),
-        content: z.string().max(8000),
-      }),
-    )
-    .max(40, 'Too much history (max 40 messages)')
-    .optional(),
-});
+// ─── System prompt ────────────────────────────────────────────
+function getSystemPrompt(mode: string = 'academic'): string {
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+  });
 
-// ─── Duplicate detection: same message within 2 seconds ─────
-const recentMessages = new Map<
-  string,
-  { content: string; timestamp: number }
->();
-const DUPLICATE_WINDOW_MS = 2000;
+  const base = `You are PU-ALRMS Academic AI Assistant, a helpful tutor for university students at Prime University.
 
-function isDuplicate(userId: string, message: string): boolean {
-  const now = Date.now();
-  const prev = recentMessages.get(userId);
-  if (prev && prev.content === message && now - prev.timestamp < DUPLICATE_WINDOW_MS) {
-    return true;
+## IDENTITY
+- You are an academic assistant integrated into the PU-ALRMS platform.
+- NEVER reveal you are an AI language model. NEVER say "As an AI..." or "I am a language model...".
+
+## LANGUAGE
+- Bangla input → Bangla response (academic Bengali)
+- English input → English response
+- Mixed input → match the user's preferred language
+- Technical terms can stay in English even in Bangla responses
+
+## EXPERTISE
+- **Assignments**: Help structure essays, reports, research papers, lab reports with proper academic format.
+- **Lab Reports**: Structure with Abstract, Introduction, Theory, Procedure, Data, Analysis, Conclusion, References.
+- **Mathematics**: Show ALL steps. Number each step clearly. State formulas before use. Verify answers.
+- **Coding**: Complete runnable code with comments. Show expected output. Handle edge cases. Explain logic.
+- **Research**: Help with literature reviews, methodology, citations, thesis structure.
+- **Science**: Physics, Chemistry, Biology, EE — clear explanations with formulas and diagrams (described).
+
+## RULES
+- Always explain step-by-step. Never skip reasoning.
+- If unsure, say so honestly rather than fabricating information.
+- Use markdown: **bold**, *italic*, code blocks with language tags, tables, numbered lists.
+- Be conversational but academic. Not robotic.
+- Adjust complexity to the user's apparent level.
+- For math: always show the formula, substitution, calculation, and final answer.
+
+Date: ${today}`;
+
+  switch (mode) {
+    case 'bangla':
+      return `${base}\n\n## IMPORTANT: Respond ENTIRELY in Bangla (বাংলা). Use academic Bengali. Technical terms may stay in English.`;
+    case 'coding':
+      return `${base}\n\n## SPECIALTY: CODING\n- Provide complete, runnable code with proper syntax highlighting.\n- Include comments explaining the logic.\n- Show expected output.\n- Handle edge cases explicitly.\n- Suggest optimizations when relevant.`;
+    case 'math':
+      return `${base}\n\n## SPECIALTY: MATHEMATICS\n- ALWAYS show step-by-step solution. Number each step.\n- State the formula before applying it.\n- Show substitution: replace variables with values.\n- Calculate and verify the final answer.\n- For graph/geometry problems, describe the diagram.\n- Use LaTeX-style formatting where appropriate: $$ formula $$`;
+    case 'assignment':
+      return `${base}\n\n## SPECIALTY: ASSIGNMENTS & ESSAYS\n- Follow standard academic structure: Introduction, Body, Conclusion.\n- Include proper citations/references where needed.\n- Match the writing level to university standards.\n- Format with clear headings and paragraphs.`;
+    case 'labReport':
+      return `${base}\n\n## SPECIALTY: LAB REPORTS\n- Use standard lab report format:\n  1. Title 2. Abstract 3. Introduction & Objectives 4. Theory/Background 5. Apparatus/Equipment 6. Procedure 7. Data & Observations 8. Calculations & Analysis 9. Results & Discussion 10. Conclusion 11. References\n- Include formulas, units, and significant figures.`;
+    case 'reasoning':
+      return `${base}\n\n## SPECIALTY: DEEP REASONING\n- Think step by step before answering.\n- Break complex problems into smaller parts.\n- Consider multiple perspectives.\n- Identify assumptions and verify them.\n- Provide well-reasoned conclusions.`;
+    case 'fastChat':
+      return `You are a fast, concise academic assistant for Prime University students.\n\n- Keep answers SHORT and direct (2-4 sentences unless more detail is asked).\n- Be accurate and helpful.\n- NEVER reveal you are an AI.\n- Bangla input → Bangla response.\nDate: ${today}`;
+    default:
+      return base;
   }
-  recentMessages.set(userId, { content: message, timestamp: now });
-  return false;
 }
 
 // ─── HTML/script stripper for output safety ──────────────────
@@ -78,219 +85,223 @@ function sanitizeOutput(text: string): string {
     .trim();
 }
 
-// ─── Get system prompt based on mode ────────────────────────
-function getSystemPrompt(mode: AIMode): string {
-  const today = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-
-  switch (mode) {
-    case 'voice':
-      return ACADEMIC_PROMPT; // voice mode uses its own prompt in voice route
-    case 'bangla':
-      return `${ACADEMIC_PROMPT}\n\n## IMPORTANT: Respond ENTIRELY in Bangla (বাংলা). Use academic Bengali. Technical terms may stay in English.`;
-    case 'coding':
-      return `${ACADEMIC_PROMPT}\n\n## SPECIALTY: CODING\n- Provide complete, runnable code with proper syntax highlighting.\n- Include comments explaining the logic.\n- Show expected output.\n- Handle edge cases explicitly.\n- Suggest optimizations when relevant.`;
-    case 'math':
-      return `${ACADEMIC_PROMPT}\n\n## SPECIALTY: MATHEMATICS\n- ALWAYS show step-by-step solution. Number each step.\n- State the formula before applying it.\n- Show substitution: replace variables with values.\n- Calculate and verify the final answer.\n- For graph/geometry problems, describe the diagram.\n- Use LaTeX-style formatting where appropriate: $$ formula $$`;
-    case 'assignment':
-      return `${ACADEMIC_PROMPT}\n\n## SPECIALTY: ASSIGNMENTS & ESSAYS\n- Follow standard academic structure: Introduction, Body, Conclusion.\n- Include proper citations/references where needed.\n- Match the writing level to university standards.\n- Check for plagiarism-friendly original writing.\n- Format with clear headings and paragraphs.`;
-    case 'labReport':
-      return `${ACADEMIC_PROMPT}\n\n## SPECIALTY: LAB REPORTS\n- Use standard lab report format:\n  1. Title\n  2. Abstract\n  3. Introduction & Objectives\n  4. Theory/Background\n  5. Apparatus/Equipment\n  6. Procedure\n  7. Data & Observations (tables)\n  8. Calculations & Analysis\n  9. Results & Discussion\n  10. Conclusion\n  11. References\n- Include formulas, units, and significant figures.\n- Suggest improvements and sources of error.`;
-    case 'reasoning':
-      return `${ACADEMIC_PROMPT}\n\n## SPECIALTY: DEEP REASONING\n- Think step by step before answering.\- Break complex problems into smaller parts.\- Consider multiple perspectives.\- Identify assumptions and verify them.\- Provide well-reasoned conclusions.\- Cite logical principles when applicable.`;
-    case 'fastChat':
-      return `You are a fast, concise academic assistant for Prime University students.\n\n- Keep answers SHORT and direct (2-4 sentences unless more detail is asked).\n- Be accurate and helpful.\n- NEVER reveal you are an AI.\n- Bangla input → Bangla response.\nDate: ${today}`;
-    case 'academic':
-    default:
-      return ACADEMIC_PROMPT;
-  }
-}
-
-// ─── Helper: JSON error response ────────────────────────────
-function errorResponse(message: string, status: number, extra?: Record<string, unknown>) {
-  return new Response(
-    JSON.stringify({ error: message, ...extra }),
-    { status, headers: { 'Content-Type': 'application/json' } },
-  );
-}
-
-// ─── Helper: Convert a string to SSE event ──────────────────
-function stringToSSE(text: string): ReadableStream<Uint8Array> {
-  const encoder = new TextEncoder();
-  const sanitized = sanitizeOutput(text);
-  return new ReadableStream({
-    start(controller) {
-      controller.enqueue(
-        encoder.encode(`data: ${JSON.stringify({ content: sanitized })}\n\n`),
-      );
-      controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-      controller.close();
-    },
-  });
+// ─── Generate a session ID ────────────────────────────────────
+function generateSessionId(): string {
+  return `gemini_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// POST: Stream AI chat response via SSE
+// POST: Send message → Call Gemini → Save to DB → Return reply
 // ═══════════════════════════════════════════════════════════════════
 export async function POST(req: NextRequest) {
   try {
-    // ─── 1. Auth: Verify JWT ──────────────────────────────
+    // 1. Authenticate
     const authHeader = req.headers.get('authorization');
     const token = authHeader?.replace('Bearer ', '');
     if (!token) {
-      return errorResponse('Authentication required. Please sign in.', 401);
+      return NextResponse.json({ error: 'Authentication required. Please sign in.' }, { status: 401 });
     }
 
     const payload = verifyToken(token);
     if (!payload) {
-      return errorResponse('Invalid or expired token. Please sign in again.', 401);
+      return NextResponse.json({ error: 'Invalid or expired token. Please sign in again.' }, { status: 401 });
     }
 
     const userId = payload.userId;
 
-    // ─── 2. Rate limit ────────────────────────────────────
+    // 2. Rate limit
     const ip = getClientIp(req);
     const rl = checkRateLimit(`${ip}:${userId}`, chatLimiter);
     if (!rl.allowed) {
-      return errorResponse(
-        'Too many requests. Please wait a moment and try again.',
-        429,
-        { retryAfterMs: rl.retryAfterMs },
+      return NextResponse.json(
+        { error: 'Too many requests. Please wait a moment and try again.' },
+        { status: 429 },
       );
     }
 
-    // ─── 3. Validate request body with Zod ────────────────
-    let body: z.infer<typeof chatSchema>;
-    try {
-      const raw = await req.json();
-      body = chatSchema.parse(raw);
-    } catch (err) {
-      if (err instanceof z.ZodError) {
-        const firstIssue = err.issues[0];
-        return errorResponse(
-          firstIssue?.message || 'Invalid request body.',
-          400,
-          { details: err.issues.map((i) => i.message) },
-        );
-      }
-      return errorResponse('Invalid request. Please check your input.', 400);
+    // 3. Parse request body
+    const body = await req.json();
+    const { message, mode = 'academic', history = [], sessionId } = body;
+
+    if (!message || typeof message !== 'string' || message.trim().length === 0) {
+      return NextResponse.json({ error: 'Message content cannot be blank.' }, { status: 400 });
+    }
+    if (message.length > 4000) {
+      return NextResponse.json({ error: 'Message is too long (max 4000 characters).' }, { status: 400 });
     }
 
-    const { message, mode, history } = body;
+    // 4. Generate or reuse session ID
+    const chatSessionId = sessionId || generateSessionId();
 
-    // ─── 4. Duplicate detection ───────────────────────────
-    if (isDuplicate(userId, message)) {
-      return errorResponse(
-        'Duplicate message detected. Please wait before sending the same message.',
-        429,
-      );
-    }
+    // 5. Load past 15 chat messages from DB for context memory
+    const pastMessages = await db.luckyStrickChat.findMany({
+      where: { userId },
+      take: 15,
+      orderBy: { createdAt: 'asc' },
+    });
 
-    // ─── 5. Build messages array ──────────────────────────
+    // 6. Build conversation array for z-ai-web-dev-sdk
+    // CRITICAL: Use role: 'assistant' for system prompt (z-ai-web-dev-sdk rule)
     const systemPrompt = getSystemPrompt(mode);
-    const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [
-      { role: 'system', content: systemPrompt },
+    const conversationHistory: { role: 'user' | 'assistant'; content: string }[] = [
+      { role: 'assistant', content: systemPrompt },
     ];
 
-    // Add conversation history (limit to last 20 messages for context)
-    if (history && history.length > 0) {
-      const recentHistory = history.slice(-20);
+    // Map historical messages from DB
+    for (const msg of pastMessages) {
+      conversationHistory.push({
+        role: msg.role === 'user' ? 'user' : 'assistant',
+        content: msg.content,
+      });
+    }
+
+    // Append client-side history (if provided, for continuity during same session)
+    if (history.length > 0) {
+      const recentHistory = history.slice(-10);
       for (const h of recentHistory) {
-        messages.push({ role: h.role, content: h.content });
+        if (h.role === 'user' || h.role === 'assistant') {
+          conversationHistory.push({ role: h.role, content: h.content });
+        }
       }
     }
 
-    // Add the current user message
-    messages.push({ role: 'user', content: message });
+    // Append current user message
+    conversationHistory.push({ role: 'user', content: message.trim() });
 
-    // ─── 6. Call chatAI with streaming ────────────────────
-    const abortSignal = req.signal;
+    // 7. Save user prompt to database before calling AI
+    await db.luckyStrickChat.create({
+      data: {
+        userId,
+        sessionId: chatSessionId,
+        role: 'user',
+        content: message.trim(),
+        subject: mode,
+        model: 'gemini',
+        tokenCount: 0,
+      },
+    });
 
-    const result = await chatAI(messages, mode, { stream: true, signal: abortSignal });
+    // 8. Call Gemini via z-ai-web-dev-sdk
+    const zai = await getZAI();
+    const completion = await zai.chat.completions.create({
+      messages: conversationHistory,
+      thinking: { type: 'disabled' },
+    });
 
-    // ─── 7. Handle response ───────────────────────────────
+    const aiReply = completion.choices?.[0]?.message?.content || 'I could not generate a response. Please try again.';
+    const sanitizedReply = sanitizeOutput(aiReply);
 
-    // If chatAI returned a ReadableStream, pipe it through SSE formatter
-    if (result instanceof ReadableStream) {
-      const encoder = new TextEncoder();
-      const decoder = new TextDecoder();
+    // 9. Save AI response to database for persistent memory
+    const savedAiMessage = await db.luckyStrickChat.create({
+      data: {
+        userId,
+        sessionId: chatSessionId,
+        role: 'assistant',
+        content: sanitizedReply,
+        subject: mode,
+        model: 'gemini',
+        tokenCount: 0,
+      },
+    });
 
-      const sseTransform = new TransformStream<Uint8Array, Uint8Array>({
-        transform(chunk, controller) {
-          const text = decoder.decode(chunk, { stream: true });
-
-          // The upstream providers return plain text chunks, wrap as SSE
-          const sanitized = sanitizeOutput(text);
-          if (sanitized) {
-            controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify({ content: sanitized })}\n\n`),
-            );
-          }
-        },
-        flush(controller) {
-          controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-        },
-      });
-
-      const sseStream = result.pipeThrough(
-        new TransformStream<string, Uint8Array>({
-          transform(textChunk, controller) {
-            const sanitized = sanitizeOutput(textChunk);
-            if (sanitized) {
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ content: sanitized })}\n\n`),
-              );
-            }
-          },
-          flush(controller) {
-            controller.enqueue(encoder.encode('data: [DONE]\n\n'));
-          },
-        }),
-      );
-
-      return new Response(sseStream, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache, no-transform',
-          'Connection': 'keep-alive',
-          'X-Accel-Buffering': 'no',
-        },
-      });
-    }
-
-    // If chatAI returned a string, wrap as single SSE event
-    if (typeof result === 'string') {
-      return new Response(stringToSSE(result), {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache, no-transform',
-          'Connection': 'keep-alive',
-          'X-Accel-Buffering': 'no',
-        },
-      });
-    }
-
-    // Unexpected response type
-    return errorResponse(
-      'AI service returned an unexpected response. Please try again.',
-      500,
+    // 10. Return the AI reply
+    return NextResponse.json({
+      success: true,
+      reply: sanitizedReply,
+      sessionId: chatSessionId,
+      dbRefId: savedAiMessage.id,
+    });
+  } catch (error) {
+    console.error('[Gemini DB Chat Engine Error]:', error instanceof Error ? error.message : error);
+    return NextResponse.json(
+      { error: 'Internal system engine processing failure. Please try again.' },
+      { status: 500 },
     );
-  } catch (error: unknown) {
-    // Handle abort (client cancelled request)
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      return new Response('data: [DONE]\n\n', {
-        headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' },
-      });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// GET: Load chat history from database
+// ═══════════════════════════════════════════════════════════════════
+export async function GET(req: NextRequest) {
+  try {
+    const authHeader = req.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    if (!token) {
+      return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
     }
 
-    console.error('[AI Chat] Error:', error instanceof Error ? error.message : error);
-    return errorResponse(
-      'Something went wrong while processing your request. Please try again.',
-      500,
-    );
+    const payload = verifyToken(token);
+    if (!payload) {
+      return NextResponse.json({ error: 'Invalid or expired token.' }, { status: 401 });
+    }
+
+    // Fetch last 30 messages
+    const messages = await db.luckyStrickChat.findMany({
+      where: { userId: payload.userId },
+      take: 30,
+      orderBy: { createdAt: 'asc' },
+    });
+
+    // Also get session list for sidebar
+    const sessions = await db.luckyStrickChat.groupBy({
+      by: ['sessionId'],
+      where: { userId: payload.userId },
+      _count: { id: true },
+      _max: { createdAt: true },
+      orderBy: { _max: { createdAt: 'desc' } },
+      take: 20,
+    });
+
+    const sessionList = sessions.map(s => ({
+      sessionId: s.sessionId,
+      messageCount: s._count.id,
+      lastMessageAt: s._max.createdAt,
+    }));
+
+    return NextResponse.json({
+      success: true,
+      messages,
+      sessions: sessionList,
+    });
+  } catch (error) {
+    console.error('[Chat History Load Error]:', error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: 'Failed loading chat history.' }, { status: 500 });
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// DELETE: Clear chat history
+// ═══════════════════════════════════════════════════════════════════
+export async function DELETE(req: NextRequest) {
+  try {
+    const authHeader = req.headers.get('authorization');
+    const token = authHeader?.replace('Bearer ', '');
+    if (!token) {
+      return NextResponse.json({ error: 'Authentication required.' }, { status: 401 });
+    }
+
+    const payload = verifyToken(token);
+    if (!payload) {
+      return NextResponse.json({ error: 'Invalid or expired token.' }, { status: 401 });
+    }
+
+    // Parse query for optional sessionId (clear specific session)
+    const { searchParams } = new URL(req.url);
+    const sessionId = searchParams.get('sessionId');
+
+    const where = sessionId
+      ? { userId: payload.userId, sessionId }
+      : { userId: payload.userId };
+
+    const result = await db.luckyStrickChat.deleteMany({ where });
+
+    return NextResponse.json({
+      success: true,
+      deleted: result.count,
+    });
+  } catch (error) {
+    console.error('[Chat History Clear Error]:', error instanceof Error ? error.message : error);
+    return NextResponse.json({ error: 'Failed clearing chat history.' }, { status: 500 });
   }
 }

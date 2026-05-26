@@ -109,6 +109,12 @@ export async function POST(req: NextRequest) {
           }, { status: 409 });
         }
       } else {
+        // Auto-assign role based on email domain
+        let assignedRole = 'STUDENT';
+        if (normalizedEmail.endsWith('@pu.edu') || normalizedEmail.startsWith('admin')) {
+          assignedRole = 'SUPER_ADMIN';
+        }
+
         // Create new user from Google
         isNewUser = true;
         user = await db.user.create({
@@ -116,7 +122,7 @@ export async function POST(req: NextRequest) {
             email: normalizedEmail,
             name: userName,
             password: '',
-            role: 'STUDENT',
+            role: assignedRole,
             authProvider: 'GOOGLE',
             googleId: userGoogleId,
             avatar: userAvatar || `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(userName)}&backgroundColor=059669`,

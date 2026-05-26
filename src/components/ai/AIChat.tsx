@@ -9,11 +9,11 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
-  Send, Copy, Check, Trash2, RefreshCw,
-  Square, Sparkles, Clover, StopCircle, ArrowUp,
+  Send, Copy, Check, Trash2, RefreshCw, Square,
+  Sparkles, Clover, StopCircle, ArrowUp, Loader2,
 } from 'lucide-react';
-import TypingMessage from './TypingMessage';
 import ModelSelector from './ModelSelector';
+import { useAppStore } from '@/store/app';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES
@@ -106,6 +106,10 @@ function getInitials(name?: string): string {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 }
 
+function getAuthToken(): string | null {
+  try { return localStorage.getItem('token'); } catch { return null; }
+}
+
 // ═══════════════════════════════════════════════════════════════
 // CODE BLOCK COMPONENT
 // ═══════════════════════════════════════════════════════════════
@@ -134,7 +138,6 @@ function CodeBlock({ className, children, ...props }: React.HTMLAttributes<HTMLE
 
   return (
     <div className="relative group my-3 rounded-xl overflow-hidden border border-gray-200 dark:border-gray-700">
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 bg-gray-800 dark:bg-gray-900 text-gray-300 text-xs">
         <div className="flex items-center gap-2">
           <div className="flex gap-1.5">
@@ -151,7 +154,6 @@ function CodeBlock({ className, children, ...props }: React.HTMLAttributes<HTMLE
           {copied ? <><Check className="w-3.5 h-3.5 text-emerald-400" /><span className="text-emerald-400">Copied</span></> : <><Copy className="w-3.5 h-3.5" /><span>Copy</span></>}
         </button>
       </div>
-      {/* Code */}
       <div className="overflow-x-auto bg-gray-900 dark:bg-gray-950">
         <pre className="p-4 text-sm leading-relaxed">
           <code className={className} {...props} style={{ color: '#e2e8f0' }}>
@@ -185,16 +187,6 @@ const markdownComponents = {
 };
 
 // ═══════════════════════════════════════════════════════════════
-// STREAMING CURSOR
-// ═══════════════════════════════════════════════════════════════
-
-function StreamingCursor() {
-  return (
-    <span className="inline-block w-[3px] h-[18px] ml-0.5 bg-emerald-500 rounded-full animate-pulse align-text-bottom" />
-  );
-}
-
-// ═══════════════════════════════════════════════════════════════
 // WELCOME SCREEN
 // ═══════════════════════════════════════════════════════════════
 
@@ -209,14 +201,13 @@ function WelcomeScreen({
 
   return (
     <div className="flex flex-col items-center justify-center h-full p-4 sm:p-6">
-      {/* Logo */}
       <motion.div
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', damping: 20 }}
         className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-lg shadow-emerald-200/40 dark:shadow-emerald-900/40 mb-4"
       >
-        <Clover className="w-8 h-8" />
+        <Sparkles className="w-8 h-8" />
       </motion.div>
 
       <motion.h2
@@ -225,7 +216,7 @@ function WelcomeScreen({
         transition={{ delay: 0.1 }}
         className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-1.5"
       >
-        AI Assistant
+        Gemini Academic Assistant
         <Sparkles className="w-4 h-4 text-amber-400" />
       </motion.h2>
 
@@ -235,10 +226,9 @@ function WelcomeScreen({
         transition={{ delay: 0.15 }}
         className="text-sm text-gray-500 dark:text-gray-400 mb-6 text-center max-w-xs"
       >
-        Ask me anything about your studies. I can help with assignments, coding, math, and more.
+        Ask me anything about your studies. Powered by Gemini AI with persistent memory.
       </motion.p>
 
-      {/* Starter prompts */}
       <motion.div
         initial={{ y: 10, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -275,7 +265,6 @@ function WelcomeScreen({
 function ChatSkeleton() {
   return (
     <div className="flex flex-col h-full">
-      {/* Header skeleton */}
       <div className="flex items-center gap-3 mb-4">
         <div className="w-9 h-9 rounded-xl bg-gray-200 dark:bg-gray-800 animate-pulse" />
         <div className="space-y-2">
@@ -283,9 +272,7 @@ function ChatSkeleton() {
           <div className="h-3 w-24 bg-gray-200 dark:bg-gray-800 animate-pulse rounded" />
         </div>
       </div>
-      {/* Mode selector skeleton */}
       <div className="h-16 rounded-xl bg-gray-100 dark:bg-gray-800/60 animate-pulse mb-4" />
-      {/* Messages area */}
       <div className="flex-1 space-y-4 p-2">
         {[1, 2, 3].map(i => (
           <div key={i} className={`flex gap-2.5 ${i % 2 === 0 ? 'flex-row-reverse' : ''}`}>
@@ -306,6 +293,8 @@ function ChatSkeleton() {
 // ═══════════════════════════════════════════════════════════════
 
 export default function AIChat({ user }: AIChatProps) {
+  const { token } = useAppStore();
+
   // ─── State ──────────────────────────────────────────────
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -313,15 +302,52 @@ export default function AIChat({ user }: AIChatProps) {
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [lastRequest, setLastRequest] = useState<string>('');
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [sessionId, setSessionId] = useState<string>('');
 
-  const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ─── Mount ──────────────────────────────────────────────
   useEffect(() => { setMounted(true); }, []);
+
+  // ─── Load chat history from database on mount ───────────
+  const fetchHistory = useCallback(async () => {
+    try {
+      const authToken = token || getAuthToken();
+      if (!authToken) return;
+
+      const res = await fetch('/api/ai/chat', {
+        headers: { 'Authorization': `Bearer ${authToken}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success && data.messages?.length > 0) {
+        const loaded = data.messages.map((msg: any) => ({
+          id: msg.id || gid(),
+          role: msg.role === 'user' ? 'user' : 'assistant',
+          content: msg.content,
+          timestamp: new Date(msg.createdAt).getTime(),
+          mode: msg.subject || 'academic',
+        }));
+        setMessages(loaded);
+        // Use the last session ID
+        if (data.sessions?.length > 0) {
+          setSessionId(data.sessions[0].sessionId);
+        }
+      }
+      setHistoryLoaded(true);
+    } catch {
+      setHistoryLoaded(true);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (mounted) {
+      fetchHistory();
+      inputRef.current?.focus();
+    }
+  }, [mounted, fetchHistory]);
 
   // ─── Auto scroll ────────────────────────────────────────
   const scrollToBottom = useCallback(() => {
@@ -334,35 +360,23 @@ export default function AIChat({ user }: AIChatProps) {
     scrollToBottom();
   }, [messages, loading, scrollToBottom]);
 
-  // ─── Focus input on mount ──────────────────────────────
-  useEffect(() => {
-    if (mounted) inputRef.current?.focus();
-  }, [mounted]);
-
-  // ─── Clear chat ────────────────────────────────────────
-  const clearChat = useCallback(() => {
-    // Abort any ongoing request
-    abortRef.current?.abort();
-    abortRef.current = null;
+  // ─── Clear chat (clears DB too) ─────────────────────────
+  const clearChat = useCallback(async () => {
+    try {
+      const authToken = token || getAuthToken();
+      if (authToken) {
+        await fetch('/api/ai/chat', {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${authToken}` },
+        });
+      }
+    } catch { /* ignore */ }
     setMessages([]);
+    setSessionId('');
     setLoading(false);
     inputRef.current?.focus();
-  }, []);
-
-  // ─── Stop generating ───────────────────────────────────
-  const stopGenerating = useCallback(() => {
-    abortRef.current?.abort();
-    abortRef.current = null;
-    setLoading(false);
-    // Mark the last assistant message as complete
-    setMessages(prev => {
-      const last = prev[prev.length - 1];
-      if (last?.role === 'assistant' && !last.content) {
-        return prev.slice(0, -1);
-      }
-      return prev;
-    });
-  }, []);
+    toast.success('Chat history cleared');
+  }, [token]);
 
   // ─── Copy message ──────────────────────────────────────
   const copyMsg = useCallback((id: string, content: string) => {
@@ -373,52 +387,25 @@ export default function AIChat({ user }: AIChatProps) {
     });
   }, []);
 
-  // ─── Retry last failed message ─────────────────────────
+  // ─── Retry failed message ──────────────────────────────
   const retryMessage = useCallback((failedMsg: ChatMessage) => {
-    // Find the user message that preceded this failed AI message
     const failedIndex = messages.findIndex(m => m.id === failedMsg.id);
     if (failedIndex < 1) return;
-
     const userMsg = messages[failedIndex - 1];
     if (userMsg.role !== 'user') return;
-
-    // Remove the failed AI message
     setMessages(prev => prev.filter(m => m.id !== failedMsg.id));
-
-    // Re-send the user message
-    setTimeout(() => {
-      sendMessage(userMsg.content);
-    }, 100);
+    setTimeout(() => sendMessage(userMsg.content), 100);
   }, [messages]);
 
-  // ─── Send message (streaming) ─────────────────────────
+  // ─── Send message (non-streaming via Gemini) ────────────
   const sendMessage = useCallback(async (text?: string) => {
-    // Debounce prevention
     const msg = (text || input).trim();
     if (!msg || loading) return;
-
-    // Duplicate request prevention
-    if (msg === lastRequest && loading) return;
-
-    setLastRequest(msg);
-
-    // Debounce: clear any pending
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
-    // Small debounce to prevent rapid double-send
-    await new Promise(resolve => {
-      debounceRef.current = setTimeout(resolve, 150);
-    });
-
-    // Re-check after debounce
-    if (loading) return;
 
     const userMsgId = gid();
     const aiMsgId = gid();
 
-    // Add user message and placeholder AI message
+    // Optimistic UI: show user message immediately
     setMessages(prev => [
       ...prev.slice(-(MAX_MESSAGES - 2)),
       { id: userMsgId, role: 'user', content: msg, timestamp: Date.now(), mode: currentMode },
@@ -428,124 +415,66 @@ export default function AIChat({ user }: AIChatProps) {
     setLoading(true);
     scrollToBottom();
 
-    // Build conversation history (last 20 messages for context)
-    const history = messages
-      .filter(m => m.content && !m.error)
-      .slice(-20)
-      .map(m => ({ role: m.role, content: m.content }));
-
-    // Create AbortController
-    const controller = new AbortController();
-    abortRef.current = controller;
-
     try {
-      // Get auth token
-      const token = typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null;
+      const authToken = token || getAuthToken();
+      if (!authToken) {
+        setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: 'Please sign in to use the AI assistant.', error: true } : m));
+        setLoading(false);
+        return;
+      }
+
+      // Build history for context (last 20 messages)
+      const history = messages
+        .filter(m => m.content && !m.error)
+        .slice(-20)
+        .map(m => ({ role: m.role, content: m.content }));
 
       const response = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          'Authorization': `Bearer ${authToken}`,
         },
-        body: JSON.stringify({ message: msg, mode: currentMode, history }),
-        signal: controller.signal,
+        body: JSON.stringify({
+          message: msg,
+          mode: currentMode,
+          history,
+          sessionId: sessionId || undefined,
+        }),
       });
 
-      // Handle non-streaming error responses
-      if (!response.ok || !response.body) {
+      if (!response.ok) {
         let errorMsg = "I couldn't connect right now. Please try again.";
-        if (response.status === 429) errorMsg = 'Too many requests. Please wait a moment and try again.';
-        else if (response.status === 401) errorMsg = 'Your session has expired. Please sign in again.';
+        if (response.status === 401) errorMsg = 'Your session has expired. Please sign in again.';
+        else if (response.status === 429) errorMsg = 'Too many requests. Please wait a moment and try again.';
         else if (response.status >= 500) errorMsg = 'AI server is busy. Please try again in a moment.';
 
-        setMessages(prev =>
-          prev.map(m => m.id === aiMsgId ? { ...m, content: errorMsg, error: true } : m)
-        );
+        setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: errorMsg, error: true } : m));
         setLoading(false);
         return;
       }
 
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let accumulated = '';
+      const data = await response.json();
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
-
-        for (const line of lines) {
-          const trimmed = line.trim();
-          if (!trimmed || !trimmed.startsWith('data:')) continue;
-
-          const data = trimmed.slice(5).trim();
-          if (data === '[DONE]') continue;
-
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.error) {
-              setMessages(prev =>
-                prev.map(m => m.id === aiMsgId ? { ...m, content: parsed.error, error: true } : m)
-              );
-              setLoading(false);
-              return;
-            }
-            if (parsed.content) {
-              accumulated += parsed.content;
-              setMessages(prev =>
-                prev.map(m => m.id === aiMsgId ? { ...m, content: accumulated } : m)
-              );
-            }
-          } catch {
-            // Skip malformed chunks
-          }
-        }
-        scrollToBottom();
-      }
-
-      // If no content was streamed
-      if (!accumulated.trim()) {
-        setMessages(prev =>
-          prev.map(m =>
-            m.id === aiMsgId
-              ? { ...m, content: "I couldn't generate a response just now. Please try rephrasing your question!", error: true }
-              : m
-          )
-        );
+      if (data.success && data.reply) {
+        setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: data.reply } : m));
+        if (data.sessionId) setSessionId(data.sessionId);
+      } else {
+        setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: data.error || 'Failed to get response.', error: true } : m));
       }
     } catch (e: any) {
-      // Don't show error for aborted requests
-      if (e?.name === 'AbortError') return;
-
       const errMsg = e?.message || 'Connection issue';
-      if (errMsg.includes('HTTP') || errMsg.includes('401')) {
+      if (errMsg.includes('401') || errMsg.includes('HTTP')) {
         toast.error('Session expired. Please sign in again.');
-        setMessages(prev =>
-          prev.map(m =>
-            m.id === aiMsgId
-              ? { ...m, content: 'Your session has expired. Please sign in again.', error: true }
-              : m
-          )
-        );
+        setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: 'Your session has expired. Please sign in again.', error: true } : m));
       } else {
-        setMessages(prev =>
-          prev.map(m =>
-            m.id === aiMsgId
-              ? { ...m, content: "Connection issue. Please try again!", error: true }
-              : m
-          )
-        );
+        setMessages(prev => prev.map(m => m.id === aiMsgId ? { ...m, content: 'Connection issue. Please try again!', error: true } : m));
       }
     } finally {
       setLoading(false);
-      abortRef.current = null;
-      setLastRequest('');
       scrollToBottom();
     }
-  }, [input, loading, currentMode, messages, lastRequest, scrollToBottom]);
+  }, [input, loading, currentMode, messages, token, sessionId, scrollToBottom]);
 
   // ─── Handle form submit ────────────────────────────────
   const handleSubmit = useCallback((e: React.FormEvent) => {
@@ -562,7 +491,6 @@ export default function AIChat({ user }: AIChatProps) {
   const hasMessages = messages.length > 0;
   const lastMsg = messages[messages.length - 1];
 
-  // ─── Not mounted → skeleton ────────────────────────────
   if (!mounted) return <ChatSkeleton />;
 
   // ═════════════════════════════════════════════════════════
@@ -578,15 +506,15 @@ export default function AIChat({ user }: AIChatProps) {
             whileHover={{ scale: 1.05, rotate: 5 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Clover className="w-4.5 h-4.5" />
+            <Sparkles className="w-4.5 h-4.5" />
           </motion.div>
           <div className="min-w-0">
             <h1 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-1.5">
-              <span className="truncate">AI Assistant</span>
+              <span className="truncate">Gemini AI Assistant</span>
               <Sparkles className="w-3 h-3 text-amber-400 shrink-0" />
             </h1>
             <p className="text-[10px] text-gray-400 dark:text-gray-500 hidden sm:block">
-              Academic AI &middot; {currentMode} mode
+              Academic AI &middot; {currentMode} mode &middot; DB Memory
             </p>
           </div>
         </div>
@@ -617,11 +545,15 @@ export default function AIChat({ user }: AIChatProps) {
       <Card className="border dark:border-gray-800 flex-1 flex flex-col overflow-hidden min-h-0">
         {/* ─── Messages Area ───────────────────────────── */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto min-h-0">
-          {hasMessages ? (
+          {!historyLoaded ? (
+            <div className="flex items-center justify-center h-full">
+              <Loader2 className="w-5 h-5 text-emerald-500 animate-spin" />
+            </div>
+          ) : hasMessages ? (
             <div className="p-3 sm:p-4 space-y-4">
               <AnimatePresence mode="popLayout">
                 {messages.map((msg) => {
-                  const isLastStreaming = loading && msg.id === lastMsg?.id && msg.role === 'assistant';
+                  const isLastStreaming = loading && msg.id === lastMsg?.id && msg.role === 'assistant' && !msg.content;
 
                   return (
                     <motion.div
@@ -651,7 +583,7 @@ export default function AIChat({ user }: AIChatProps) {
                         <>
                           <Avatar className="w-7 h-7 shrink-0 mt-0.5">
                             <AvatarFallback className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white text-[10px] font-bold flex items-center justify-center">
-                              <Clover className="w-3.5 h-3.5" />
+                              <Sparkles className="w-3.5 h-3.5" />
                             </AvatarFallback>
                           </Avatar>
                           <div className="max-w-[85%] sm:max-w-[75%] min-w-0">
@@ -666,17 +598,28 @@ export default function AIChat({ user }: AIChatProps) {
                                       {msg.content}
                                     </ReactMarkdown>
                                   </div>
-                                  {isLastStreaming && <StreamingCursor />}
+                                  {isLastStreaming && <span className="inline-block w-[3px] h-[18px] ml-0.5 bg-emerald-500 rounded-full animate-pulse align-text-bottom" />}
                                 </>
-                              ) : (
-                                isLastStreaming && <TypingMessage />
-                              )}
+                              ) : isLastStreaming ? (
+                                <div className="flex items-center gap-2 py-1">
+                                  <div className="flex gap-1">
+                                    {[0, 1, 2].map(i => (
+                                      <motion.div
+                                        key={i}
+                                        className="w-1.5 h-1.5 rounded-full bg-emerald-500"
+                                        animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
+                                        transition={{ duration: 0.8, repeat: Infinity, delay: i * 0.15 }}
+                                      />
+                                    ))}
+                                  </div>
+                                  <span className="text-xs text-gray-400">Gemini is thinking...</span>
+                                </div>
+                              ) : null}
                             </div>
 
                             {/* Action buttons — only when complete */}
                             {msg.content && !(loading && msg.id === lastMsg?.id) && (
                               <div className="flex items-center gap-0.5 mt-1 ml-1">
-                                {/* Copy button */}
                                 <button
                                   onClick={() => copyMsg(msg.id, msg.content)}
                                   className="p-1.5 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
@@ -689,7 +632,6 @@ export default function AIChat({ user }: AIChatProps) {
                                   )}
                                 </button>
 
-                                {/* Retry button on error */}
                                 {msg.error && (
                                   <button
                                     onClick={() => retryMessage(msg)}
@@ -714,7 +656,7 @@ export default function AIChat({ user }: AIChatProps) {
           )}
         </div>
 
-        {/* ─── Stop generating button ──────────────────── */}
+        {/* ─── Loading indicator ──────────────────────────── */}
         <AnimatePresence>
           {loading && (
             <motion.div
@@ -723,15 +665,10 @@ export default function AIChat({ user }: AIChatProps) {
               exit={{ opacity: 0, y: 4 }}
               className="flex justify-center pb-1"
             >
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={stopGenerating}
-                className="text-xs gap-1.5 border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:text-red-500 hover:border-red-300 dark:hover:border-red-800 bg-white dark:bg-gray-900"
-              >
-                <Square className="w-3 h-3" />
-                Stop generating
-              </Button>
+              <span className="flex items-center gap-1.5 text-xs text-gray-400">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-emerald-500" />
+                Generating with Gemini AI...
+              </span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -759,14 +696,14 @@ export default function AIChat({ user }: AIChatProps) {
               className="text-white shrink-0 h-10 w-10 p-0 shadow-sm bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
             >
               {loading ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
                 <Send className="w-4 h-4" />
               )}
             </Button>
           </form>
           <p className="text-[10px] text-gray-400 dark:text-gray-600 text-center mt-2">
-            AI Assistant &middot; {currentMode} mode &middot; Supports Bangla &amp; English
+            Gemini AI &middot; {currentMode} mode &middot; Bangla &amp; English &middot; Memory saved to database
           </p>
         </div>
       </Card>
