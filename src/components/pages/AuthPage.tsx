@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -292,26 +293,24 @@ function AuthPage({ oauthError }: { oauthError?: string | null }) {
     if (googleLoading) return;
     setError(null);
 
-    if (typeof window === 'undefined' || !window.google?.accounts?.id) {
-      setError('Google sign-in is still loading. Please wait a moment and try again.');
-      return;
-    }
-
-    if (!gisInitializedRef.current) {
-      setError('Google sign-in is not ready yet. Please wait a moment and try again.');
-      return;
-    }
-
-    setGoogleLoading(true);
-    window.google.accounts.id.prompt((notification) => {
-      if (notification.isNotDisplayed || notification.isSkipped) {
-        setGoogleLoading(false);
-        // User cancelled or popup was blocked — not an error
-        if (notification.getNotDisplayedReason?.() !== 'SUPPRESSED_BY_USER') {
-          setError('Google popup was blocked. Please allow popups and try again.');
+    // Try GIS One Tap / popup first (instant UX, no page redirect)
+    if (typeof window !== 'undefined' && window.google?.accounts?.id && gisInitializedRef.current) {
+      setGoogleLoading(true);
+      window.google.accounts.id.prompt((notification) => {
+        if (notification.isNotDisplayed || notification.isSkipped) {
+          // GIS not available on this domain → fall back to NextAuth redirect
+          setGoogleLoading(false);
+          signIn('google', { callbackUrl: '/' }).catch(() => {
+            setError('Google sign-in failed. Please check your connection and try again.');
+          });
         }
-      }
-    });
+      });
+    } else {
+      // GIS not loaded → use NextAuth redirect directly
+      signIn('google', { callbackUrl: '/' }).catch(() => {
+        setError('Google sign-in failed. Please check your connection and try again.');
+      });
+    }
   }, [googleLoading]);
 
   const handleAuthSuccess = useCallback((result: { user: any; token: string }) => {

@@ -7,6 +7,10 @@ import { NextRequest, NextResponse } from 'next/server';
  * Field: `credential` (from GIS) or `idToken` (backward compatible).
  * Verifies the token via Google's tokeninfo endpoint, then creates/links the user.
  */
+// Fallback client_id so the route never fails with 'not configured'
+const FALLBACK_GOOGLE_CLIENT_ID = '642974329571-8hi6sk6qnrh2blj8ruqcumkbpjjvsbm4.apps.googleusercontent.com';
+const ACTIVE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || FALLBACK_GOOGLE_CLIENT_ID;
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -18,13 +22,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: 'Google ID token (credential) is required. Please use the Google sign-in button.' },
         { status: 400 },
-      );
-    }
-
-    if (!process.env.GOOGLE_CLIENT_ID) {
-      return NextResponse.json(
-        { error: 'Google OAuth is not configured.' },
-        { status: 503 },
       );
     }
 
@@ -47,7 +44,8 @@ export async function POST(req: NextRequest) {
       const payload = await response.json();
 
       // Verify audience matches our client ID
-      if (payload.aud !== process.env.GOOGLE_CLIENT_ID && !payload.aud?.includes(process.env.GOOGLE_CLIENT_ID)) {
+      if (payload.aud !== ACTIVE_CLIENT_ID && !payload.aud?.includes(ACTIVE_CLIENT_ID)) {
+        console.warn('[Google Auth] Audience mismatch. Expected:', ACTIVE_CLIENT_ID, 'Got:', payload.aud);
         return NextResponse.json(
           { error: 'Google token audience mismatch.' },
           { status: 401 },
