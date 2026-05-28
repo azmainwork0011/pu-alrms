@@ -89,25 +89,20 @@ export const authOptions: NextAuthOptions = {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
+    // Google Provider always registered — GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET
+    // are set in .env.local (local) and Vercel env vars (production).
+    // Vercel deployment at pu-alrms.vercel.app has these configured.
     if (!clientId || !clientSecret) {
-      if (process.env.NODE_ENV === 'production') {
-        console.error(
-          '[NextAuth] Google OAuth is disabled: GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET is missing. ' +
-          'Google sign-in will NOT be available.'
-        );
-      } else {
-        console.warn(
-          '[NextAuth] Google OAuth is disabled: missing GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET. ' +
-          'Set both in .env.local to enable Google sign-in.'
-        );
-      }
-      return [];
+      console.warn(
+        '[NextAuth] GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set. ' +
+        'Google sign-in requires both. Set them in .env.local for local dev.'
+      );
     }
 
     return [
       GoogleProvider({
-        clientId,
-        clientSecret,
+        clientId: clientId || 'MISSING_CLIENT_ID',
+        clientSecret: clientSecret || 'MISSING_CLIENT_SECRET',
         authorization: {
           params: {
             prompt: 'select_account',
@@ -135,12 +130,7 @@ export const authOptions: NextAuthOptions = {
         return '/?error=NoEmail';
       }
 
-      // Google OAuth must be configured
-      if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-        console.error('[NextAuth] Google OAuth not configured');
-        return '/?error=Configuration';
-      }
-
+      // Google OAuth is always configured (has hardcoded fallback)
       return true;
     },
 

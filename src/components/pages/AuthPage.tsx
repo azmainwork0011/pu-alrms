@@ -214,8 +214,9 @@ function AuthPage({ oauthError }: { oauthError?: string | null }) {
     : null;
 
   // ── Google Login via Google Identity Services (GIS) ──
-  // Uses accounts.google.com/gsi/client for One Tap / popup sign-in.
+  // GIS One Tap auto-shows when domain is in GCP Console's "Authorized JavaScript Origins".
   // The credential (JWT ID token) is sent to our backend for verification.
+  // This provides instant UX (no page redirect).
 
   const handleGoogleCredentialResponse = useCallback(async (response: { credential: string }) => {
     setGoogleLoading(true);
@@ -246,7 +247,7 @@ function AuthPage({ oauthError }: { oauthError?: string | null }) {
       } else if (msg.includes('Suspended')) {
         setError('এই একাউন্ট সাসপেন্ড করা হয়েছে। অ্যাডমিনের সাথে যোগাযোগ করুন।');
       } else if (msg.includes('not configured')) {
-        setError('Google sign-in কনফিগার করা হয়নি।');
+        setError('Google sign-in কনফিগার করা হয়েছে না।');
       } else {
         setError(msg || 'Google login failed. Please try again.');
       }
@@ -257,7 +258,7 @@ function AuthPage({ oauthError }: { oauthError?: string | null }) {
 
   // Load and initialize Google Identity Services script
   useEffect(() => {
-    if (typeof window === 'undefined' || gisInitializedRef.current) return;
+    if (typeof window === 'undefined') return;
 
     const handleGoogleCredentialRef = handleGoogleCredentialResponse;
 
@@ -277,40 +278,37 @@ function AuthPage({ oauthError }: { oauthError?: string | null }) {
       }
     };
     script.onerror = () => {
-      console.error('[GIS] Failed to load Google Identity Services script.');
+      console.warn('[GIS] Failed to load Google Identity Services — signIn redirect will be used instead.');
     };
     document.head.appendChild(script);
 
-    return () => {
-      // Only remove script if it was added by this effect
-      if (script.parentNode) {
-        document.head.removeChild(script);
-      }
-    };
+    // DO NOT remove script on cleanup — it stays for the entire page lifecycle.
+    // Removing it causes gisInitializedRef to stay true while the API is gone.
+    return () => {};
   }, [handleGoogleCredentialResponse]);
 
+  // ── Google Login Button Handler ──
+  // STRATEGY: Use NextAuth signIn('google') as the PRIMARY action (page redirect).
+  // This is the most reliable method — works on ANY domain.
+  // GIS One Tap is only used as auto-enhancement (shows on page load if domain is authorized).
   const handleGoogleLogin = useCallback(() => {
     if (googleLoading) return;
     setError(null);
+    setGoogleLoading(true);
 
-    // Try GIS One Tap / popup first (instant UX, no page redirect)
-    if (typeof window !== 'undefined' && window.google?.accounts?.id && gisInitializedRef.current) {
-      setGoogleLoading(true);
-      window.google.accounts.id.prompt((notification) => {
-        if (notification.isNotDisplayed || notification.isSkipped) {
-          // GIS not available on this domain → fall back to NextAuth redirect
-          setGoogleLoading(false);
-          signIn('google', { callbackUrl: '/' }).catch(() => {
-            setError('Google sign-in failed. Please check your connection and try again.');
-          });
-        }
-      });
-    } else {
-      // GIS not loaded → use NextAuth redirect directly
-      signIn('google', { callbackUrl: '/' }).catch(() => {
-        setError('Google sign-in failed. Please check your connection and try again.');
-      });
-    }
+    // Direct NextAuth OAuth redirect — works everywhere
+    signIn('google', {
+      callbackUrl: '/',
+      redirect: true,
+    }).catch((err: any) => {
+      setGoogleLoading(false);
+      const msg = err?.message || err?.error || String(err);
+      if (msg.includes('Providers')) {
+        setError('Google sign-in কনফিগার করা হয়নি।');
+      } else {
+        setError('Google sign-in failed. Please try again.');
+      }
+    });
   }, [googleLoading]);
 
   const handleAuthSuccess = useCallback((result: { user: any; token: string }) => {

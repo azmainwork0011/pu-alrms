@@ -6,10 +6,13 @@ import { NextRequest, NextResponse } from 'next/server';
  * Accepts a Google ID token (from Google Identity Services) in the POST body.
  * Field: `credential` (from GIS) or `idToken` (backward compatible).
  * Verifies the token via Google's tokeninfo endpoint, then creates/links the user.
+ *
+ * Requires GOOGLE_CLIENT_ID env var (set in .env.local for local dev,
+ * configured in Vercel Dashboard for production).
  */
-// Fallback client_id so the route never fails with 'not configured'
-const FALLBACK_GOOGLE_CLIENT_ID = '642974329571-8hi6sk6qnrh2blj8ruqcumkbpjjvsbm4.apps.googleusercontent.com';
-const ACTIVE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || FALLBACK_GOOGLE_CLIENT_ID;
+// Active client ID for audience verification
+// GOOGLE_CLIENT_ID is set in .env.local (local) and Vercel env vars (production)
+const ACTIVE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || 'NOT_CONFIGURED';
 
 export async function POST(req: NextRequest) {
   try {

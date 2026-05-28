@@ -189,7 +189,14 @@ export default function Home() {
   if (!mounted) return <div className="min-h-screen" />;
   if (bridgeFailed) return <ErrorFallback error={new Error(bridgeFailed)} onRetry={() => { setError(null); setBridgeFailed(null); window.location.href = '/'; }} />;
   if (error) return <ErrorFallback error={error} onRetry={() => { setError(null); window.location.reload(); }} />;
-  if (nextAuthStatus === 'loading' || (!bridgeDone && nextAuthStatus === 'authenticated' && !bridgeFailed)) return <OAuthProcessing />;
+  // Only show OAuthProcessing briefly — if NextAuth authenticated but bridge
+  // didn't complete in time, check for customJwt absence and reset
+  if (nextAuthStatus === 'authenticated' && !nextAuthSession?.customJwt && !bridgeFailed) {
+    // NextAuth authenticated but has no customJwt (JWT callback may have failed)
+    // Clear the NextAuth session and show login page
+    signOut({ redirect: false }).catch(() => {});
+  }
+  if (nextAuthStatus === 'loading' || (!bridgeDone && nextAuthStatus === 'authenticated' && nextAuthSession?.customJwt)) return <OAuthProcessing />;
   if (isAuthenticated) return <AppLayout />;
   return <AuthPage oauthError={oauthError} />;
 }
