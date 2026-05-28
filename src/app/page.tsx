@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useSession, signOut } from 'next-auth/react';
 import { useAppStore, type User } from '@/store/app';
@@ -33,7 +33,7 @@ function OAuthProcessing() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setTimedOut(true);
-    }, 15_000);
+    }, 30_000);
     return () => clearTimeout(timer);
   }, []);
 
@@ -102,6 +102,7 @@ export default function Home() {
   const [oauthError] = useState<string | null>(getInitialOAuthError);
   const [bridgeDone, setBridgeDone] = useState(false);
   const [bridgeFailed, setBridgeFailed] = useState<string | null>(null);
+  const bridgeResolvingRef = useRef(false);
 
   const mounted = useAppStore((state) => state.mounted);
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
@@ -115,9 +116,11 @@ export default function Home() {
   // It must NEVER silently return without setting either flag.
   useEffect(() => {
     if (bridgeDone || bridgeFailed) return;
+    if (bridgeResolvingRef.current) return;
 
     // Not authenticated yet — NextAuth still loading or no session
     if (nextAuthStatus !== 'authenticated') return;
+    bridgeResolvingRef.current = true;
 
     // Authenticated but no session data — shouldn't happen but handle gracefully
     if (!nextAuthSession) {
@@ -204,7 +207,7 @@ export default function Home() {
 
   // Bridge failed → show error with retry button
   if (bridgeFailed) {
-    return <ErrorFallback error={new Error(bridgeFailed)} onRetry={() => { setError(null); setBridgeFailed(null); setBridgeDone(false); window.location.href = '/'; }} />;
+    return <ErrorFallback error={new Error(bridgeFailed)} onRetry={() => { setError(null); setBridgeFailed(null); setBridgeDone(false); bridgeResolvingRef.current = false; window.location.href = '/'; }} />;
   }
 
   // General error

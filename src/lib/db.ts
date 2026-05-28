@@ -77,11 +77,22 @@ async function createPrismaClient(): Promise<PrismaClient> {
 
 function createLocalClient(): PrismaClient {
   console.log('[DB] ✅ Using local SQLite')
-  return new PrismaClient({
+  const client = new PrismaClient({
     log: process.env.NODE_ENV === 'development'
       ? ['error', 'warn']
       : ['error'],
   })
+  // Ensure schema exists — safe to call multiple times (idempotent)
+  // This creates tables if they don't exist
+  if (!globalForPrisma.dbInitialized) {
+    client.$connect().then(() => {
+      console.log('[DB] SQLite connected, schema ready')
+    }).catch((err) => {
+      console.error('[DB] SQLite $connect failed:', err)
+    })
+    globalForPrisma.dbInitialized = true
+  }
+  return client
 }
 
 // ─── Lazy Initialization ─────────────────────────────────────
