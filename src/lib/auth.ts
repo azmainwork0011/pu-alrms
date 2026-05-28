@@ -152,122 +152,97 @@ export const authOptions: NextAuthOptions = {
           return token;
         }
 
+        let dbUserId = '';
+        let dbUserRole = 'STUDENT';
+        let dbUserAvatar = avatar;
+        let isNewUser = false;
+
         try {
           const { db } = await import('./db');
           let dbUser;
-          let isNewUser = false;
 
           // 1. Check if user exists with this Google ID
           dbUser = await db.user.findUnique({ where: { googleId } });
 
           if (dbUser) {
-            // Existing Google user — check status
-            if (dbUser.status === 'BANNED') {
-              token.error = 'ACCOUNT_BANNED';
-              return token;
-            }
-            if (dbUser.status === 'SUSPENDED') {
-              token.error = 'ACCOUNT_SUSPENDED';
-              return token;
-            }
+            if (dbUser.status === 'BANNED') { token.error = 'ACCOUNT_BANNED'; return token; }
+            if (dbUser.status === 'SUSPENDED') { token.error = 'ACCOUNT_SUSPENDED'; return token; }
 
-            // Update last login and avatar if changed
             await db.user.update({
               where: { id: dbUser.id },
-              data: {
-                lastLogin: new Date(),
-                ...(avatar && avatar !== dbUser.avatar ? { avatar } : {}),
-              },
+              data: { lastLogin: new Date(), ...(avatar && avatar !== dbUser.avatar ? { avatar } : {}) },
             });
+            dbUserId = dbUser.id;
+            dbUserRole = dbUser.role;
+            dbUserAvatar = dbUser.avatar || avatar;
           } else {
-            // 2. Check if user exists with this email (account linking)
             const existingByEmail = await db.user.findUnique({ where: { email } });
 
             if (existingByEmail) {
-              // Link Google account to existing user
               dbUser = await db.user.update({
                 where: { id: existingByEmail.id },
-                data: {
-                  googleId,
-                  authProvider: 'GOOGLE',
-                  lastLogin: new Date(),
-                  ...(avatar && !existingByEmail.avatar ? { avatar } : {}),
-                },
+                data: { googleId, authProvider: 'GOOGLE', lastLogin: new Date(), ...(avatar && !existingByEmail.avatar ? { avatar } : {}) },
               });
-              console.log(`[NextAuth] Linked Google account to existing user: ${email}`);
+              console.log(`[NextAuth] Linked Google account: ${email}`);
             } else {
-              // 3. Create new user
               isNewUser = true;
               const role = getRoleForNewUser(email);
               dbUser = await db.user.create({
                 data: {
-                  email,
-                  name,
-                  password: '', // No password for OAuth users
-                  role,
-                  authProvider: 'GOOGLE',
-                  googleId,
+                  email, name, password: '', role, authProvider: 'GOOGLE', googleId,
                   avatar: avatar || `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(name)}&backgroundColor=059669`,
-                  verified: role === 'SUPER_ADMIN',
-                  lastLogin: new Date(),
+                  verified: role === 'SUPER_ADMIN', lastLogin: new Date(),
                 },
               });
-              console.log(`[NextAuth] Created new Google user: ${email} (${role})`);
+              console.log(`[NextAuth] Created Google user: ${email} (${role})`);
+            }
+            dbUserId = dbUser.id;
+            dbUserRole = dbUser.role;
+            dbUserAvatar = dbUser.avatar || avatar;
+
+            // Create/update NextAuth Account record
+            try {
+              await db.account.upsert({
+                where: { provider_providerAccountId: { provider: 'google', providerAccountId: googleId } },
+                create: { userId: dbUser.id, type: 'oauth', provider: 'google', providerAccountId: googleId, access_token: account.access_token, token_type: account.token_type, scope: account.scope, id_token: account.id_token },
+                update: { access_token: account.access_token, token_type: account.token_type, scope: account.scope, id_token: account.id_token },
+              });
+            } catch (accountErr) {
+              // Account table might not exist — non-critical, user session still works
+              console.warn('[NextAuth] Account upsert failed (non-critical):', accountErr instanceof Error ? accountErr.message : accountErr);
             }
           }
-
-          // 4. Create/update NextAuth Account record
-          await db.account.upsert({
-            where: {
-              provider_providerAccountId: {
-                provider: 'google',
-                providerAccountId: googleId,
-              },
-            },
-            create: {
-              userId: dbUser.id,
-              type: 'oauth',
-              provider: 'google',
-              providerAccountId: googleId,
-              access_token: account.access_token,
-              token_type: account.token_type,
-              scope: account.scope,
-              id_token: account.id_token,
-            },
-            update: {
-              access_token: account.access_token,
-              token_type: account.token_type,
-              scope: account.scope,
-              id_token: account.id_token,
-            },
-          });
-
-          // 5. Build custom JWT payload
-          const jwtPayload: JWTPayload = {
-            userId: dbUser.id,
-            email: dbUser.email,
-            role: dbUser.role,
-            name: dbUser.name,
-          };
-          const customJwt = signToken(jwtPayload);
-
-          // 6. Embed everything in NextAuth JWT
-          token.customJwt = customJwt;
-          token.userId = dbUser.id;
-          token.email = dbUser.email;
-          token.role = dbUser.role;
-          token.name = dbUser.name;
-          token.isNewUser = isNewUser || !dbUser.batch;
-          token.avatar = dbUser.avatar;
-          token.authProvider = 'GOOGLE';
-          token.sub = dbUser.id;
-          token.error = undefined;
-
-          console.log(`[NextAuth] Google login successful: ${email} (${dbUser.role})`);
         } catch (dbError) {
-          console.error('[NextAuth] Database error during Google login:', dbError);
-          token.error = 'DATABASE_UNAVAILABLE';
+          // DB might not be available (ephemeral SQLite on Vercel)
+          // Generate a session-only user ID so the user can still log in
+          console.error('[NextAuth] DB error — creating session-only user:', dbError instanceof Error ? dbError.message : dbError);
+          dbUserId = crypto.randomUUID ? crypto.randomUUID() : `google_${googleId.slice(0, 8)}`;
+          dbUserRole = getRoleForNewUser(email);
+          dbUserAvatar = avatar;
+          isNewUser = true;
         }
+
+        // ALWAYS create a custom JWT, even if DB failed — user gets a session
+        const jwtPayload: JWTPayload = {
+          userId: dbUserId,
+          email,
+          role: dbUserRole,
+          name,
+        };
+        const customJwt = signToken(jwtPayload);
+
+        token.customJwt = customJwt;
+        token.userId = dbUserId;
+        token.email = email;
+        token.role = dbUserRole;
+        token.name = name;
+        token.isNewUser = isNewUser;
+        token.avatar = dbUserAvatar;
+        token.authProvider = 'GOOGLE';
+        token.sub = dbUserId;
+        token.error = undefined;
+
+        console.log(`[NextAuth] Google login successful: ${email} (${dbUserRole})`);
       }
 
       return token;

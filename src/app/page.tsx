@@ -110,35 +110,50 @@ export default function Home() {
   const { data: nextAuthSession, status: nextAuthStatus } = useSession();
 
   // ── Auth bridge effect ──
-  // On first render where NextAuth is authenticated and has our JWT,
-  // bridge the session into Zustand. The state flags (bridgeDone/bridgeFailed)
-  // are only set via async callbacks (.then()), never synchronously.
+  // Transfers NextAuth session data into Zustand store.
+  // CRITICAL: This effect MUST always resolve to either bridgeDone or bridgeFailed.
+  // It must NEVER silently return without setting either flag.
   useEffect(() => {
     if (bridgeDone || bridgeFailed) return;
+
+    // Not authenticated yet — NextAuth still loading or no session
     if (nextAuthStatus !== 'authenticated') return;
-    if (!nextAuthSession?.customJwt) return;
-    const jwt = nextAuthSession.customJwt;
+
+    // Authenticated but no session data — shouldn't happen but handle gracefully
+    if (!nextAuthSession) {
+      signOut({ redirect: false }).catch(() => {});
+      Promise.resolve().then(() => setBridgeFailed('Session data missing. Please try again.'));
+      return;
+    }
 
     const sessionError = (nextAuthSession as unknown as Record<string, unknown>)?.error;
-    if (sessionError === 'ACCOUNT_BANNED') {
+
+    // Handle error states from JWT callback
+    if (sessionError) {
+      const errorMessages: Record<string, string> = {
+        ACCOUNT_BANNED: 'Your account has been banned. Contact support.',
+        ACCOUNT_SUSPENDED: 'Your account is suspended. Contact an administrator.',
+        DATABASE_UNAVAILABLE: 'Database is not configured. Please contact the administrator.',
+        NO_EMAIL: 'Google account has no email. Please use a different account.',
+      };
+      const msg = errorMessages[sessionError as string] || 'Authentication failed. Please try again.';
       signOut({ redirect: false }).catch(() => {}).finally(() => {
-        setBridgeFailed('Your account has been banned. Contact support.');
-      });
-      return;
-    }
-    if (sessionError === 'ACCOUNT_SUSPENDED') {
-      signOut({ redirect: false }).catch(() => {}).finally(() => {
-        setBridgeFailed('Your account is suspended. Contact an administrator.');
-      });
-      return;
-    }
-    if (sessionError === 'DATABASE_UNAVAILABLE') {
-      signOut({ redirect: false }).catch(() => {}).finally(() => {
-        setBridgeFailed('Database is not configured. Please contact the administrator.');
+        setBridgeFailed(msg);
       });
       return;
     }
 
+    // Authenticated but no customJwt — JWT callback failed silently
+    // This means the DB operation (user create/link) failed
+    if (!nextAuthSession.customJwt) {
+      signOut({ redirect: false }).catch(() => {}).finally(() => {
+        setBridgeFailed('Authentication setup failed. Please try signing in again.');
+      });
+      return;
+    }
+
+    // Success path — bridge the session into Zustand
+    const jwt = nextAuthSession.customJwt;
     const user: User = {
       id: nextAuthSession.userId || '',
       name: nextAuthSession.user?.name || '',
@@ -148,7 +163,6 @@ export default function Home() {
       verified: false,
     };
 
-    // Use microtask to defer state updates outside the synchronous effect body
     Promise.resolve().then(() => {
       setAuth(user, jwt);
       setBridgeDone(true);
@@ -187,16 +201,23 @@ export default function Home() {
 
   // ── Render logic ──
   if (!mounted) return <div className="min-h-screen" />;
-  if (bridgeFailed) return <ErrorFallback error={new Error(bridgeFailed)} onRetry={() => { setError(null); setBridgeFailed(null); window.location.href = '/'; }} />;
-  if (error) return <ErrorFallback error={error} onRetry={() => { setError(null); window.location.reload(); }} />;
-  // Only show OAuthProcessing briefly — if NextAuth authenticated but bridge
-  // didn't complete in time, check for customJwt absence and reset
-  if (nextAuthStatus === 'authenticated' && !nextAuthSession?.customJwt && !bridgeFailed) {
-    // NextAuth authenticated but has no customJwt (JWT callback may have failed)
-    // Clear the NextAuth session and show login page
-    signOut({ redirect: false }).catch(() => {});
+
+  // Bridge failed → show error with retry button
+  if (bridgeFailed) {
+    return <ErrorFallback error={new Error(bridgeFailed)} onRetry={() => { setError(null); setBridgeFailed(null); setBridgeDone(false); window.location.href = '/'; }} />;
   }
-  if (nextAuthStatus === 'loading' || (!bridgeDone && nextAuthStatus === 'authenticated' && nextAuthSession?.customJwt)) return <OAuthProcessing />;
+
+  // General error
+  if (error) return <ErrorFallback error={error} onRetry={() => { setError(null); window.location.reload(); }} />;
+
+  // NextAuth is loading session, or authenticated but bridge not done yet
+  if (nextAuthStatus === 'loading' || (nextAuthStatus === 'authenticated' && !bridgeDone && !bridgeFailed)) {
+    return <OAuthProcessing />;
+  }
+
+  // User is authenticated in Zustand → show app
   if (isAuthenticated) return <AppLayout />;
+
+  // Not authenticated → show login page
   return <AuthPage oauthError={oauthError} />;
 }
