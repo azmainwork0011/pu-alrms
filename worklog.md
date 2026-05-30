@@ -185,3 +185,26 @@ Stage Summary:
 - Production deployment successful with updated env vars
 - URL: https://pu-alrms.vercel.app — LIVE and WORKING
 - Note: 4 duplicate projects found (prime-alrms, prime-alrms-zgp6, alrmspu, my-project) — user may want to delete these
+---
+Task ID: 1
+Agent: Main
+Task: Fix "Application error: a client-side exception has occurred" on pu-alrms.vercel.app
+
+Work Log:
+- Investigated the client-side crash on Vercel production site
+- Read and analyzed: next.config.ts, page.tsx, layout.tsx, middleware.ts, auth.ts, db.ts, store/app.ts, providers
+- Tested with agent-browser to confirm the error was reproducible on both local and production
+- Created temporary error.tsx and global-error.tsx to capture the error message
+- Deployed error boundary to Vercel and extracted the actual error: "ReferenceError: Cannot access 'ew' before initialization" in b348e49bd82c783f.js:20:8162
+- Downloaded the problematic chunk and found the exact code: `useRef(setAuth)` was called BEFORE `const { setAuth } = useAppStore()` was declared in AuthPage.tsx (lines 181-188)
+- Fixed by moving `useAppStore()` destructuring above the `useRef(setAuth)` call
+- Also fixed vercel.json (removed explicit `npm install` to let Vercel auto-detect bun)
+- Also improved next.config.ts with serverExternalPackages and turbopack resolveAlias
+- Removed debug error boundaries (error.tsx, global-error.tsx)
+- Pushed commit 25d90fc to GitHub, Vercel auto-deployed
+- Verified with agent-browser: site loads correctly, shows login page with Google/Phone/Email/Demo buttons
+
+Stage Summary:
+- **Root cause**: Temporal Dead Zone (TDZ) error in AuthPage.tsx — `useRef(setAuth)` referenced `setAuth` before its `const { setAuth } = useAppStore()` declaration
+- **Fix**: Moved `useAppStore()` destructuring above the `useRef(setAuth)` line (commit 25d90fc)
+- **Site status**: pu-alrms.vercel.app now loads correctly ✅
