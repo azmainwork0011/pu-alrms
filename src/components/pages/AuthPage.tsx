@@ -175,6 +175,11 @@ function AuthPage({ oauthError }: { oauthError?: string | null }) {
   const [otpCooldown, setOtpCooldown] = useState(0);
   const [devOtp, setDevOtp] = useState<string | null>(null);
 
+  // Zustand store — declared early so it's available to all hooks below.
+  // (Previously setAuthRef used setAuth before it was declared, causing
+  //  a ReferenceError: Cannot access 'ew' before initialization.)
+  const { setAuth, updateUser } = useAppStore();
+
   // Google state
   const [googleLoading, setGoogleLoading] = useState(false);
   const gisInitializedRef = useRef(false);
@@ -184,8 +189,6 @@ function AuthPage({ oauthError }: { oauthError?: string | null }) {
   // Profile setup state
   const [pendingSetup, setPendingSetup] = useState<PendingSetup | null>(null);
   const [setupData, setSetupData] = useState({ name: '', rollNumber: '', batch: '', department: '', section: '' });
-
-  const { setAuth, updateUser } = useAppStore();
 
   // Restore saved email & seed database
   useEffect(() => {
