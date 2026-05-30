@@ -208,3 +208,27 @@ Stage Summary:
 - **Root cause**: Temporal Dead Zone (TDZ) error in AuthPage.tsx — `useRef(setAuth)` referenced `setAuth` before its `const { setAuth } = useAppStore()` declaration
 - **Fix**: Moved `useAppStore()` destructuring above the `useRef(setAuth)` line (commit 25d90fc)
 - **Site status**: pu-alrms.vercel.app now loads correctly ✅
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Debug and fix PU-ALRMS production site - client-side exception + database connectivity
+
+Work Log:
+- Investigated the "Application error: a client-side exception has occurred" on pu-alrms.vercel.app
+- Used agent-browser to visit the live site and capture errors — discovered site WAS already working (previous fix from commit 25d90fc resolved the client-side crash)
+- Tested demo login flow — login API works, dashboard renders
+- Discovered "No DB" badges on all sidebar buttons — health/db endpoint returning 503
+- Root cause: `createLocalClient()` in db.ts called `new PrismaClient()` without overriding DATABASE_URL. On Vercel, DATABASE_URL=libsql://... but provider="sqlite" only accepts file: URLs
+- Fix 1: Changed health/db endpoint to use `initDb()` (async) instead of sync `db` proxy
+- Fix 2: In `createLocalClient()`, temporarily override `process.env.DATABASE_URL` to a local file path during PrismaClient construction, then restore the original value
+- Verified: health/db now returns `{ok: true, mode: "libsql", latency: "546ms"}`
+- Verified: Dashboard loads without "No DB" badges
+- Verified: Full site flow works (login → dashboard → all navigation)
+- Cleaned up debug info from health endpoint
+
+Stage Summary:
+- Site is fully working on production (pu-alrms.vercel.app)
+- Login page renders correctly with Google, Phone, Email, Demo options
+- Database connectivity verified (Turso LibSQL)
+- All dashboard features accessible
