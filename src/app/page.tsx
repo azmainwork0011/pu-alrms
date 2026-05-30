@@ -134,10 +134,6 @@ export default function Home() {
   // ── Hydrate on mount ──
   useEffect(() => {
     document.documentElement.classList.add('hydrated');
-    const overlayEl = document.getElementById('pu-loading-overlay');
-    if (overlayEl) {
-      setTimeout(() => { try { overlayEl.remove(); } catch {} }, 600);
-    }
     useAppStore.getState().hydrate();
   }, []);
 

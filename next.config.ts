@@ -8,19 +8,15 @@ const nextConfig: NextConfig = {
 
   // Server-only packages — never bundled into client JS.
   // Without this, the bundler may try to bundle Node.js modules
-  // (like @libsql/client, bcryptjs, jsonwebtoken) into client chunks,
-  // causing "module not found" or runtime crashes in the browser.
+  // into client chunks, causing "module not found" or runtime crashes.
   serverExternalPackages: [
     '@libsql/client',
     '@prisma/adapter-libsql',
     'bcryptjs',
     'jsonwebtoken',
+    'openai',
+    'sharp',
   ],
-
-  // IMPORTANT: Removed the problematic turbopack.resolveAlias and webpack
-  // null-loader rules that were breaking the production build.
-  // The .md file from @libsql/isomorphic-fetch is handled automatically
-  // by the serverExternalPackages configuration above.
 
   allowedDevOrigins: ['*.space.z.ai', '*.z.ai', '*.space-z.ai', '*space-z.ai*', '*space.z.ai*'],
 
