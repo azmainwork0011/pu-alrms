@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useSession, signOut } from 'next-auth/react';
 import { useAppStore, type User } from '@/store/app';
@@ -27,15 +27,17 @@ function ErrorFallback({ error, onRetry }: { error: Error; onRetry: () => void }
   );
 }
 
-function OAuthProcessing() {
+// ─── OAuth Processing Spinner ─────────────────────────────
+function OAuthProcessing({ onTimeout }: { onTimeout: () => void }) {
   const [timedOut, setTimedOut] = useState(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setTimedOut(true);
-    }, 30_000);
+      onTimeout();
+    }, 15_000); // 15 second timeout (reduced from 30s)
     return () => clearTimeout(timer);
-  }, []);
+  }, [onTimeout]);
 
   if (timedOut) {
     return (
@@ -49,7 +51,7 @@ function OAuthProcessing() {
           <h2 className="text-lg font-bold text-white mb-2">Sign-in is taking too long</h2>
           <p className="text-sm text-slate-400 mb-5">This might be a network issue.</p>
           <button
-            onClick={() => { window.location.href = '/'; }}
+            onClick={() => { signOut({ redirect: false }).finally(() => { window.location.href = '/'; }); }}
             className="px-6 py-2.5 text-white text-sm font-medium rounded-xl transition-all duration-200 hover:scale-105 active:scale-95"
             style={{ background: 'linear-gradient(135deg, #ec4899, #a855f7)', boxShadow: '0 4px 16px rgba(236,72,153,0.25)' }}
           >
@@ -82,7 +84,7 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   AccountNotLinked: 'An account with this email already exists. Please sign in with your password first.',
   NoEmail: 'Google account has no email. Please use a different Google account.',
   AccessDenied: 'Sign-in was cancelled.',
- DATABASE_UNAVAILABLE: 'Database is not configured. Please contact the administrator.',
+  DATABASE_UNAVAILABLE: 'Database is not configured. Please contact the administrator.',
   Default: 'Authentication failed. Please try again.',
 };
 
@@ -110,10 +112,51 @@ export default function Home() {
 
   const { data: nextAuthSession, status: nextAuthStatus } = useSession();
 
+  // ── Manual session fetch fallback ──
+  // If useSession() stays 'loading' for too long (network issue, cookie rejected),
+  // try a manual fetch to /api/auth/session to diagnose the issue.
+  const sessionLoadingSinceRef = useRef<number>(Date.now());
+  const manualFetchAttemptedRef = useRef(false);
+
+  useEffect(() => {
+    if (nextAuthStatus === 'loading') {
+      if (!manualFetchAttemptedRef.current && Date.now() - sessionLoadingSinceRef.current > 8000) {
+        manualFetchAttemptedRef.current = true;
+        // Try manual fetch — this will tell us if the session endpoint works at all
+        fetch('/api/auth/session')
+          .then(res => {
+            if (res.ok) {
+              // Session endpoint works — useSession hook might just be slow
+              // Force a re-render by waiting a bit more
+              console.log('[Auth] Manual session fetch succeeded, waiting for useSession...');
+            } else {
+              console.error('[Auth] Manual session fetch failed:', res.status);
+              // Session endpoint returned error — cookie is likely rejected or invalid
+              signOut({ redirect: false }).catch(() => {});
+              setBridgeFailed('Session verification failed. Please clear cookies and try again.');
+            }
+          })
+          .catch(err => {
+            console.error('[Auth] Manual session fetch error:', err);
+            setBridgeFailed('Could not verify session. Please check your connection.');
+          });
+      }
+    } else {
+      // Reset when status changes
+      sessionLoadingSinceRef.current = Date.now();
+      manualFetchAttemptedRef.current = false;
+    }
+  }, [nextAuthStatus]);
+
   // ── Auth bridge effect ──
   // Transfers NextAuth session data into Zustand store.
-  // CRITICAL: This effect MUST always resolve to either bridgeDone or bridgeFailed.
-  // It must NEVER silently return without setting either flag.
+  const onOAuthTimeout = useCallback(() => {
+    // Called by OAuthProcessing after 15s timeout
+    // This means useSession() never resolved
+    signOut({ redirect: false }).catch(() => {});
+    setBridgeFailed('Sign-in timed out. Please try again.');
+  }, []);
+
   useEffect(() => {
     if (bridgeDone || bridgeFailed) return;
     if (bridgeResolvingRef.current) return;
@@ -215,7 +258,7 @@ export default function Home() {
 
   // NextAuth is loading session, or authenticated but bridge not done yet
   if (nextAuthStatus === 'loading' || (nextAuthStatus === 'authenticated' && !bridgeDone && !bridgeFailed)) {
-    return <OAuthProcessing />;
+    return <OAuthProcessing onTimeout={onOAuthTimeout} />;
   }
 
   // User is authenticated in Zustand → show app
