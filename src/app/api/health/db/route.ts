@@ -13,9 +13,13 @@ import { NextResponse } from 'next/server';
 export async function GET() {
   const start = Date.now();
   try {
-    const { db, getDbMode } = await import('@/lib/db');
+    const { initDb, getDbMode } = await import('@/lib/db');
 
-    // Use Prisma's built-in query instead of raw SQL (more compatible with adapters)
+    // Use initDb() to ensure the Turso client is fully initialized.
+    // The sync Proxy might hit the local fallback before Turso is ready.
+    const db = await initDb();
+
+    // Use Prisma's built-in query
     await db.user.count({ take: 0 });
 
     const latency = Date.now() - start;
@@ -30,7 +34,7 @@ export async function GET() {
     const msg = err?.message || String(err);
     console.error('[DB Health] Check failed:', msg);
     return NextResponse.json(
-      { ok: false, error: 'Database is not configured or unreachable' },
+      { ok: false, error: 'Database is not configured or unreachable', debug: msg.substring(0, 300) },
       { status: 503 },
     );
   }
