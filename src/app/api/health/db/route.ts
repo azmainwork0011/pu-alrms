@@ -34,7 +34,7 @@ export async function GET() {
     const msg = err?.message || String(err);
     console.error('[DB Health] Check failed:', msg);
     return NextResponse.json(
-      { ok: false, error: 'Database is not configured or unreachable', debug: msg.substring(0, 300) },
+      { ok: false, error: 'Database is not configured or unreachable' },
       { status: 503 },
     );
   }
