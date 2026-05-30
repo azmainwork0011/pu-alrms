@@ -104,3 +104,27 @@ Stage Summary:
 - Google OAuth: Fixed cookie security bug — the root cause of "Sign-in is taking too long"
 - Vercel needs env vars: DATABASE_URL, DATABASE_AUTH_TOKEN, JWT_SECRET, NEXTAUTH_SECRET, NEXTAUTH_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
 - RBAC & Dashboard: No changes needed — already properly implemented
+
+---
+Task ID: audit-1
+Agent: Main Agent
+Task: Comprehensive audit + fix all issues for perfect Vercel deployment
+
+Work Log:
+- Fixed CRITICAL Turso adapter bug: `PrismaLibSQL` constructor expects `{url, authToken}` config object, NOT a pre-created `@libsql/client` instance
+  - db.ts was: `new PrismaLibSQL(createClient({url, authToken}))` → WRONG
+  - Fixed to: `new PrismaLibSQL({url, authToken})` → CORRECT
+  - This caused EVERY DB query to fail with "URL undefined" on Turso
+- Fixed @libsql/client version mismatch: downgraded from 0.17.3 to 0.8.1 (within adapter's expected range 0.3-0.8)
+- Pinned all Prisma packages to v6.19.3 for consistency
+- Cleaned vercel-build script: removed broken `prisma db push` (Prisma CLI can't push libsql: URLs)
+- Separated .env (local SQLite for dev) from .env.local (Turso for testing)
+- Verified Turso DB connection works via direct Node.js test
+- Verified seed endpoint works (11 demo accounts created)
+
+Stage Summary:
+- 3 commits pushed to GitHub: 1abda59 (cookie fix), 642915d (Turso adapter fix)
+- Vercel auto-deploying
+- Vercel needs these env vars: DATABASE_URL, DATABASE_AUTH_TOKEN, JWT_SECRET, NEXTAUTH_SECRET, NEXTAUTH_URL=https://pu-alrms.vercel.app, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+- Turso DB: libsql://pu-alrms-sini34.aws-ap-south-1.turso.io (24 tables, persistent)
+- All code passes ESLint (only pre-existing push.js errors)
