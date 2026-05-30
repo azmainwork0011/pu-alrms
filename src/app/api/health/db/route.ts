@@ -15,8 +15,8 @@ export async function GET() {
   try {
     const { db, getDbMode } = await import('@/lib/db');
 
-    // SELECT 1 works on both SQLite and LibSQL
-    await db.$queryRaw`SELECT 1`;
+    // Use Prisma's built-in query instead of raw SQL (more compatible with adapters)
+    await db.user.count({ take: 0 });
 
     const latency = Date.now() - start;
     const mode = getDbMode();
