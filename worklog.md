@@ -68,3 +68,39 @@ Stage Summary:
 - .env.local has GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET for local dev
 - Vercel env vars already configured for production
 - Commit e810713 pushed to GitHub, Vercel auto-deploying
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Turso DB Migration + Google OAuth Fix + All Pending Tasks
+
+Work Log:
+- Created Turso database `pu-alrms` in aws-ap-south-1 (Mumbai) region
+- Generated Turso DB auth token (never expires)
+- Generated full SQL schema from Prisma via `prisma migrate diff`
+- Applied all 24 tables + indexes to Turso via `turso db shell`
+- Updated `.env` and `.env.local` with Turso connection details
+- Regenerated Prisma client
+
+- Fixed CRITICAL Google OAuth bug: `auth.ts` had `secure: false` on cookies with `__Secure-` prefix in production
+  → Browser silently rejected the cookie → `useSession()` stayed `'loading'` forever
+  → User saw "Sign-in is taking too long" after 30s timeout
+  → Fix: `secure: process.env.NODE_ENV === 'production'`
+
+- Enhanced `page.tsx` auth bridge:
+  - Added manual `/api/auth/session` fetch fallback after 8s of loading
+  - Reduced OAuthProcessing timeout from 30s to 15s
+  - Better error handling with signOut cleanup on timeout
+  - Callback-based timeout for cleaner component design
+
+- Reviewed RBAC (`src/lib/rbac.ts`) — already well-structured with complete permission matrix
+- Reviewed Dashboard (`src/app/api/dashboard/route.ts`) — already comprehensive with Student/Teacher/CR/Admin views
+
+- Committed and pushed to GitHub (commit 1abda59)
+- Vercel auto-deployment triggered
+
+Stage Summary:
+- Turso DB: `libsql://pu-alrms-sini34.aws-ap-south-1.turso.io` — 24 tables, persistent storage
+- Google OAuth: Fixed cookie security bug — the root cause of "Sign-in is taking too long"
+- Vercel needs env vars: DATABASE_URL, DATABASE_AUTH_TOKEN, JWT_SECRET, NEXTAUTH_SECRET, NEXTAUTH_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+- RBAC & Dashboard: No changes needed — already properly implemented
