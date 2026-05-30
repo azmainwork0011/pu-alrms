@@ -1,13 +1,28 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Remove "standalone" output — Vercel handles this automatically
-  // standalone is only needed for self-hosted Docker deployments
   typescript: {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
+
+  // Turbopack is default in Next.js 16+. Empty config = accept defaults.
+  // This silences the "webpack config without turbopack config" error.
+  turbopack: {},
+
+  // Webpack fallback: fixes @libsql isomorphic-fetch README.md parsed as JS.
+  // Turbopack handles .md files correctly — this rule only applies when
+  // building with `--webpack` flag or if Turbopack falls back to webpack.
+  webpack: (config) => {
+    config.module.rules.push({
+      test: /\.md$/,
+      type: 'asset/resource',
+    });
+    return config;
+  },
+
   allowedDevOrigins: ['*.space.z.ai', '*.z.ai', '*.space-z.ai', '*space-z.ai*', '*space.z.ai*'],
+
   async headers() {
     return [
       {
