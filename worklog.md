@@ -160,3 +160,28 @@ Stage Summary:
   - NEXTAUTH_URL=https://pu-alrms.vercel.app
   - GOOGLE_CLIENT_ID=<google-client-id>
   - GOOGLE_CLIENT_SECRET=<google-client-secret>
+---
+Task ID: vercel-env
+Agent: Main Agent
+Task: Set all 7 environment variables on Vercel production + trigger redeploy
+
+Work Log:
+- Found Vercel project ID: prj_cxqoCLZjBF1mUpGK3j3dOTKHX3Ps (pu-alrms)
+- Vercel team ID: team_2ZRX061d0Lj2SHBd4OenPJq2
+- Listed existing env vars — found 11 (some with wrong/old values)
+- Updated DATABASE_URL: file:/tmp/pu-alrms.db → libsql://pu-alrms-sini34.aws-ap-south-1.turso.io
+- Updated DATABASE_AUTH_TOKEN: was EMPTY → Turso auth token set
+- Updated NEXTAUTH_SECRET: old placeholder → new secure value
+- Updated JWT_SECRET: old placeholder → new secure value
+- Verified NEXTAUTH_URL: already correct (https://pu-alrms.vercel.app)
+- Updated GOOGLE_CLIENT_ID: correct value confirmed
+- Updated GOOGLE_CLIENT_SECRET: correct value confirmed
+- All 7 critical env vars set across Production + Preview + Development environments
+- Pushed empty commit to trigger Vercel redeploy (commit 64c461d8)
+- Deployment BUILDING → READY confirmed (dpl_EAa7At2YNqAL4934ZgMUF)
+
+Stage Summary:
+- All 7 Vercel env vars configured correctly for all 3 environments
+- Production deployment successful with updated env vars
+- URL: https://pu-alrms.vercel.app — LIVE and WORKING
+- Note: 4 duplicate projects found (prime-alrms, prime-alrms-zgp6, alrmspu, my-project) — user may want to delete these
