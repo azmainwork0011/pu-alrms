@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { useSession, signOut } from 'next-auth/react';
 import { useAppStore, type User } from '@/store/app';
@@ -20,48 +20,19 @@ function ErrorFallback({ error, onRetry }: { error: Error; onRetry: () => void }
           </svg>
         </div>
         <h2 className="text-lg font-bold text-white mb-2">Something went wrong</h2>
-        <p className="text-sm text-slate-400 mb-5">{error.message}</p>
-        <button onClick={onRetry} className="px-6 py-2.5 text-white text-sm font-medium rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" style={{ background: 'linear-gradient(135deg, #ec4899, #a855f7)', boxShadow: '0 4px 16px rgba(236,72,153,0.25)' }}>Retry</button>
+        <p className="text-sm text-slate-400 mb-2">{error.message}</p>
+        <p className="text-xs text-slate-500 mb-5">If this persists, try clearing cookies and refreshing.</p>
+        <div className="flex gap-3 justify-center">
+          <button onClick={onRetry} className="px-6 py-2.5 text-white text-sm font-medium rounded-xl transition-all duration-200 hover:scale-105 active:scale-95" style={{ background: 'linear-gradient(135deg, #ec4899, #a855f7)', boxShadow: '0 4px 16px rgba(236,72,153,0.25)' }}>Retry</button>
+          <button onClick={() => { signOut({ redirect: false }).finally(() => { window.location.href = '/'; }); }} className="px-6 py-2.5 text-white text-sm font-medium rounded-xl border border-white/10 hover:bg-white/5 transition-all duration-200">Sign Out</button>
+        </div>
       </div>
     </div>
   );
 }
 
 // ─── OAuth Processing Spinner ─────────────────────────────
-function OAuthProcessing({ onTimeout }: { onTimeout: () => void }) {
-  const [timedOut, setTimedOut] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setTimedOut(true);
-      onTimeout();
-    }, 15_000); // 15 second timeout (reduced from 30s)
-    return () => clearTimeout(timer);
-  }, [onTimeout]);
-
-  if (timedOut) {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'linear-gradient(135deg, #0a0d14 0%, #0d1117 40%, #111827 100%)' }}>
-        <div className="max-w-sm w-full text-center">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.15)' }}>
-            <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <h2 className="text-lg font-bold text-white mb-2">Sign-in is taking too long</h2>
-          <p className="text-sm text-slate-400 mb-5">This might be a network issue.</p>
-          <button
-            onClick={() => { signOut({ redirect: false }).finally(() => { window.location.href = '/'; }); }}
-            className="px-6 py-2.5 text-white text-sm font-medium rounded-xl transition-all duration-200 hover:scale-105 active:scale-95"
-            style={{ background: 'linear-gradient(135deg, #ec4899, #a855f7)', boxShadow: '0 4px 16px rgba(236,72,153,0.25)' }}
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
+function OAuthProcessing() {
   return (
     <div className="min-h-screen flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #0a0d14 0%, #0d1117 40%, #111827 100%)' }}>
       <div className="text-center">
@@ -85,6 +56,8 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   NoEmail: 'Google account has no email. Please use a different Google account.',
   AccessDenied: 'Sign-in was cancelled.',
   DATABASE_UNAVAILABLE: 'Database is not configured. Please contact the administrator.',
+  ACCOUNT_BANNED: 'Your account has been banned. Contact support.',
+  ACCOUNT_SUSPENDED: 'Your account is suspended. Contact an administrator.',
   Default: 'Authentication failed. Please try again.',
 };
 
@@ -101,10 +74,7 @@ function getInitialOAuthError(): string | null {
 
 export default function Home() {
   const [error, setError] = useState<Error | null>(null);
-  const [oauthError] = useState<string | null>(getInitialOAuthError);
-  const [bridgeDone, setBridgeDone] = useState(false);
-  const [bridgeFailed, setBridgeFailed] = useState<string | null>(null);
-  const bridgeResolvingRef = useRef(false);
+  const [oauthError] = useState<string | null>(() => getInitialOAuthError());
 
   const mounted = useAppStore((state) => state.mounted);
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
@@ -112,94 +82,10 @@ export default function Home() {
 
   const { data: nextAuthSession, status: nextAuthStatus } = useSession();
 
-  // ── Manual session fetch fallback ──
-  // If useSession() stays 'loading' for too long (network issue, cookie rejected),
-  // try a manual fetch to /api/auth/session to diagnose the issue.
-  const sessionLoadingSinceRef = useRef<number>(Date.now());
-  const manualFetchAttemptedRef = useRef(false);
+  // ── Auth bridge: NextAuth session → Zustand store ──
+  const bridgeDone = useCallback(() => {
+    if (!nextAuthSession || !nextAuthSession.customJwt) return false;
 
-  useEffect(() => {
-    if (nextAuthStatus === 'loading') {
-      if (!manualFetchAttemptedRef.current && Date.now() - sessionLoadingSinceRef.current > 8000) {
-        manualFetchAttemptedRef.current = true;
-        // Try manual fetch — this will tell us if the session endpoint works at all
-        fetch('/api/auth/session')
-          .then(res => {
-            if (res.ok) {
-              // Session endpoint works — useSession hook might just be slow
-              // Force a re-render by waiting a bit more
-              console.log('[Auth] Manual session fetch succeeded, waiting for useSession...');
-            } else {
-              console.error('[Auth] Manual session fetch failed:', res.status);
-              // Session endpoint returned error — cookie is likely rejected or invalid
-              signOut({ redirect: false }).catch(() => {});
-              setBridgeFailed('Session verification failed. Please clear cookies and try again.');
-            }
-          })
-          .catch(err => {
-            console.error('[Auth] Manual session fetch error:', err);
-            setBridgeFailed('Could not verify session. Please check your connection.');
-          });
-      }
-    } else {
-      // Reset when status changes
-      sessionLoadingSinceRef.current = Date.now();
-      manualFetchAttemptedRef.current = false;
-    }
-  }, [nextAuthStatus]);
-
-  // ── Auth bridge effect ──
-  // Transfers NextAuth session data into Zustand store.
-  const onOAuthTimeout = useCallback(() => {
-    // Called by OAuthProcessing after 15s timeout
-    // This means useSession() never resolved
-    signOut({ redirect: false }).catch(() => {});
-    setBridgeFailed('Sign-in timed out. Please try again.');
-  }, []);
-
-  useEffect(() => {
-    if (bridgeDone || bridgeFailed) return;
-    if (bridgeResolvingRef.current) return;
-
-    // Not authenticated yet — NextAuth still loading or no session
-    if (nextAuthStatus !== 'authenticated') return;
-    bridgeResolvingRef.current = true;
-
-    // Authenticated but no session data — shouldn't happen but handle gracefully
-    if (!nextAuthSession) {
-      signOut({ redirect: false }).catch(() => {});
-      Promise.resolve().then(() => setBridgeFailed('Session data missing. Please try again.'));
-      return;
-    }
-
-    const sessionError = (nextAuthSession as unknown as Record<string, unknown>)?.error;
-
-    // Handle error states from JWT callback
-    if (sessionError) {
-      const errorMessages: Record<string, string> = {
-        ACCOUNT_BANNED: 'Your account has been banned. Contact support.',
-        ACCOUNT_SUSPENDED: 'Your account is suspended. Contact an administrator.',
-        DATABASE_UNAVAILABLE: 'Database is not configured. Please contact the administrator.',
-        NO_EMAIL: 'Google account has no email. Please use a different account.',
-      };
-      const msg = errorMessages[sessionError as string] || 'Authentication failed. Please try again.';
-      signOut({ redirect: false }).catch(() => {}).finally(() => {
-        setBridgeFailed(msg);
-      });
-      return;
-    }
-
-    // Authenticated but no customJwt — JWT callback failed silently
-    // This means the DB operation (user create/link) failed
-    if (!nextAuthSession.customJwt) {
-      signOut({ redirect: false }).catch(() => {}).finally(() => {
-        setBridgeFailed('Authentication setup failed. Please try signing in again.');
-      });
-      return;
-    }
-
-    // Success path — bridge the session into Zustand
-    const jwt = nextAuthSession.customJwt;
     const user: User = {
       id: nextAuthSession.userId || '',
       name: nextAuthSession.user?.name || '',
@@ -209,11 +95,41 @@ export default function Home() {
       verified: false,
     };
 
-    Promise.resolve().then(() => {
-      setAuth(user, jwt);
-      setBridgeDone(true);
-    });
-  }, [nextAuthStatus, nextAuthSession, setAuth, bridgeDone, bridgeFailed]);
+    setAuth(user, nextAuthSession.customJwt);
+    return true;
+  }, [nextAuthSession, setAuth]);
+
+  // ── Check for session errors and bridge ──
+  useEffect(() => {
+    if (nextAuthStatus !== 'authenticated' || !nextAuthSession) return;
+
+    const sessionError = (nextAuthSession as unknown as Record<string, unknown>)?.error;
+    if (sessionError) {
+      const errorMessages: Record<string, string> = {
+        ACCOUNT_BANNED: 'Your account has been banned. Contact support.',
+        ACCOUNT_SUSPENDED: 'Your account is suspended. Contact an administrator.',
+        DATABASE_UNAVAILABLE: 'Database is not configured. Please contact the administrator.',
+        NO_EMAIL: 'Google account has no email. Please use a different account.',
+      };
+      const msg = errorMessages[sessionError as string] || 'Authentication failed. Please try again.';
+      signOut({ redirect: false }).then(() => {
+        setError(new Error(msg));
+      }).catch(() => {
+        setError(new Error(msg));
+      });
+      return;
+    }
+
+    // Bridge the session
+    if (!nextAuthSession.customJwt) {
+      signOut({ redirect: false }).then(() => {
+        setError(new Error('Authentication setup failed. Please try signing in again.'));
+      }).catch(() => {});
+      return;
+    }
+
+    bridgeDone();
+  }, [nextAuthStatus, nextAuthSession, bridgeDone]);
 
   // ── Hydrate on mount ──
   useEffect(() => {
@@ -225,43 +141,46 @@ export default function Home() {
     useAppStore.getState().hydrate();
   }, []);
 
-  // ── Global error handler ──
+  // ── Global error handler (non-blocking, logs only) ──
   useEffect(() => {
     if (!mounted) return;
     const handler = (event: ErrorEvent) => {
       const msg = event.message || '';
-      if (msg.includes('fetch') || msg.includes('Network') || msg.includes('localStorage') || msg.includes('timeout') || msg.includes('AbortError') || msg.includes('Authentication') || msg.includes('Login')) return;
-      event.preventDefault();
-      setError(new Error(msg || 'An unexpected error occurred'));
+      const ignoredPatterns = ['fetch', 'Network', 'localStorage', 'timeout', 'AbortError', 'Script error', 'ResizeObserver'];
+      if (ignoredPatterns.some(p => msg.includes(p))) return;
+      console.error('[App] Uncaught error:', msg);
     };
     const rejHandler = (event: PromiseRejectionEvent) => {
       const msg = event.reason?.message || String(event.reason);
-      if (msg.includes('fetch') || msg.includes('Network') || msg.includes('localStorage') || msg.includes('HTTP 4') || msg.includes('HTTP 5')) return;
-      event.preventDefault();
-      setError(new Error(msg));
+      const ignoredPatterns = ['fetch', 'Network', 'localStorage', 'HTTP 4', 'HTTP 5'];
+      if (ignoredPatterns.some(p => msg.includes(p))) return;
+      console.warn('[App] Unhandled rejection:', msg);
     };
     window.addEventListener('error', handler);
     window.addEventListener('unhandledrejection', rejHandler);
-    return () => { window.removeEventListener('error', handler); window.removeEventListener('unhandledrejection', rejHandler); };
+    return () => {
+      window.removeEventListener('error', handler);
+      window.removeEventListener('unhandledrejection', rejHandler);
+    };
   }, [mounted]);
 
   // ── Render logic ──
   if (!mounted) return <div className="min-h-screen" />;
 
-  // Bridge failed → show error with retry button
-  if (bridgeFailed) {
-    return <ErrorFallback error={new Error(bridgeFailed)} onRetry={() => { setError(null); setBridgeFailed(null); setBridgeDone(false); bridgeResolvingRef.current = false; window.location.href = '/'; }} />;
+  // Show auth error from OAuth callback
+  if (oauthError) {
+    return <ErrorFallback error={new Error(oauthError)} onRetry={() => { setError(null); window.location.href = '/'; }} />;
   }
 
-  // General error
+  // Show error
   if (error) return <ErrorFallback error={error} onRetry={() => { setError(null); window.location.reload(); }} />;
 
-  // NextAuth is loading session, or authenticated but bridge not done yet
-  if (nextAuthStatus === 'loading' || (nextAuthStatus === 'authenticated' && !bridgeDone && !bridgeFailed)) {
-    return <OAuthProcessing onTimeout={onOAuthTimeout} />;
+  // NextAuth is loading session — show spinner
+  if (nextAuthStatus === 'loading') {
+    return <OAuthProcessing />;
   }
 
-  // User is authenticated in Zustand → show app
+  // If authenticated, show the app
   if (isAuthenticated) return <AppLayout />;
 
   // Not authenticated → show login page

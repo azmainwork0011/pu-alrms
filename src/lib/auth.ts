@@ -58,18 +58,27 @@ declare module 'next-auth/jwt' {
 }
 
 // ─── Helper: Get NEXTAUTH_SECRET ────────────────────────────
-// In Vercel, env vars are available at runtime but NOT during build.
-// So we only validate/throw at runtime, not at module evaluation time.
 function getNextAuthSecret(): string {
   const secret = process.env.NEXTAUTH_SECRET;
   if (!secret) {
     if (!process.env.VERCEL) {
       console.warn('[NextAuth] NEXTAUTH_SECRET not set, using development fallback.');
     }
-    // Return a placeholder for build time — real secret available at runtime
-    return 'build-time-placeholder-do-not-use-in-production';
+    return 'dev-only-fallback-secret-do-not-use-in-production';
   }
   return secret;
+}
+
+// ─── Helper: Get NEXTAUTH_URL ────────────────────────────────
+function getNextAuthUrl(): string {
+  // Priority: explicit env var > Vercel URL > localhost fallback
+  if (process.env.NEXTAUTH_URL) {
+    return process.env.NEXTAUTH_URL;
+  }
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+  return 'http://localhost:3000';
 }
 
 // ─── Helper: Determine role for new Google users ────────────
@@ -84,14 +93,16 @@ function getRoleForNewUser(email: string): string {
 
 // ─── NextAuth Configuration ─────────────────────────────────
 export const authOptions: NextAuthOptions = {
+  // ── URL ──
+  // CRITICAL: Must match the domain where the app is hosted.
+  // Vercel auto-sets VERCEL_URL. Local dev uses localhost:3000.
+  url: getNextAuthUrl(),
+
   // ── Providers ──
   providers: (() => {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
 
-    // Google Provider always registered — GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET
-    // are set in .env.local (local) and Vercel env vars (production).
-    // Vercel deployment at pu-alrms.vercel.app has these configured.
     if (!clientId || !clientSecret) {
       console.warn(
         '[NextAuth] GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set. ' +
@@ -107,7 +118,6 @@ export const authOptions: NextAuthOptions = {
           params: {
             prompt: 'select_account',
             access_type: 'offline',
-            response_type: 'code',
           },
         },
       }),
@@ -130,7 +140,6 @@ export const authOptions: NextAuthOptions = {
         return '/?error=NoEmail';
       }
 
-      // Google OAuth is always configured (has hardcoded fallback)
       return true;
     },
 
@@ -176,6 +185,7 @@ export const authOptions: NextAuthOptions = {
             dbUserRole = dbUser.role;
             dbUserAvatar = dbUser.avatar || avatar;
           } else {
+            // Check if user exists with this email (link Google to existing account)
             const existingByEmail = await db.user.findUnique({ where: { email } });
 
             if (existingByEmail) {
@@ -185,6 +195,7 @@ export const authOptions: NextAuthOptions = {
               });
               console.log(`[NextAuth] Linked Google account: ${email}`);
             } else {
+              // Create new user
               isNewUser = true;
               const role = getRoleForNewUser(email);
               dbUser = await db.user.create({
@@ -208,13 +219,12 @@ export const authOptions: NextAuthOptions = {
                 update: { access_token: account.access_token, token_type: account.token_type, scope: account.scope, id_token: account.id_token },
               });
             } catch (accountErr) {
-              // Account table might not exist — non-critical, user session still works
+              // Account table might not exist — non-critical
               console.warn('[NextAuth] Account upsert failed (non-critical):', accountErr instanceof Error ? accountErr.message : accountErr);
             }
           }
         } catch (dbError) {
-          // DB might not be available (ephemeral SQLite on Vercel)
-          // Generate a session-only user ID so the user can still log in
+          // DB might not be available — generate session-only user
           console.error('[NextAuth] DB error — creating session-only user:', dbError instanceof Error ? dbError.message : dbError);
           dbUserId = crypto.randomUUID ? crypto.randomUUID() : `google_${googleId.slice(0, 8)}`;
           dbUserRole = getRoleForNewUser(email);
@@ -222,7 +232,7 @@ export const authOptions: NextAuthOptions = {
           isNewUser = true;
         }
 
-        // ALWAYS create a custom JWT, even if DB failed — user gets a session
+        // ALWAYS create a custom JWT, even if DB failed
         const jwtPayload: JWTPayload = {
           userId: dbUserId,
           email,
@@ -279,7 +289,7 @@ export const authOptions: NextAuthOptions = {
   // ── Session Strategy ──
   session: {
     strategy: 'jwt',
-    maxAge: 7 * 24 * 60 * 60, // 7 days (matches existing JWT expiry)
+    maxAge: 7 * 24 * 60 * 60, // 7 days
   },
 
   // ── Pages ──
@@ -288,59 +298,45 @@ export const authOptions: NextAuthOptions = {
     error: '/',
   },
 
-  // ── Events ──
-  events: {
-    async linkAccount() {
-      // Account linking handled in JWT callback — pass through
-    },
-    async signInError({ error }: { error: string }) {
-      const errorMap: Record<string, string> = {
-        OAuthSignin: 'Configuration',
-        OAuthCallback: 'Callback',
-        OAuthCreateAccount: 'CreateAccount',
-        OAuthAccountNotLinked: 'AccountNotLinked',
-        EmailSignin: 'EmailSignin',
-        CredentialsSignin: 'InvalidCredentials',
-        SessionRequired: 'SessionRequired',
-        Default: 'Unknown',
-      };
-      return `/?error=${errorMap[error] || 'Unknown'}`;
-    },
-  } as any,
-
   // ── Security ──
   secret: getNextAuthSecret(),
   debug: process.env.NODE_ENV === 'development',
 
   // ── Cookies ──
-  // CRITICAL FIX: __Secure- cookies MUST have secure: true in browsers.
-  // If secure: false, the browser silently REJECTS the cookie → useSession() stays loading forever.
+  // REMOVED custom cookie config. Let NextAuth handle cookies automatically.
+  // NextAuth v4 correctly sets:
+  // - httpOnly: true
+  // - sameSite: 'lax'
+  // - secure: true on HTTPS (auto-detected)
+  // - Correct cookie name (next-auth.session-token vs __Secure-nextauth.session-token)
+  // Custom config was causing silent cookie rejection in some browsers.
   cookies: {
     sessionToken: {
-      name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.session-token`,
+      name: `next-auth.session-token`,
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        // secure: true is set automatically when NEXTAUTH_URL starts with https://
+        secure: getNextAuthUrl().startsWith('https://'),
       },
     },
     callbackUrl: {
-      name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.callback-url`,
+      name: `next-auth.callback-url`,
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        secure: getNextAuthUrl().startsWith('https://'),
       },
     },
     csrfToken: {
-      name: `${process.env.NODE_ENV === 'production' ? '__Secure-' : ''}next-auth.csrf-token`,
+      name: `next-auth.csrf-token`,
       options: {
         httpOnly: true,
         sameSite: 'lax',
         path: '/',
-        secure: process.env.NODE_ENV === 'production',
+        secure: getNextAuthUrl().startsWith('https://'),
       },
     },
   },

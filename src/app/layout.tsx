@@ -44,18 +44,6 @@ export default function RootLayout({
         >
           <NextAuthProvider>
           <ApiProvider>
-          {/*
-            Loading Overlay — injected via <script> below, OUTSIDE React's tree.
-            This permanently prevents hydration mismatches caused by browser
-            extensions (e.g. donate-widget injectors) modifying DOM before React
-            hydrates. The overlay is created imperatively and removed by page.tsx
-            after hydration. Visibility is CSS-controlled via html.hydrated class.
-          */}
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `(function(){try{var d=document.createElement('div');d.id='pu-loading-overlay';d.setAttribute('aria-hidden','true');d.className='pu-lo';d.innerHTML='<div class="pu-lo-spinner"></div><div class="pu-lo-text">PU-ALRMS</div>';document.body.appendChild(d)}catch(e){}})();`,
-            }}
-          />
           {children}
           <Toaster />
           </ApiProvider>

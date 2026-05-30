@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { signIn } from 'next-auth/react';
@@ -20,27 +20,6 @@ import {
 import {
   getPasswordStrength, isValidEmail,
 } from '@/components/pu-helpers';
-
-// ─── Google Identity Services (GIS) Type Declarations ───────
-declare global {
-  interface Window {
-    google?: {
-      accounts: {
-        id: {
-          initialize: (config: {
-            client_id: string;
-            callback: (response: { credential: string }) => void;
-            auto_select?: boolean;
-            cancel_on_tap_outside?: boolean;
-          }) => void;
-          prompt: (callback?: (notification: { isNotDisplayed?: boolean; isSkipped?: boolean; getNotDisplayedReason?: () => string; getSkippedReason?: () => string }) => void) => void;
-          renderButton: (parent: HTMLElement, options: Record<string, unknown>) => void;
-          disableAutoSelect: () => void;
-        };
-      };
-    };
-  }
-}
 
 // ─── Constants ─────────────────────────────────────────────────
 const DEPARTMENTS = [
@@ -182,9 +161,6 @@ function AuthPage({ oauthError }: { oauthError?: string | null }) {
 
   // Google state
   const [googleLoading, setGoogleLoading] = useState(false);
-  const gisInitializedRef = useRef(false);
-  const setAuthRef = useRef(setAuth);
-  setAuthRef.current = setAuth;
 
   // Profile setup state
   const [pendingSetup, setPendingSetup] = useState<PendingSetup | null>(null);
@@ -216,84 +192,9 @@ function AuthPage({ oauthError }: { oauthError?: string | null }) {
     ? 'Name must be at least 2 characters'
     : null;
 
-  // ── Google Login via Google Identity Services (GIS) ──
-  // GIS One Tap auto-shows when domain is in GCP Console's "Authorized JavaScript Origins".
-  // The credential (JWT ID token) is sent to our backend for verification.
-  // This provides instant UX (no page redirect).
-
-  const handleGoogleCredentialResponse = useCallback(async (response: { credential: string }) => {
-    setGoogleLoading(true);
-    setError(null);
-    try {
-      const res = await fetch('/api/auth/google', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credential: response.credential }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Google login failed');
-
-      setAuthRef.current(data.user, data.token);
-      try { localStorage.removeItem('login-email'); } catch {}
-
-      if (data.isNewUser) {
-        toast.success('Welcome to PU-ALRMS! 🎓');
-      } else {
-        toast.success('Welcome back!');
-      }
-    } catch (err: any) {
-      const msg = err?.message || String(err);
-      if (msg.includes('ACCOUNT_EXISTS') || msg.includes('already exists')) {
-        setError('এই ইমেইল দিয়ে আগেই একাউন্ট আছে। পাসওয়ার্ড দিয়ে লগইন করুন।');
-      } else if (msg.includes('Banned') || msg.includes('banned')) {
-        setError('এই একাউন্ট ব্যান করা হয়েছে। সাপোর্টে যোগাযোগ করুন।');
-      } else if (msg.includes('Suspended')) {
-        setError('এই একাউন্ট সাসপেন্ড করা হয়েছে। অ্যাডমিনের সাথে যোগাযোগ করুন।');
-      } else if (msg.includes('not configured')) {
-        setError('Google sign-in কনফিগার করা হয়েছে না।');
-      } else {
-        setError(msg || 'Google login failed. Please try again.');
-      }
-    } finally {
-      setGoogleLoading(false);
-    }
-  }, []);
-
-  // Load and initialize Google Identity Services script
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const handleGoogleCredentialRef = handleGoogleCredentialResponse;
-
-    const script = document.createElement('script');
-    script.src = 'https://accounts.google.com/gsi/client';
-    script.async = true;
-    script.defer = true;
-    script.onload = () => {
-      if (window.google?.accounts?.id) {
-        window.google.accounts.id.initialize({
-          client_id: '642974329571-8hi6sk6qnrh2blj8ruqcumkbpjjvsbm4.apps.googleusercontent.com',
-          callback: handleGoogleCredentialRef,
-          auto_select: false,
-          cancel_on_tap_outside: true,
-        });
-        gisInitializedRef.current = true;
-      }
-    };
-    script.onerror = () => {
-      console.warn('[GIS] Failed to load Google Identity Services — signIn redirect will be used instead.');
-    };
-    document.head.appendChild(script);
-
-    // DO NOT remove script on cleanup — it stays for the entire page lifecycle.
-    // Removing it causes gisInitializedRef to stay true while the API is gone.
-    return () => {};
-  }, [handleGoogleCredentialResponse]);
-
-  // ── Google Login Button Handler ──
-  // STRATEGY: Use NextAuth signIn('google') as the PRIMARY action (page redirect).
+  // ── Google Login via NextAuth OAuth redirect ──
   // This is the most reliable method — works on ANY domain.
-  // GIS One Tap is only used as auto-enhancement (shows on page load if domain is authorized).
+  // User is redirected to Google's OAuth consent screen, then back to our callback.
   const handleGoogleLogin = useCallback(() => {
     if (googleLoading) return;
     setError(null);

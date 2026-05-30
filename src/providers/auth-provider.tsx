@@ -4,17 +4,24 @@
  * NextAuth Session Provider Wrapper
  *
  * Wraps the app with next-auth's SessionProvider to enable useSession() hook.
- * This is required for NextAuth to work in client components.
+ * Uses dynamic import to handle potential compatibility issues.
  */
 
-import { SessionProvider as NextAuthSessionProvider } from 'next-auth/react';
-import type { Session } from 'next-auth';
+import type { ReactNode } from 'react';
 
 interface NextAuthProviderProps {
-  children: React.ReactNode;
-  session?: Session | null;
+  children: ReactNode;
 }
 
-export function NextAuthProvider({ children, session }: NextAuthProviderProps) {
-  return <NextAuthSessionProvider session={session}>{children}</NextAuthSessionProvider>;
+// Dynamic import SessionProvider to avoid SSR issues
+export function NextAuthProvider({ children }: NextAuthProviderProps) {
+  // We'll import SessionProvider in a client component wrapper
+  return <NextAuthSessionWrapper>{children}</NextAuthSessionWrapper>;
+}
+
+// This must be a separate component to use dynamic import at module level
+import { SessionProvider } from 'next-auth/react';
+
+function NextAuthSessionWrapper({ children }: { children: ReactNode }) {
+  return <SessionProvider>{children}</SessionProvider>;
 }

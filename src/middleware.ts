@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 // ═══════════════════════════════════════════════════════════════════
-// Security Middleware — Headers + CORS + NextAuth Support
+// Security Middleware — Headers + CORS
 // ═══════════════════════════════════════════════════════════════════
+//
+// NOTE: PU-ALRMS uses a single-page app architecture.
+// Route guarding is handled client-side via Zustand auth state.
+// Middleware only handles security headers and CORS.
 
 export function middleware(request: NextRequest) {
   const response = NextResponse.next();
   const { pathname } = request.nextUrl;
 
-  // ── NextAuth routes: pass through with CORS only, no security headers ──
-  // Covers /api/auth/[...nextauth] (sign-in, callback, session, csrf, etc.)
-  // and any other /api/auth/* paths. NextAuth manages its own CSRF + security.
-  if (pathname === '/api/auth/[...nextauth]' || pathname.startsWith('/api/auth/')) {
+  // ── NextAuth routes: pass through with CORS only ──
+  // NextAuth manages its own CSRF + security headers
+  if (pathname.startsWith('/api/auth/')) {
     const origin = request.headers.get('origin');
     if (origin) {
       response.headers.set('Access-Control-Allow-Origin', origin);
@@ -27,7 +30,24 @@ export function middleware(request: NextRequest) {
     return response;
   }
 
-  // ── Security Headers ──
+  // ── API routes: add CORS headers ──
+  if (pathname.startsWith('/api/')) {
+    const origin = request.headers.get('origin');
+    if (origin) {
+      response.headers.set('Access-Control-Allow-Origin', origin);
+      response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      response.headers.set('Access-Control-Allow-Credentials', 'true');
+    }
+
+    if (request.method === 'OPTIONS') {
+      return new NextResponse(null, { status: 204, headers: response.headers });
+    }
+
+    return response;
+  }
+
+  // ── Page routes: security headers only ──
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-XSS-Protection', '1; mode=block');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
@@ -39,19 +59,6 @@ export function middleware(request: NextRequest) {
       'Strict-Transport-Security',
       'max-age=63072000; includeSubDomains; preload'
     );
-  }
-
-  // ── CORS Headers (allow same-origin + preview) ──
-  const origin = request.headers.get('origin');
-  if (origin) {
-    response.headers.set('Access-Control-Allow-Origin', origin);
-    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  }
-
-  // Handle preflight
-  if (request.method === 'OPTIONS') {
-    return new NextResponse(null, { status: 204, headers: response.headers });
   }
 
   return response;
