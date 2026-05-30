@@ -80,23 +80,28 @@ async function createPrismaClient(): Promise<PrismaClient> {
 function createLocalClient(): PrismaClient {
   console.log('[DB] ✅ Using local SQLite')
 
-  // CRITICAL: Override datasourceUrl to a local file.
-  // On Vercel, DATABASE_URL is `libsql://...` but provider is "sqlite",
-  // which only accepts `file:` URLs. Without this override, PrismaClient
-  // construction or the first query would throw:
-  //   "Error validating datasource `db`: the URL must start with `file:`"
-  // The local client is a temporary placeholder — it gets replaced
-  // by the Turso client once async init completes.
+  // CRITICAL: Temporarily override DATABASE_URL for PrismaClient construction.
+  // On Vercel, DATABASE_URL is `libsql://...` but provider="sqlite" only
+  // accepts `file:` URLs. The datasourceUrl config option in Prisma 6 still
+  // validates the env variable at schema load time, so we must override
+  // the env var directly to avoid: "URL must start with the protocol file:"
+  const originalUrl = process.env.DATABASE_URL
   const localUrl = process.env.NODE_ENV === 'production'
     ? 'file:/tmp/pu-alrms-local.db'
     : 'file:./db/custom.db'
+  process.env.DATABASE_URL = localUrl
 
-  const client = new PrismaClient({
-    datasourceUrl: localUrl,
-    log: process.env.NODE_ENV === 'development'
-      ? ['error', 'warn']
-      : ['error'],
-  })
+  let client: PrismaClient
+  try {
+    client = new PrismaClient({
+      log: process.env.NODE_ENV === 'development'
+        ? ['error', 'warn']
+        : ['error'],
+    })
+  } finally {
+    // Restore original DATABASE_URL so Turso init picks it up correctly
+    process.env.DATABASE_URL = originalUrl
+  }
 
   // Ensure connection is established
   if (!globalForPrisma.dbInitialized) {
