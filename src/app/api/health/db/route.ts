@@ -28,12 +28,9 @@ export async function GET() {
     });
   } catch (err: any) {
     const msg = err?.message || String(err);
-    // Log internally but don't expose details to client
     console.error('[DB Health] Check failed:', msg);
-    console.error('[DB Health] Error code:', err?.code);
-    console.error('[DB Health] Stack:', err?.stack?.substring(0, 200));
     return NextResponse.json(
-      { ok: false, error: 'Database is not configured or unreachable', debug: msg.substring(0, 200) },
+      { ok: false, error: 'Database is not configured or unreachable' },
       { status: 503 },
     );
   }

@@ -36,6 +36,7 @@ function getDbAuthToken(): string {
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
   dbInitialized: boolean
+  initPromise: Promise<PrismaClient> | null
 }
 
 // ─── Client Factory ──────────────────────────────────────────
@@ -78,13 +79,26 @@ async function createPrismaClient(): Promise<PrismaClient> {
 
 function createLocalClient(): PrismaClient {
   console.log('[DB] ✅ Using local SQLite')
+
+  // CRITICAL: Override datasourceUrl to a local file.
+  // On Vercel, DATABASE_URL is `libsql://...` but provider is "sqlite",
+  // which only accepts `file:` URLs. Without this override, PrismaClient
+  // construction or the first query would throw:
+  //   "Error validating datasource `db`: the URL must start with `file:`"
+  // The local client is a temporary placeholder — it gets replaced
+  // by the Turso client once async init completes.
+  const localUrl = process.env.NODE_ENV === 'production'
+    ? 'file:/tmp/pu-alrms-local.db'
+    : 'file:./db/custom.db'
+
   const client = new PrismaClient({
+    datasourceUrl: localUrl,
     log: process.env.NODE_ENV === 'development'
       ? ['error', 'warn']
       : ['error'],
   })
-  // Ensure schema exists — safe to call multiple times (idempotent)
-  // This creates tables if they don't exist
+
+  // Ensure connection is established
   if (!globalForPrisma.dbInitialized) {
     client.$connect().then(() => {
       console.log('[DB] SQLite connected, schema ready')
@@ -97,25 +111,26 @@ function createLocalClient(): PrismaClient {
 }
 
 // ─── Lazy Initialization ─────────────────────────────────────
-let _initPromise: Promise<PrismaClient> | null = null
-
 function ensureInit(): void {
-  if (_initPromise || globalForPrisma.prisma) return
-  _initPromise = createPrismaClient().then((client) => {
+  if (globalForPrisma.initPromise || globalForPrisma.prisma) return
+  globalForPrisma.initPromise = createPrismaClient().then((client) => {
     // Replace the local fallback client with the real one (Turso or SQLite)
     if (globalForPrisma.prisma && globalForPrisma.prisma !== client) {
       globalForPrisma.prisma.$disconnect().catch(() => {})
     }
     globalForPrisma.prisma = client
     return client
+  }).catch((err) => {
+    console.error('[DB] Init failed:', err)
+    // Keep the local client as fallback
   })
 }
 
 function getPrismaClient(): PrismaClient {
   if (globalForPrisma.prisma) return globalForPrisma.prisma
-  // Create a plain local client immediately for sync access.
-  // It will be replaced once the async init (Turso) completes.
-  // This ensures the Proxy always has a client to return synchronously.
+
+  // Create a local client immediately for synchronous access.
+  // It will be replaced once the async Turso init completes.
   globalForPrisma.prisma = createLocalClient()
   ensureInit()
   return globalForPrisma.prisma
@@ -165,6 +180,6 @@ if (process.env.NODE_ENV !== 'production') {
   if (globalForPrisma.prisma) {
     globalForPrisma.prisma = undefined
     globalForPrisma.dbInitialized = false
-    _initPromise = null
+    globalForPrisma.initPromise = null
   }
 }
