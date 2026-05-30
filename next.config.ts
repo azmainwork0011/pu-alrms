@@ -6,17 +6,40 @@ const nextConfig: NextConfig = {
   },
   reactStrictMode: false,
 
-  // Turbopack is default in Next.js 16+. Empty config = accept defaults.
-  // This silences the "webpack config without turbopack config" error.
-  turbopack: {},
+  // Server-only packages — never bundled into client JS.
+  // Without this, Turbopack may try to bundle Node.js modules
+  // (like @libsql/client, bcryptjs, jsonwebtoken) into client chunks,
+  // causing "module not found" or runtime crashes in the browser.
+  serverExternalPackages: [
+    '@libsql/client',
+    'bcryptjs',
+    'jsonwebtoken',
+  ],
 
-  // Webpack fallback: fixes @libsql isomorphic-fetch README.md parsed as JS.
-  // Turbopack handles .md files correctly — this rule only applies when
-  // building with `--webpack` flag or if Turbopack falls back to webpack.
-  webpack: (config) => {
+  // Turbopack config (Next.js 16 default bundler for dev and build).
+  // resolveAlias ensures Turbopack doesn't try to bundle .md files as JS.
+  turbopack: {
+    resolveAlias: {
+      // Ignore README.md files from @libsql/isomorphic-fetch
+      '@libsql/isomorphic-fetch/README.md': '',
+    },
+  },
+
+  // Webpack fallback config (used when building with --webpack flag).
+  webpack: (config, { isServer }) => {
+    // Skip .md files on client side to prevent bundling them as JS
+    if (!isServer) {
+      config.resolve = config.resolve || {};
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        '@libsql/isomorphic-fetch/README.md': false,
+      };
+    }
+    // Handle .md files as empty assets to prevent parse errors
     config.module.rules.push({
       test: /\.md$/,
       type: 'asset/resource',
+      use: 'null-loader',
     });
     return config;
   },
