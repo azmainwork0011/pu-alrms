@@ -5,7 +5,8 @@
  * - `libsql:` or `*.turso.tech` → Turso LibSQL (production on Vercel)
  * - `file:` or anything else    → Local SQLite (development)
  *
- * For Turso, uses @prisma/adapter-libsql + @libsql/client with auth token.
+ * For Turso, uses @prisma/adapter-libsql with a config object (NOT a client instance).
+ * The adapter creates its own internal @libsql/client.
  * For local SQLite, uses plain PrismaClient (no adapter needed).
  *
  * The exported `db` is a synchronous Proxy that lazily initializes the client.
@@ -44,17 +45,17 @@ async function createPrismaClient(): Promise<PrismaClient> {
 
   if (mode === 'libsql') {
     try {
-      const { createClient } = await import('@libsql/client')
       const { PrismaLibSQL } = await import('@prisma/adapter-libsql')
 
       const authToken = getDbAuthToken()
 
-      const libsql = createClient({
+      // IMPORTANT: PrismaLibSQL expects a CONFIG object { url, authToken },
+      // NOT a pre-created @libsql/client instance.
+      // The adapter creates its own internal client via its bundled @libsql/client.
+      const adapter = new PrismaLibSQL({
         url,
         ...(authToken ? { authToken } : {}),
       })
-
-      const adapter = new PrismaLibSQL(libsql)
 
       const client = new PrismaClient({
         adapter,
@@ -63,7 +64,7 @@ async function createPrismaClient(): Promise<PrismaClient> {
           : ['error', 'warn'],
       })
 
-      console.log(`[DB] ✅ Turso LibSQL connected`)
+      console.log(`[DB] ✅ Turso LibSQL connected: ${url.replace(/authToken=[^&]+/, 'authToken=***')}`)
       return client
     } catch (err) {
       console.error('[DB] ❌ Failed to connect to Turso LibSQL:', err)
@@ -101,6 +102,10 @@ let _initPromise: Promise<PrismaClient> | null = null
 function ensureInit(): void {
   if (_initPromise || globalForPrisma.prisma) return
   _initPromise = createPrismaClient().then((client) => {
+    // Replace the local fallback client with the real one (Turso or SQLite)
+    if (globalForPrisma.prisma && globalForPrisma.prisma !== client) {
+      globalForPrisma.prisma.$disconnect().catch(() => {})
+    }
     globalForPrisma.prisma = client
     return client
   })
@@ -108,8 +113,9 @@ function ensureInit(): void {
 
 function getPrismaClient(): PrismaClient {
   if (globalForPrisma.prisma) return globalForPrisma.prisma
-  // Create a plain client immediately for sync access
-  // It will be replaced once the async init completes
+  // Create a plain local client immediately for sync access.
+  // It will be replaced once the async init (Turso) completes.
+  // This ensures the Proxy always has a client to return synchronously.
   globalForPrisma.prisma = createLocalClient()
   ensureInit()
   return globalForPrisma.prisma
