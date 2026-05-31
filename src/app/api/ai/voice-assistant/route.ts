@@ -376,7 +376,22 @@ export async function POST(req: NextRequest) {
       });
       rawResponse = sanitizeOutput(rawResponse);
     } catch (err) {
-      console.error('[Snowwe] Gemini error:', err instanceof Error ? err.message : err);
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error('[Snowwe] Gemini error:', errMsg);
+
+      // Check if it's a quota/key issue — return 503 so frontend can show proper message
+      if (errMsg.includes('quota') || errMsg.includes('QUOTA') || errMsg.includes('API_KEY') || errMsg.includes('403')) {
+        return NextResponse.json(
+          {
+            reply: 'আমার AI ব্রেইন এই মুহূর্তে সীমাবদ্ধ। অনুগ্রহ করে কিছুক্ষণ পরে আবার চেষ্টা করুন, অথবা আমাকে লেখায় প্রশ্ন করুন।',
+            navigation: null,
+            audioBuffer: null,
+            quotaExceeded: true,
+          },
+          { status: 503 },
+        );
+      }
+
       return NextResponse.json(
         { reply: 'দুঃখিত, আমি এই মুহূর্তে ভাবতে পারছি না। আবার চেষ্টা করুন।', navigation: null, audioBuffer: null },
         { status: 500 },
