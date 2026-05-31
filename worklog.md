@@ -43,3 +43,40 @@ Stage Summary:
 - Expected callback URL: https://my-project-delta-amber.vercel.app/api/auth/callback/google
 - Production URL: https://my-project-delta-amber.vercel.app
 - Remaining: User needs to create Google OAuth credentials in Google Cloud Console and add them to Vercel
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Refactor Snowwe Voice Assistant — Gemini Pro Brain + Google Cloud Neural2 Bangla Voice
+
+Work Log:
+- Read all existing voice assistant code: VoiceAssistantSnowwe.tsx, voice-assistant/route.ts, gemini.ts, router.ts, system-prompts.ts
+- Completely rewrote /src/app/api/ai/voice-assistant/route.ts:
+  - Advanced Gemini Pro system prompt with deep Bangla language rules (প্রমিত বাংলা)
+  - Google Cloud TTS Neural2 integration via REST API (no SDK, serverless-compatible)
+  - JWT-based authentication for Google Cloud API access token
+  - Base64-encoded service account credentials (GOOGLE_CLOUD_TTS_KEY env var)
+  - Bangla voice: bn-IN-Neural2-A, English fallback: en-US-Neural2-C
+  - Conversation history context sent to Gemini for contextual responses
+  - Graceful fallback: if TTS unavailable, frontend uses browser SpeechSynthesis
+- Completely rewrote /src/components/ai/VoiceAssistantSnowwe.tsx:
+  - 4 clear UI states: idle → listening → thinking → speaking (with unique animations)
+  - Listening: red pulse rings, auto-detect Bangla/English, bn-BD recognition
+  - Thinking: amber spinner, brain icon animation
+  - Speaking: emerald waveform (8 bars), Neural2 badge indicator
+  - Premium MP3 playback from backend (Google Cloud TTS audio)
+  - Browser SpeechSynthesis fallback when TTS unavailable
+  - conversationHistory sent to backend for context-aware Gemini responses
+  - Status ring on avatar changes color per state
+  - Fixed all ESLint errors: processVoiceIntent ref pattern, supported state computed in initializer
+- Updated .env and .env.example with GOOGLE_CLOUD_TTS_KEY documentation
+- Lint clean (0 errors)
+- Deployed to Vercel: https://my-project-delta-amber.vercel.app
+
+Stage Summary:
+- Snowwe v2 deployed with Gemini Pro brain + Neural2 voice architecture
+- Backend: Gemini 2.0 Flash with advanced Bangla system prompt + Google Cloud TTS REST API
+- Frontend: Enhanced SpeechRecognition + premium MP3 audio + beautiful state animations
+- To enable Neural2 voice: Set GOOGLE_CLOUD_TTS_KEY in Vercel env (base64 service account JSON)
+- Without GOOGLE_CLOUD_TTS_KEY: Snowwe falls back to browser SpeechSynthesis (still works)
+- To enable Gemini brain: Set GEMINI_API_KEY in Vercel env
