@@ -18,6 +18,7 @@ const nextConfig: NextConfig = {
     'sharp',
   ],
 
+  // Production URL: https://pualrms-pu.vercel.app
   allowedDevOrigins: ['*.space.z.ai', '*.z.ai', '*.space-z.ai', '*space-z.ai*', '*space.z.ai*'],
 
   async headers() {
