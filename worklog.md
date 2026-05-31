@@ -80,3 +80,29 @@ Stage Summary:
 - To enable Neural2 voice: Set GOOGLE_CLOUD_TTS_KEY in Vercel env (base64 service account JSON)
 - Without GOOGLE_CLOUD_TTS_KEY: Snowwe falls back to browser SpeechSynthesis (still works)
 - To enable Gemini brain: Set GEMINI_API_KEY in Vercel env
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Full codebase review + critical bug fixes + deploy
+
+Work Log:
+- Comprehensive codebase review: 62 API routes, 26 Prisma models, all auth/AI/voice code
+- Found and fixed CRITICAL BUG in Google Cloud TTS integration:
+  - Route was using `?key=${accessToken}` query param (wrong — accessToken is OAuth token, not API key)
+  - Fixed to use `Authorization: Bearer ${accessToken}` header (correct REST API auth)
+  - This bug caused TTS to ALWAYS fail even with valid credentials
+- Fixed auth.ts: removed `url` property from AuthOptions (not valid in NextAuth v4 types, URL auto-detected from env)
+- Fixed auth.ts: removed custom cookie config that was overriding NextAuth's HTTPS auto-detection
+  - Old code hardcoded cookie name to `next-auth.session-token` (non-secure)
+  - On Vercel HTTPS, NextAuth auto-uses `__Secure-nextauth.session-token` (secure)
+  - Custom config was preventing this auto-detection, potentially breaking login on production
+- ESLint: 0 errors
+- Dev server: running clean, all routes 200
+- Pushed to GitHub, Vercel auto-deploying
+
+Stage Summary:
+- 3 critical fixes applied and deployed
+- TTS now uses correct OAuth Bearer authentication (was using wrong query param before)
+- Auth cookies now properly auto-detect HTTPS for secure cookie names on Vercel
+- Production URL: https://my-project-delta-amber.vercel.app
