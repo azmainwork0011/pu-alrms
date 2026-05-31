@@ -20,3 +20,26 @@ Stage Summary:
 - Google OAuth: Code complete, requires user to set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET
 - Voice Assistant: Fully built (Snowwe component + Gemini AI backend + Web Speech API)
 - All code lint clean, dev server running
+
+---
+Task ID: 1
+Agent: Main Agent
+Task: Fix Google OAuth login, add structured error logging, deploy to Vercel
+
+Work Log:
+- Audited entire Google OAuth stack: auth.ts, AuthPage.tsx, middleware.ts, .env, page.tsx, vercel.json
+- Fixed auth.ts: providers return empty array when Google credentials missing (prevents cryptic errors)
+- Added structured error logging to auth.ts signIn callback with OAuthCallback detection
+- Added detailed console logging of expected callback URL for redirect_uri_mismatch debugging
+- Improved AuthPage.tsx Google login handler with specific error messages for: not configured, redirect_uri_mismatch, access_denied, popup failures
+- Created .env.example with full documentation for all environment variables
+- Set Vercel production env vars: NEXTAUTH_SECRET, JWT_SECRET, NEXTAUTH_URL, NEXT_PUBLIC_APP_URL
+- Deployed to Vercel production: https://my-project-delta-amber.vercel.app
+- Build completed successfully (42s), all 65 routes compiled
+- Lint clean (0 errors)
+
+Stage Summary:
+- Google OAuth will work once GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set in Vercel env vars
+- Expected callback URL: https://my-project-delta-amber.vercel.app/api/auth/callback/google
+- Production URL: https://my-project-delta-amber.vercel.app
+- Remaining: User needs to create Google OAuth credentials in Google Cloud Console and add them to Vercel

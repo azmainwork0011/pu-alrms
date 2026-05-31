@@ -99,21 +99,37 @@ export const authOptions: NextAuthOptions = {
   url: getNextAuthUrl(),
 
   // ── Providers ──
+  // Structured error logging for OAuth debugging.
+  // If GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are missing, the provider
+  // is NOT registered — this prevents Google from returning cryptic errors.
   providers: (() => {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    const baseUrl = getNextAuthUrl();
 
     if (!clientId || !clientSecret) {
-      console.warn(
-        '[NextAuth] GOOGLE_CLIENT_ID or GOOGLE_CLIENT_SECRET not set. ' +
-        'Google sign-in requires both. Set them in .env.local for local dev.'
+      console.error(
+        '[OAuth] ═══ GOOGLE OAUTH NOT CONFIGURED ═══\n' +
+        '[OAuth] GOOGLE_CLIENT_ID is ' + (clientId ? 'SET' : 'MISSING') + '\n' +
+        '[OAuth] GOOGLE_CLIENT_SECRET is ' + (clientSecret ? 'SET' : 'MISSING') + '\n' +
+        '[OAuth] Fix: Add both to .env (local) or Vercel Environment Variables (production)\n' +
+        '[OAuth] Expected callback URL: ' + baseUrl + '/api/auth/callback/google'
       );
+      return []; // No providers — Google button will show "not configured" error
     }
+
+    // Log the expected callback URL for redirect_uri_mismatch debugging
+    console.log(
+      '[OAuth] ✅ Google OAuth configured\n' +
+      '[OAuth] Base URL: ' + baseUrl + '\n' +
+      '[OAuth] Expected redirect URI: ' + baseUrl + '/api/auth/callback/google\n' +
+      '[OAuth] Make sure this exact URL is in Google Cloud Console → Credentials → Authorized redirect URIs'
+    );
 
     return [
       GoogleProvider({
-        clientId: clientId || 'MISSING_CLIENT_ID',
-        clientSecret: clientSecret || 'MISSING_CLIENT_SECRET',
+        clientId,
+        clientSecret,
         authorization: {
           params: {
             prompt: 'select_account',
@@ -129,17 +145,34 @@ export const authOptions: NextAuthOptions = {
     /**
      * signIn callback — validates the user can sign in.
      * Runs before JWT creation.
+     * Structured error logging for each failure point.
      */
-    async signIn({ user, account }) {
+    async signIn({ user, account, error }) {
+      console.log('[OAuth] signIn callback triggered');
+
+      // Log OAuth error if present
+      if (error) {
+        console.error('[OAuth] ❌ OAuth signIn error:', JSON.stringify({ error, provider: account?.provider }));
+        if (error === 'OAuthCallback') {
+          console.error('[OAuth] Possible redirect_uri_mismatch or invalid client credentials');
+          console.error('[OAuth] Check: ' + getNextAuthUrl() + '/api/auth/callback/google matches Google Console');
+        }
+        return '/?error=Callback';
+      }
+
       // Only allow Google provider
-      if (account?.provider !== 'google') return false;
+      if (account?.provider !== 'google') {
+        console.error('[OAuth] ❌ Unsupported provider:', account?.provider);
+        return false;
+      }
 
       // Must have an email
       if (!user.email) {
-        console.error('[NextAuth] Google account has no email');
+        console.error('[OAuth] ❌ Google account has no email');
         return '/?error=NoEmail';
       }
 
+      console.log('[OAuth] ✅ signIn validation passed for:', user.email);
       return true;
     },
 
@@ -225,7 +258,7 @@ export const authOptions: NextAuthOptions = {
           }
         } catch (dbError) {
           // DB might not be available — generate session-only user
-          console.error('[NextAuth] DB error — creating session-only user:', dbError instanceof Error ? dbError.message : dbError);
+          console.error('[OAuth] ⚠️ DB error — creating session-only user:', dbError instanceof Error ? dbError.message : dbError);
           dbUserId = crypto.randomUUID ? crypto.randomUUID() : `google_${googleId.slice(0, 8)}`;
           dbUserRole = getRoleForNewUser(email);
           dbUserAvatar = avatar;
@@ -252,7 +285,7 @@ export const authOptions: NextAuthOptions = {
         token.sub = dbUserId;
         token.error = undefined;
 
-        console.log(`[NextAuth] Google login successful: ${email} (${dbUserRole})`);
+        console.log('[OAuth] ✅ Google login successful:', JSON.stringify({ email, role: dbUserRole, isNewUser }));
       }
 
       return token;

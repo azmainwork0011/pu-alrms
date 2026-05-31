@@ -207,10 +207,20 @@ function AuthPage({ oauthError }: { oauthError?: string | null }) {
     }).catch((err: any) => {
       setGoogleLoading(false);
       const msg = err?.message || err?.error || String(err);
-      if (msg.includes('Providers')) {
-        setError('Google sign-in কনফিগার করা হয়নি।');
+
+      // Structured error messages for common Google OAuth failures
+      if (msg.includes('Providers') || msg.includes('not configured')) {
+        setError('Google sign-in is not configured. The administrator needs to set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.');
+      } else if (msg.includes('redirect_uri_mismatch') || msg.includes('Error 400')) {
+        setError('Google OAuth redirect URI mismatch. The app URL needs to be registered in Google Cloud Console. Contact the administrator.');
+      } else if (msg.includes('access_denied') || msg.includes('Error 403')) {
+        setError('Access denied by Google. The OAuth consent screen may need to be published. Contact the administrator.');
+      } else if (msg.includes('popup') || msg.includes('popup_window')) {
+        // If popup fails, try full redirect
+        window.location.href = '/api/auth/signin/google?callbackUrl=/';
+        return;
       } else {
-        setError('Google sign-in failed. Please try again.');
+        setError('Google sign-in failed. Please try again. (' + msg.slice(0, 80) + ')');
       }
     });
   }, [googleLoading]);
