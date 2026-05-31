@@ -94,9 +94,10 @@ function getRoleForNewUser(email: string): string {
 // ─── NextAuth Configuration ─────────────────────────────────
 export const authOptions: NextAuthOptions = {
   // ── URL ──
-  // CRITICAL: Must match the domain where the app is hosted.
-  // Vercel auto-sets VERCEL_URL. Local dev uses localhost:3000.
-  url: getNextAuthUrl(),
+  // Auto-detected from NEXTAUTH_URL env var or VERCEL_URL.
+  // Local dev: http://localhost:3000
+  // Production on Vercel: https://your-domain.vercel.app
+  // Ensure NEXTAUTH_URL matches your Google Cloud Console authorized redirect URI base.
 
   // ── Providers ──
   // Structured error logging for OAuth debugging.
@@ -336,41 +337,10 @@ export const authOptions: NextAuthOptions = {
   debug: process.env.NODE_ENV === 'development',
 
   // ── Cookies ──
-  // REMOVED custom cookie config. Let NextAuth handle cookies automatically.
-  // NextAuth v4 correctly sets:
-  // - httpOnly: true
-  // - sameSite: 'lax'
-  // - secure: true on HTTPS (auto-detected)
-  // - Correct cookie name (next-auth.session-token vs __Secure-nextauth.session-token)
-  // Custom config was causing silent cookie rejection in some browsers.
-  cookies: {
-    sessionToken: {
-      name: `next-auth.session-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        // secure: true is set automatically when NEXTAUTH_URL starts with https://
-        secure: getNextAuthUrl().startsWith('https://'),
-      },
-    },
-    callbackUrl: {
-      name: `next-auth.callback-url`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: getNextAuthUrl().startsWith('https://'),
-      },
-    },
-    csrfToken: {
-      name: `next-auth.csrf-token`,
-      options: {
-        httpOnly: true,
-        sameSite: 'lax',
-        path: '/',
-        secure: getNextAuthUrl().startsWith('https://'),
-      },
-    },
-  },
+  // Let NextAuth handle cookies automatically:
+  // - httpOnly: true (always)
+  // - sameSite: 'lax' (always)
+  // - secure: true on HTTPS (auto-detected from NEXTAUTH_URL or request protocol)
+  // - Cookie name: __Secure-nextauth.session-token on HTTPS, next-auth.session-token on HTTP
+  // Custom cookie config was previously causing silent cookie rejection in some browsers.
 };
