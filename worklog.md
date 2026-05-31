@@ -105,4 +105,25 @@ Stage Summary:
 - 3 critical fixes applied and deployed
 - TTS now uses correct OAuth Bearer authentication (was using wrong query param before)
 - Auth cookies now properly auto-detect HTTPS for secure cookie names on Vercel
-- Production URL: https://my-project-delta-amber.vercel.app
+
+---
+Task ID: 4
+Agent: Main Agent
+Task: Vercel project rename to pualrms-pu + env var configuration + redeploy
+
+Work Log:
+- Installed Vercel CLI v54.6.1 globally
+- Verified all 3 env vars already set on Vercel (GEMINI_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET for production/preview/development)
+- Renamed Vercel project from `my-project` to `pualrms-pu` via Vercel REST API
+- Updated NEXTAUTH_URL and NEXT_PUBLIC_APP_URL to `https://pualrms-pu.vercel.app` for production and preview
+- Added new production domain `pualrms-pu.vercel.app` via Vercel API
+- Removed old production domain `my-project-delta-amber.vercel.app`
+- Pushed commit to GitHub to trigger Vercel auto-deploy
+- Deployment dpl_56iycxokn1nwGTAPg1iCG4UhCRd5 built and deployed successfully (READY)
+- Verified site live: HTTP 200 at https://pualrms-pu.vercel.app
+
+Stage Summary:
+- Production URL: https://pualrms-pu.vercel.app (LIVE, HTTP 200)
+- All 7 env vars configured: GEMINI_API_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET (prod/preview/dev) + NEXTAUTH_SECRET, JWT_SECRET, NEXTAUTH_URL, NEXT_PUBLIC_APP_URL (prod/preview)
+- ⚠️ IMPORTANT: User must update Google Cloud Console OAuth redirect URI to: https://pualrms-pu.vercel.app/api/auth/callback/google
+- Optional: GOOGLE_CLOUD_TTS_KEY for Neural2 premium voice (currently falls back to browser SpeechSynthesis)
